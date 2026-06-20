@@ -56,3 +56,16 @@ export function extractJsonArray(text: string): unknown[] {
     return [];
   }
 }
+
+/** Pull the first JSON object out of a model response, tolerating prose around it. */
+export function extractJsonObject(text: string): Record<string, unknown> | null {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end === -1 || end < start) return null;
+  try {
+    const parsed = JSON.parse(text.slice(start, end + 1));
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
