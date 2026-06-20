@@ -9,6 +9,7 @@ import { captureHandled, withSpan } from "@/lib/observability/sentry";
 import { retrieveMemories } from "@/lib/brain";
 import { partitionFindings } from "@/lib/runtime/quality";
 import { buildAnalyzePrompt } from "@/lib/runtime/prompts";
+import { complete, auditModel, extractJsonArray } from "@/lib/llm/anthropic";
 import { discoverPages } from "./discover";
 import { renderPage } from "./browserbase";
 
@@ -61,7 +62,10 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
         await publishAuditEvent(runId, "page.rendered", {
           url,
           status: evidence.status,
-          screenshotUrl: evidence.screenshotUrl,
+          // Keep the (potentially large) screenshot data URI out of the stream;
+          // findings reference it directly. TODO: upload to object storage and
+          // emit a stable URL instead.
+          hasScreenshot: Boolean(evidence.screenshotUrl),
         });
 
         await publishAuditEvent(runId, "page.analyzing", { url });
@@ -115,11 +119,13 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
 }
 
 /**
- * Analyze one rendered page against brain context.
+ * Analyze one rendered page against brain context. Calls the audit model with
+ * buildAnalyzePrompt and parses JSON findings; when no API key is configured it
+ * falls back to a deterministic comparison so the pipeline still runs.
  *
- * TODO: call the audit model (KALI_AUDIT_MODEL) with buildAnalyzePrompt and
- * parse JSON findings. The deterministic stub below derives a couple of
- * grounded findings so the pipeline, evals, and gates run without a model.
+ * Every model finding is grounded before it is kept: if it cites a quote that
+ * does not appear in the page text, the quote is dropped so the quality gate
+ * filters it as ungrounded rather than trusting a hallucinated citation.
  */
 async function analyzePage(
   page: RenderedPageEvidence,
@@ -127,39 +133,101 @@ async function analyzePage(
   runId: string
 ): Promise<AuditFinding[]> {
   return traced(SPAN.analyzePage, { "page.url": page.url }, async () => {
-    const _prompt = buildAnalyzePrompt(page, brain);
-    const findings: AuditFinding[] = [];
+    const prompt = buildAnalyzePrompt(page, brain);
+    const raw = await complete({
+      model: auditModel(),
+      system: "You are a precise website auditor. Output only a JSON array of findings.",
+      prompt,
+      maxTokens: 3000,
+    });
 
-    // Heuristic 1: internal program mentioned in brain but absent from page.
-    for (const mem of brain) {
-      for (const entity of mem.entities) {
-        if (entity.length > 4 && !page.text.toLowerCase().includes(entity.toLowerCase())) {
-          findings.push({
-            id: crypto.randomUUID(),
-            runId,
-            pageUrl: page.url,
-            title: `Page does not mention "${entity}"`,
-            category: "missing_public_explanation",
-            severity: "medium",
-            confidence: 0.7,
-            evidence: { quote: page.title, sourceType: "comparison" },
-            reasoning: `The internal brain references "${entity}" but this page never explains it.`,
-            businessImpact: "Visitors and AI search engines cannot learn that the organization offers this.",
-            recommendedFix: `Add a clear section or page describing "${entity}".`,
-            sourceComparison: {
-              internalClaim: mem.summary ?? mem.content,
-              externalClaim: "(absent from page)",
-              internalSourceId: mem.id,
-              externalSourceUrl: page.url,
-            },
-          });
-          break;
-        }
-      }
+    if (raw === null) {
+      // No model configured: deterministic internal-vs-external comparison.
+      return heuristicFindings(page, brain, runId);
     }
 
-    return findings.slice(0, 3);
+    const parsed = extractJsonArray(raw);
+    return parsed
+      .map((item) => coerceFinding(item, page, runId))
+      .filter((f): f is AuditFinding => f !== null)
+      .slice(0, 5);
   });
+}
+
+/** Map a loosely-typed model object onto a grounded AuditFinding. */
+function coerceFinding(
+  item: unknown,
+  page: RenderedPageEvidence,
+  runId: string
+): AuditFinding | null {
+  if (!item || typeof item !== "object") return null;
+  const o = item as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+
+  const title = str(o.title);
+  if (!title) return null;
+
+  const quote = str(o.quote || (o.evidence as Record<string, unknown>)?.quote);
+  // Grounding check: only keep a quote that actually appears on the page.
+  const groundedQuote = quote && page.text.includes(quote) ? quote : undefined;
+
+  const severity: AuditFinding["severity"] =
+    o.severity === "high" || o.severity === "low" ? o.severity : "medium";
+
+  return {
+    id: crypto.randomUUID(),
+    runId,
+    pageUrl: page.url,
+    title,
+    category: (str(o.category) || "missing_public_explanation") as AuditFinding["category"],
+    severity,
+    confidence: typeof o.confidence === "number" ? o.confidence : 0.6,
+    evidence: {
+      quote: groundedQuote,
+      selector: str((o.evidence as Record<string, unknown>)?.selector) || undefined,
+      screenshotUrl: page.screenshotUrl,
+      sourceType: groundedQuote ? "browser" : "comparison",
+    },
+    reasoning: str(o.reasoning),
+    businessImpact: str(o.businessImpact || o.business_impact),
+    recommendedFix: str(o.recommendedFix || o.recommended_fix),
+  };
+}
+
+/** Deterministic fallback: internal program present in brain but absent from page. */
+function heuristicFindings(
+  page: RenderedPageEvidence,
+  brain: Awaited<ReturnType<typeof retrieveMemories>>,
+  runId: string
+): AuditFinding[] {
+  const findings: AuditFinding[] = [];
+  for (const mem of brain) {
+    for (const entity of mem.entities) {
+      if (entity.length > 4 && !page.text.toLowerCase().includes(entity.toLowerCase())) {
+        findings.push({
+          id: crypto.randomUUID(),
+          runId,
+          pageUrl: page.url,
+          title: `Page does not mention "${entity}"`,
+          category: "missing_public_explanation",
+          severity: "medium",
+          confidence: 0.7,
+          evidence: { quote: page.title, sourceType: "comparison" },
+          reasoning: `The internal brain references "${entity}" but this page never explains it.`,
+          businessImpact: "Visitors and AI search engines cannot learn that the organization offers this.",
+          recommendedFix: `Add a clear section or page describing "${entity}".`,
+          sourceComparison: {
+            internalClaim: mem.summary ?? mem.content,
+            externalClaim: "(absent from page)",
+            internalSourceId: mem.id,
+            externalSourceUrl: page.url,
+          },
+        });
+        break;
+      }
+    }
+  }
+  return findings.slice(0, 3);
 }
 
 async function synthesize(

@@ -1,6 +1,7 @@
 import type { Intent, KaliEmployee } from "@/lib/types";
 import { publishAuditEvent } from "@/lib/redis";
 import { retrieveMemories } from "@/lib/brain";
+import { complete, chatModel } from "@/lib/llm/anthropic";
 import { classifyIntent, extractUrl } from "./intent";
 import { checkPermission } from "./permissions";
 
@@ -54,9 +55,11 @@ export async function runEmployee(input: RuntimeInput): Promise<RuntimeResult> {
 
   const detectedUrl = extractUrl(text) ?? input.pinnedUrl ?? null;
 
-  // TODO: synthesize the final response with KALI_CHAT_MODEL, grounded in
-  // `context`. For now return a deterministic, source-aware acknowledgement.
-  const message = draftMessage(intent, context.length, detectedUrl);
+  // Synthesize the final response with the chat model, grounded in retrieved
+  // memories. Falls back to a deterministic acknowledgement with no API key.
+  const message =
+    (await synthesizeReply(employee, text, context)) ??
+    draftMessage(intent, context.length, detectedUrl);
 
   await publishEmployee(employee.id, "employee.response_completed", { intent });
 
@@ -67,6 +70,27 @@ export async function runEmployee(input: RuntimeInput): Promise<RuntimeResult> {
     detectedUrl,
     message,
   };
+}
+
+/**
+ * Answer the user grounded in retrieved company memories, in the employee's
+ * tone. Returns null when no model is configured so the caller can fall back.
+ */
+async function synthesizeReply(
+  employee: KaliEmployee,
+  text: string,
+  context: Awaited<ReturnType<typeof retrieveMemories>>
+): Promise<string | null> {
+  const memos = context
+    .map((m) => `- [${m.sourceType}] ${m.title}: ${m.summary ?? m.content}`)
+    .join("\n");
+
+  return complete({
+    model: chatModel(),
+    system: `You are ${employee.name}, an AI ${employee.role.replace("_", " ")}. Tone: ${employee.tone}. Answer only from the company memory provided. Cite the source titles you used. If the memory does not cover it, say so plainly.`,
+    prompt: `COMPANY MEMORY:\n${memos || "(none retrieved)"}\n\nUSER:\n${text}`,
+    maxTokens: 800,
+  });
 }
 
 function draftMessage(intent: Intent, contextCount: number, url: string | null): string {
