@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { UrlChip } from "./UrlChip";
+import { VoiceButton } from "./VoiceButton";
 
 const URL_RE = /https?:\/\/[^\s]+/i;
 
@@ -12,9 +13,13 @@ const URL_RE = /https?:\/\/[^\s]+/i;
 export function ChatBar({
   onSend,
   disabled,
+  voiceEnabled = false,
+  voiceClientUrl = null,
 }: {
   onSend: (text: string, url: string | null) => void;
   disabled?: boolean;
+  voiceEnabled?: boolean;
+  voiceClientUrl?: string | null;
 }) {
   const [value, setValue] = useState("");
   const detectedUrl = value.match(URL_RE)?.[0] ?? null;
@@ -43,6 +48,7 @@ export function ChatBar({
         >
           Send
         </button>
+        <VoiceButton enabled={voiceEnabled} clientUrl={voiceClientUrl} />
       </div>
     </div>
   );

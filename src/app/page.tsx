@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChatBar } from "@/components/ChatBar";
 import { LiveLogs } from "@/components/LiveLogs";
 import { FindingsPanel } from "@/components/FindingsPanel";
 import { DebugDrawer } from "@/components/DebugDrawer";
+import { AsciiBlossoms } from "@/components/AsciiBlossoms";
 import type { AuditReport } from "@/lib/types";
 import type { PublishedEvent } from "@/lib/redis/publisher";
+import type { BackendSettings } from "@/lib/debug/status";
 
 type Message = { role: "user" | "kali"; text: string };
 
@@ -17,6 +19,14 @@ export default function Home() {
   const [report, setReport] = useState<AuditReport | null>(null);
   const [active, setActive] = useState(false);
   const [logsOpen, setLogsOpen] = useState(true);
+  const [settings, setSettings] = useState<BackendSettings | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => setSettings(data))
+      .catch(() => setSettings(null));
+  }, []);
 
   async function handleSend(text: string, url: string | null) {
     setMessages((m) => [...m, { role: "user", text }]);
@@ -72,11 +82,12 @@ export default function Home() {
   }
 
   return (
-    <main className="mx-auto flex h-screen max-w-6xl gap-4 p-4">
-      <section className="flex flex-1 flex-col gap-4">
+    <main className="relative mx-auto flex min-h-screen max-w-6xl flex-col gap-4 p-4 lg:h-screen lg:flex-row">
+      <AsciiBlossoms />
+      <section className="relative z-10 flex min-h-[58vh] flex-1 flex-col gap-4 lg:min-h-0">
         <header className="flex items-center justify-between">
           <h1 className="text-lg font-semibold tracking-tight">Kali</h1>
-          <span className="text-xs text-neutral-600">Live Audit Employee</span>
+          <span className="text-xs text-neutral-600">Live audit employee</span>
         </header>
 
         <div className="flex-1 space-y-3 overflow-y-auto">
@@ -90,16 +101,23 @@ export default function Home() {
           <FindingsPanel report={report} />
         </div>
 
-        <ChatBar onSend={handleSend} disabled={active} />
+        <ChatBar
+          onSend={handleSend}
+          disabled={active}
+          voiceEnabled={Boolean(settings?.voice)}
+          voiceClientUrl={settings?.voiceClientUrl ?? null}
+        />
       </section>
 
-      <LiveLogs
-        events={events}
-        counters={counters}
-        active={active}
-        open={logsOpen}
-        onToggle={() => setLogsOpen((o) => !o)}
-      />
+      <div className="relative z-10 flex h-[42vh] w-full shrink-0 lg:h-full lg:w-auto">
+        <LiveLogs
+          events={events}
+          counters={counters}
+          active={active}
+          open={logsOpen}
+          onToggle={() => setLogsOpen((o) => !o)}
+        />
+      </div>
 
       <DebugDrawer />
     </main>

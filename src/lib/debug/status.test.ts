@@ -3,6 +3,7 @@ import {
   summarizeBackends,
   isDemoReady,
   liveCount,
+  summarizeReadiness,
   type BackendSettings,
 } from "./status";
 
@@ -14,6 +15,9 @@ function settings(overrides: Partial<BackendSettings> = {}): BackendSettings {
     phoenix: false,
     sentry: false,
     voice: false,
+    voiceClientUrl: null,
+    voiceDecision: "Moshi should be self-hosted behind a websocket endpoint before voice is enabled.",
+    voiceNextAction: "Provision a Moshi server.",
     chatModel: null,
     auditModel: null,
     ...overrides,
@@ -53,5 +57,37 @@ describe("liveCount", () => {
   it("counts live rows out of total", () => {
     const rows = summarizeBackends(settings({ redis: true, brain: true }));
     expect(liveCount(rows)).toEqual({ live: 2, total: 6 });
+  });
+});
+
+describe("summarizeReadiness", () => {
+  it("reports fallback mode until redis and browserbase are live", () => {
+    const summary = summarizeReadiness(settings({ sentry: true, phoenix: true }));
+    expect(summary.tone).toBe("fallback");
+    expect(summary.label).toBe("Fallback mode");
+    expect(summary.nextAction).toContain("Redis");
+  });
+
+  it("reports demo spine live when redis and browserbase are configured", () => {
+    const summary = summarizeReadiness(settings({ redis: true, browserbase: true }));
+    expect(summary.tone).toBe("demo");
+    expect(summary.label).toBe("Demo spine live");
+    expect(summary.items.find((item) => item.label === "Live audit spine")?.live).toBe(true);
+  });
+
+  it("reports production wired when every backend is live", () => {
+    const summary = summarizeReadiness(
+      settings({
+        redis: true,
+        browserbase: true,
+        brain: true,
+        phoenix: true,
+        sentry: true,
+        voice: true,
+      })
+    );
+
+    expect(summary.tone).toBe("production");
+    expect(summary.score).toBe(100);
   });
 });

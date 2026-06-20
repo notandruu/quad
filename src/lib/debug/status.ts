@@ -9,6 +9,9 @@ export type BackendSettings = {
   phoenix: boolean;
   sentry: boolean;
   voice: boolean;
+  voiceClientUrl: string | null;
+  voiceDecision: string;
+  voiceNextAction: string;
   chatModel: string | null;
   auditModel: string | null;
 };
@@ -32,10 +35,26 @@ export type BackendRow = {
   sponsor?: string;
 };
 
+export type ReadinessTone = "production" | "demo" | "fallback";
+
+export type ReadinessItem = {
+  label: string;
+  live: boolean;
+  detail: string;
+};
+
+export type ReadinessSummary = {
+  label: string;
+  tone: ReadinessTone;
+  score: number;
+  nextAction: string;
+  items: ReadinessItem[];
+};
+
 const ROWS: Omit<BackendRow, "live">[] = [
   {
     key: "redis",
-    label: "Redis Streams",
+    label: "Redis streams",
     category: "Live spine",
     fallback: "Events stream inline; no cross-refresh replay.",
     sponsor: "Redis",
@@ -93,4 +112,79 @@ export function isDemoReady(settings: BackendSettings): boolean {
 
 export function liveCount(rows: BackendRow[]): { live: number; total: number } {
   return { live: rows.filter((r) => r.live).length, total: rows.length };
+}
+
+/**
+ * Product readiness summary for the debug drawer. This answers what the team
+ * can honestly demo or claim in production from the currently wired backends.
+ */
+export function summarizeReadiness(settings: BackendSettings): ReadinessSummary {
+  const items: ReadinessItem[] = [
+    {
+      label: "Live audit spine",
+      live: settings.redis && settings.browserbase,
+      detail: settings.redis && settings.browserbase
+        ? "Events replay and rendered browser evidence are live."
+        : "Needs Redis Streams and Browserbase for the strongest demo.",
+    },
+    {
+      label: "Durable company brain",
+      live: settings.brain,
+      detail: settings.brain
+        ? "Postgres + pgvector is configured."
+        : "Using in-memory BrightPath seed data.",
+    },
+    {
+      label: "Quality telemetry",
+      live: settings.phoenix,
+      detail: settings.phoenix
+        ? "Phoenix can receive LLM and tool traces."
+        : "Evals run locally, but traces are not exported.",
+    },
+    {
+      label: "Reliability telemetry",
+      live: settings.sentry,
+      detail: settings.sentry
+        ? "Sentry can capture route, worker, and tool failures."
+        : "Sentry spans run as no-ops.",
+    },
+    {
+      label: "Voice transport",
+      live: settings.voice,
+      detail: settings.voice
+        ? "Moshi endpoint configured."
+        : "Voice is disabled; text flow remains available.",
+    },
+  ];
+
+  const live = items.filter((item) => item.live).length;
+  const score = Math.round((live / items.length) * 100);
+
+  if (items.every((item) => item.live)) {
+    return {
+      label: "Production wired",
+      tone: "production",
+      score,
+      nextAction: "Run a real customer audit and verify traces in Sentry and Phoenix.",
+      items,
+    };
+  }
+
+  if (settings.redis && settings.browserbase) {
+    return {
+      label: "Demo spine live",
+      tone: "demo",
+      score,
+      nextAction: "Wire Sentry and Phoenix before pitching this as production-grade.",
+      items,
+    };
+  }
+
+  return {
+    label: "Fallback mode",
+    tone: "fallback",
+    score,
+    nextAction: "Provision Redis and Browserbase first; they prove the core audit loop.",
+    items,
+  };
 }

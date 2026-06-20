@@ -5,14 +5,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#0a0a0b",
-        panel: "#121214",
-        edge: "#1f1f23",
-        accent: "#6ee7b7",
+        ink: "#fff8fb",
+        panel: "#fff0f6",
+        edge: "#f4b8cf",
+        accent: "#c21f63",
       },
       keyframes: {
         "fade-in": {
-          from: { opacity: "0", transform: "translateY(4px)" },
+          from: { opacity: "0", transform: "translateY(6px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
         glow: {
