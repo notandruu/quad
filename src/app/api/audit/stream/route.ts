@@ -3,6 +3,7 @@ import { runAudit } from "@/lib/tools/auditAnalyzer";
 import { replayAuditEvents } from "@/lib/redis";
 import { getEmployee } from "@/lib/employees";
 import { DEMO_ORG_ID } from "@/data/seed";
+import { cacheReport } from "@/lib/runtime/reportCache";
 
 export const runtime = "nodejs";
 // Audits can run longer than the default serverless budget.
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
         // The worker publishes to Redis; we poll the stream and forward new
         // events so the client sees them live. Kept simple for the scaffold.
         const report = await runAudit({ orgId, runId, targetUrl, limit });
+        cacheReport(report);
         const events = await replayAuditEvents(runId);
         for (const e of events) send(e);
         send({ type: "audit.report", report });

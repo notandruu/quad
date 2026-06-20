@@ -39,7 +39,14 @@ export default function Home() {
 
     const res = await fetch("/api/chat", {
       method: "POST",
-      body: JSON.stringify({ text, pinnedUrl: url, hasActiveAudit: Boolean(report) }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        pinnedUrl: url,
+        hasActiveAudit: Boolean(report),
+        runId: report?.runId ?? undefined,
+        orgId: report?.orgId ?? undefined,
+      }),
     });
     const data = await res.json();
     setMessages((m) => [...m, { role: "kali", text: data.message }]);

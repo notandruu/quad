@@ -8,6 +8,7 @@ import { retrieveMemories } from "@/lib/brain";
 import { complete, chatModel } from "@/lib/llm/anthropic";
 import { buildAuditChatSystemPrompt } from "@/lib/runtime/prompts";
 import type { AuditReport } from "@/lib/types";
+import { getCachedReport } from "@/lib/runtime/reportCache";
 
 export const runtime = "nodejs";
 
@@ -87,13 +88,15 @@ async function auditGroundedChat(
 }
 
 async function loadReport(runId: string): Promise<AuditReport | null> {
+  // Try Redis first, fall back to in-memory process cache.
   const redis = getRedis();
-  if (!redis) return null;
-  try {
-    const raw = await redis.get<string>(metaKeys.auditRun(`${runId}:report`));
-    if (!raw) return null;
-    return JSON.parse(raw) as AuditReport;
-  } catch {
-    return null;
+  if (redis) {
+    try {
+      const raw = await redis.get<string>(metaKeys.auditRun(`${runId}:report`));
+      if (raw) return JSON.parse(raw) as AuditReport;
+    } catch {
+      // Redis read failed — fall through to in-memory.
+    }
   }
+  return getCachedReport(runId);
 }
