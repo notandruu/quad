@@ -34,7 +34,9 @@ export async function publishAuditEvent(
   const len = await redis.xlen(key);
   const event: PublishedEvent = { type, payload, sequence: len, createdAt };
 
-  await redis.xadd(key, "*", { data: JSON.stringify(event) });
+  // Store as plain object — Upstash serializes/deserializes JSON field values
+  // automatically, so xrange returns the object directly without JSON.parse.
+  await redis.xadd(key, "*", { data: event as unknown as string });
   await redis.expire(key, eventTtlSeconds());
 
   return event;

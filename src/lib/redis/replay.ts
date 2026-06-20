@@ -23,9 +23,12 @@ export async function replayAuditEvents(
 
   const events: PublishedEvent[] = [];
   for (const fields of Object.values(entries)) {
-    if (!fields?.data) continue;
+    const raw = fields?.data;
+    if (raw == null) continue;
     try {
-      events.push(JSON.parse(fields.data) as PublishedEvent);
+      // Upstash auto-parses JSON field values, so raw may already be an object.
+      const event = typeof raw === "string" ? JSON.parse(raw) : raw;
+      events.push(event as PublishedEvent);
     } catch {
       // Skip malformed entries rather than breaking replay.
     }
