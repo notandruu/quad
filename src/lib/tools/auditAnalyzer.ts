@@ -57,7 +57,7 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
       await publishAuditEvent(runId, "page.queued", { url });
       try {
         await publishAuditEvent(runId, "page.rendering", { url });
-        const evidence = await renderPage(url);
+        const evidence = await renderPage(url, runId);
         evidenceByUrl.set(url, evidence);
         await bumpCounter(runId, "pagesFetched");
         await publishAuditEvent(runId, "page.rendered", {

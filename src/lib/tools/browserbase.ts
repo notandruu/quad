@@ -1,6 +1,7 @@
 import type { RenderedPageEvidence } from "@/lib/types";
 import { traced, SPAN } from "@/lib/observability/phoenix";
 import { captureHandled } from "@/lib/observability/sentry";
+import { uploadScreenshot } from "@/lib/storage/screenshots";
 import { fetchPageEvidence } from "./fetchPage";
 
 function isConfigured(): boolean {
@@ -12,15 +13,13 @@ function isConfigured(): boolean {
 /**
  * Render a page in a Browserbase cloud browser and extract structured
  * evidence: visible text, headings, links, buttons, images, forms, plus a
- * screenshot. Falls back to static fetch when Browserbase is unavailable or
- * the render fails, so the audit never hard-stops on one page.
- *
- * The Browserbase render body is left as a TODO: connect the SDK + a
- * Playwright/Stagehand session and fill in `extractEvidence`. The fallback
- * path is fully wired so the pipeline runs today.
+ * screenshot uploaded to Supabase Storage (data-URI fallback when storage
+ * is not configured). Falls back to static fetch if Browserbase is absent
+ * or the session fails, so the audit never hard-stops on one page.
  */
 export async function renderPage(
-  url: string
+  url: string,
+  runId = "local"
 ): Promise<RenderedPageEvidence> {
   return traced(SPAN.renderPage, { "page.url": url, "render.engine": isConfigured() ? "browserbase" : "static" }, async () => {
     if (!isConfigured()) {
@@ -28,10 +27,9 @@ export async function renderPage(
     }
 
     try {
-      return await renderWithBrowserbase(url);
+      return await renderWithBrowserbase(url, runId);
     } catch (err) {
       captureHandled(err, { toolName: "browserbase.render_page" });
-      // Degrade to static fetch but keep the URL so findings stay grounded.
       return fetchPageEvidence(url);
     }
   });
@@ -42,7 +40,7 @@ export async function renderPage(
  * extract structured evidence and a screenshot. Each call uses a fresh session
  * and tears it down in a finally block so we never leak browser minutes.
  */
-async function renderWithBrowserbase(url: string): Promise<RenderedPageEvidence> {
+async function renderWithBrowserbase(url: string, runId: string): Promise<RenderedPageEvidence> {
   const { Browserbase } = await import("@browserbasehq/sdk");
   const { chromium } = await import("playwright-core");
 
@@ -102,7 +100,11 @@ async function renderWithBrowserbase(url: string): Promise<RenderedPageEvidence>
     });
 
     const shot = await page.screenshot({ type: "png", fullPage: false });
-    const screenshotUrl = `data:image/png;base64,${shot.toString("base64")}`;
+    // Upload to Supabase Storage for a permanent public URL. Falls back to a
+    // data URI when storage is not configured so local dev still works.
+    const screenshotUrl = await uploadScreenshot(shot, runId, url).catch(() =>
+      `data:image/png;base64,${shot.toString("base64")}`
+    );
 
     return {
       url,
