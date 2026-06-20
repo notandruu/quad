@@ -1,2 +1,79 @@
-# quad
-ai hackathon berkeley 2026
+# Kali
+
+> An AI employee that audits a company's website against its company brain, streams the work live, and turns every gap into an approved fix.
+
+AI Hackathon, Berkeley 2026.
+
+Kali is not a chatbot. It is a company-aware AI employee with memory, browser-grounded work, live execution logs, quality evaluation, production observability, and a path to natural voice conversation.
+
+## What it does
+
+1. Learns the company from docs, meetings, notes, and website pages (the company brain).
+2. Audits the public website with real browser evidence.
+3. Streams every action live through Redis, and replays it on refresh.
+4. Compares what the company internally knows against what the website explains.
+5. Gates out low-quality findings before they reach the user.
+6. Turns findings into source-backed fixes, FAQs, tasks, and Slack drafts, with approval first.
+
+## Stack
+
+| Concern | Tool |
+| --- | --- |
+| App | Next.js 14 (App Router), TypeScript, Tailwind |
+| Live event spine | Redis Streams (Upstash REST) |
+| Durable company brain | Postgres + pgvector |
+| Browser-grounded audits | Browserbase (static fetch fallback) |
+| Reasoning + synthesis | Anthropic Claude |
+| LLM tracing + evals | Arize Phoenix (OpenTelemetry) |
+| Reliability | Sentry |
+| Voice (future) | Kyutai Moshi |
+
+## Architecture
+
+```
+src/
+  app/
+    api/            chat, audit/stream, audit/events/[runId], ingest, sessions, settings
+    page.tsx        chat + live logs + findings UI
+  components/       ChatBar, UrlChip, LiveLogs, FindingsPanel, FindingCard, ApprovalButtons
+  lib/
+    types/          core data contracts (brain, employee, tool, audit, voice, runtime)
+    redis/          client, keys, events, publisher, replay, counters
+    brain/          pgvector schema, embeddings, retrieve, ingest, in-memory store
+    tools/          discover, browserbase render, audit worker, action drafts, registry
+    runtime/        intent, permissions, quality gates, audit prompts, employee loop
+    observability/  Sentry spans, Phoenix tracing, finding evals
+    voice/          Moshi voice session scaffold
+  data/seed/        demo org (BrightPath) company brain
+```
+
+The audit worker (`src/lib/tools/auditAnalyzer.ts`) discovers pages, renders each through Browserbase, analyzes against the brain, evaluates and gates findings, then synthesizes a report. Every step emits a real Redis event and counter, so the live log is never faked.
+
+## Getting started
+
+```bash
+npm install
+cp .env.example .env.local   # fill in keys; the app degrades gracefully without them
+npm run dev
+```
+
+With no env keys set, the app still runs: Redis falls back to in-stream events, the brain falls back to the seeded demo org, and Browserbase falls back to static fetch. Wire the keys in `.env.local` to make each layer real.
+
+To enable the durable brain, point `DATABASE_URL` at Postgres and run `src/lib/brain/schema.sql`.
+
+## What is stubbed
+
+The scaffold runs end to end with deterministic placeholders where a model or
+external session is needed. Search for `TODO` to find the seams:
+
+- `tools/browserbase.ts` -> real Browserbase render + screenshot
+- `tools/auditAnalyzer.ts` -> model-driven page analysis
+- `brain/embeddings.ts` -> real embeddings call
+- `runtime/runtime.ts` -> model-driven response synthesis
+- `voice/moshi.ts` -> Moshi websocket transport
+
+## Demo org
+
+Seeded with **BrightPath**, a youth nonprofit whose internal brain lists three
+programs while its website only explains one. That gap drives the headline
+audit moment: "Your internal brain says X, but your website only says Y."

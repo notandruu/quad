@@ -1,13 +1,123 @@
+"use client";
+
+import { useState } from "react";
+import { ChatBar } from "@/components/ChatBar";
+import { LiveLogs } from "@/components/LiveLogs";
+import { FindingsPanel } from "@/components/FindingsPanel";
+import type { AuditReport } from "@/lib/types";
+import type { PublishedEvent } from "@/lib/redis/publisher";
+
+type Message = { role: "user" | "kali"; text: string };
+
 export default function Home() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [events, setEvents] = useState<PublishedEvent[]>([]);
+  const [counters, setCounters] = useState<Record<string, number>>({});
+  const [report, setReport] = useState<AuditReport | null>(null);
+  const [active, setActive] = useState(false);
+  const [logsOpen, setLogsOpen] = useState(true);
+
+  async function handleSend(text: string, url: string | null) {
+    setMessages((m) => [...m, { role: "user", text }]);
+
+    const wantsAudit = /audit|crawl|scan/i.test(text) && url;
+    if (wantsAudit) {
+      await startAudit(url!);
+      return;
+    }
+
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      body: JSON.stringify({ text, pinnedUrl: url, hasActiveAudit: Boolean(report) }),
+    });
+    const data = await res.json();
+    setMessages((m) => [...m, { role: "kali", text: data.message }]);
+  }
+
+  async function startAudit(targetUrl: string) {
+    setActive(true);
+    setEvents([]);
+    setReport(null);
+    const res = await fetch("/api/audit/stream", {
+      method: "POST",
+      body: JSON.stringify({ targetUrl }),
+    });
+    if (!res.body) {
+      setActive(false);
+      return;
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const chunks = buffer.split("\n\n");
+      buffer = chunks.pop() ?? "";
+      for (const chunk of chunks) {
+        const line = chunk.replace(/^data: /, "").trim();
+        if (!line) continue;
+        const evt = JSON.parse(line);
+        if (evt.type === "audit.report") {
+          setReport(evt.report);
+        } else if (typeof evt.sequence === "number") {
+          setEvents((e) => [...e, evt]);
+          tallyCounters(evt, setCounters);
+        }
+      }
+    }
+    setActive(false);
+  }
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center gap-4 p-8 text-center">
-      <h1 className="text-3xl font-semibold tracking-tight">Kali</h1>
-      <p className="max-w-xl text-sm text-neutral-400">
-        A company-aware AI employee. It learns the company brain, audits the
-        public website with real browser evidence, streams every action live,
-        and turns gaps into approved work.
-      </p>
-      <p className="text-xs text-neutral-600">Scaffold in progress.</p>
+    <main className="mx-auto flex h-screen max-w-6xl gap-4 p-4">
+      <section className="flex flex-1 flex-col gap-4">
+        <header className="flex items-center justify-between">
+          <h1 className="text-lg font-semibold tracking-tight">Kali</h1>
+          <span className="text-xs text-neutral-600">Live Audit Employee</span>
+        </header>
+
+        <div className="flex-1 space-y-3 overflow-y-auto">
+          {messages.map((m, i) => (
+            <div key={i} className={m.role === "user" ? "text-right" : ""}>
+              <span className="inline-block rounded-lg bg-panel px-3 py-2 text-sm text-neutral-200">
+                {m.text}
+              </span>
+            </div>
+          ))}
+          <FindingsPanel report={report} />
+        </div>
+
+        <ChatBar onSend={handleSend} disabled={active} />
+      </section>
+
+      <LiveLogs
+        events={events}
+        counters={counters}
+        active={active}
+        open={logsOpen}
+        onToggle={() => setLogsOpen((o) => !o)}
+      />
     </main>
   );
+}
+
+function tallyCounters(
+  evt: PublishedEvent,
+  setCounters: React.Dispatch<React.SetStateAction<Record<string, number>>>
+) {
+  const map: Record<string, string> = {
+    "audit.pages_discovered": "pagesDiscovered",
+    "page.rendered": "pagesFetched",
+    "page.analyzed": "pagesAnalyzed",
+    "finding.created": "findingsCreated",
+  };
+  const key = map[evt.type];
+  if (!key) return;
+  const inc =
+    evt.type === "audit.pages_discovered"
+      ? Number((evt.payload as { count?: number }).count ?? 0)
+      : 1;
+  setCounters((c) => ({ ...c, [key]: (c[key] ?? 0) + inc }));
 }
