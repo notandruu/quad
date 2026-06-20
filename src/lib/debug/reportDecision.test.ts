@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AuditFinding, AuditReport } from "@/lib/types";
-import { summarizeDecisionQueue } from "./reportDecision";
+import { buildAuditBrief, summarizeDecisionQueue } from "./reportDecision";
 
 function finding(overrides: Partial<AuditFinding> = {}): AuditFinding {
   return {
@@ -103,6 +103,29 @@ describe("summarizeDecisionQueue", () => {
       label: "No findings ready",
       nextAction: "Run a broader audit or add more company-brain sources.",
       tone: "empty",
+    });
+  });
+});
+
+describe("buildAuditBrief", () => {
+  it("builds a copyable operator brief for the current audit", () => {
+    expect(buildAuditBrief(report([finding()]))).toEqual({
+      headline: "Approval queue ready: 1/1 ready",
+      lines: [
+        "Target: https://example.org/",
+        "Findings: 1 total, 1 ready, 0 need review",
+        "Average proof: 99/100",
+        "Next: Approve or edit the drafted fixes.",
+        "Top proof: missing proof (99/100)",
+      ],
+      copyText: [
+        "Approval queue ready: 1/1 ready",
+        "Target: https://example.org/",
+        "Findings: 1 total, 1 ready, 0 need review",
+        "Average proof: 99/100",
+        "Next: Approve or edit the drafted fixes.",
+        "Top proof: missing proof (99/100)",
+      ].join("\n"),
     });
   });
 });

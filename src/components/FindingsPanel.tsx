@@ -1,7 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import type { AuditReport } from "@/lib/types";
-import { summarizeDecisionQueue, type DecisionSummary } from "@/lib/debug/reportDecision";
+import {
+  buildAuditBrief,
+  summarizeDecisionQueue,
+  type AuditBrief,
+  type DecisionSummary,
+} from "@/lib/debug/reportDecision";
 import { FindingCard } from "./FindingCard";
 
 /** Findings list. Only grounded, gated findings reach this panel. */
@@ -15,6 +21,7 @@ export function FindingsPanel({ report }: { report: AuditReport | null }) {
   }
 
   const decision = summarizeDecisionQueue(report);
+  const brief = buildAuditBrief(report);
 
   return (
     <div className="space-y-3">
@@ -25,9 +32,50 @@ export function FindingsPanel({ report }: { report: AuditReport | null }) {
         </span>
       </div>
       <DecisionStrip decision={decision} />
+      <AuditBriefCard brief={brief} />
       {report.topFindings.map((f) => (
         <FindingCard key={f.id} finding={f} />
       ))}
+    </div>
+  );
+}
+
+function AuditBriefCard({ brief }: { brief: AuditBrief }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyBrief() {
+    if (!navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(brief.copyText);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1400);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-edge bg-panel p-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-medium text-neutral-100">Audit brief</div>
+          <div className="mt-1 text-xs text-neutral-500">{brief.headline}</div>
+        </div>
+        <button
+          type="button"
+          onClick={copyBrief}
+          className="rounded-md border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent transition hover:border-accent/60"
+        >
+          {copied ? "Copied" : "Copy brief"}
+        </button>
+      </div>
+      <div className="mt-3 grid gap-2 text-[11px] text-neutral-400 sm:grid-cols-2">
+        {brief.lines.map((line) => (
+          <div key={line} className="rounded border border-edge bg-ink/50 px-2 py-1.5">
+            {line}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

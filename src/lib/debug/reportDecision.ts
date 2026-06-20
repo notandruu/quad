@@ -11,6 +11,12 @@ export type DecisionSummary = {
   tone: "ready" | "review" | "empty";
 };
 
+export type AuditBrief = {
+  headline: string;
+  lines: string[];
+  copyText: string;
+};
+
 export function summarizeDecisionQueue(report: AuditReport): DecisionSummary {
   const findings = report.topFindings;
 
@@ -53,5 +59,32 @@ export function summarizeDecisionQueue(report: AuditReport): DecisionSummary {
     label: "Approval queue ready",
     nextAction: "Approve or edit the drafted fixes.",
     tone: "ready",
+  };
+}
+
+export function buildAuditBrief(report: AuditReport): AuditBrief {
+  const decision = summarizeDecisionQueue(report);
+  const headline = `${decision.label}: ${decision.ready}/${decision.total} ready`;
+  const strongestFinding = report.topFindings
+    .map((finding) => ({ finding, view: buildEvidenceView(finding) }))
+    .sort((a, b) => b.view.proofScore - a.view.proofScore)[0];
+
+  const lines = [
+    `Target: ${report.targetUrl}`,
+    `Findings: ${decision.total} total, ${decision.ready} ready, ${decision.needsReview} need review`,
+    `Average proof: ${decision.averageProofScore}/100`,
+    `Next: ${decision.nextAction}`,
+  ];
+
+  if (strongestFinding) {
+    lines.push(
+      `Top proof: ${strongestFinding.finding.title} (${strongestFinding.view.proofScore}/100)`
+    );
+  }
+
+  return {
+    headline,
+    lines,
+    copyText: [headline, ...lines].join("\n"),
   };
 }

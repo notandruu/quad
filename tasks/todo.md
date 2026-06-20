@@ -78,3 +78,4 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [x] add live eval/trace affordance for Arize Phoenix once real tracing payloads are wired
 - [x] add proof-aware approval gating so weak or risky findings require review before approval
 - [x] document how Quad maps to eve without forcing a rewrite during the demo push
+- [x] add a copyable audit brief for sharing run state with teammates, judges, or a durable agent session
