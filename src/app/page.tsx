@@ -11,6 +11,7 @@ import type { PublishedEvent } from "@/lib/redis/publisher";
 import type { BackendSettings } from "@/lib/debug/status";
 
 type Message = { role: "user" | "kali"; text: string };
+type DemoState = "idle" | "loading" | "done";
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -20,6 +21,7 @@ export default function Home() {
   const [active, setActive] = useState(false);
   const [logsOpen, setLogsOpen] = useState(true);
   const [settings, setSettings] = useState<BackendSettings | null>(null);
+  const [demoState, setDemoState] = useState<DemoState>("idle");
 
   useEffect(() => {
     fetch("/api/settings", { cache: "no-store" })
@@ -27,6 +29,38 @@ export default function Home() {
       .then((data) => setSettings(data))
       .catch(() => setSettings(null));
   }, []);
+
+  async function handleLoadDemo() {
+    if (demoState === "loading" || active) return;
+    setDemoState("loading");
+    setMessages([]);
+    setEvents([]);
+    setReport(null);
+    setCounters({});
+
+    try {
+      const res = await fetch("/api/demo/reset", { method: "POST" });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error ?? "reset failed");
+
+      setDemoState("done");
+      setMessages([
+        {
+          role: "kali",
+          text: `BrightPath brain loaded (${json.memoriesLoaded} memories). Auditing their public site now...`,
+        },
+      ]);
+
+      const demoUrl = `${window.location.origin}/demo`;
+      await startAudit(demoUrl, "org_brightpath");
+    } catch (err) {
+      setDemoState("idle");
+      setMessages((m) => [
+        ...m,
+        { role: "kali", text: `Demo reset failed: ${err instanceof Error ? err.message : String(err)}` },
+      ]);
+    }
+  }
 
   async function handleSend(text: string, url: string | null) {
     setMessages((m) => [...m, { role: "user", text }]);
@@ -52,13 +86,14 @@ export default function Home() {
     setMessages((m) => [...m, { role: "kali", text: data.message }]);
   }
 
-  async function startAudit(targetUrl: string) {
+  async function startAudit(targetUrl: string, orgId?: string) {
     setActive(true);
     setEvents([]);
     setReport(null);
     const res = await fetch("/api/audit/stream", {
       method: "POST",
-      body: JSON.stringify({ targetUrl }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetUrl, ...(orgId ? { orgId } : {}) }),
     });
     if (!res.body) {
       setActive(false);
@@ -94,7 +129,17 @@ export default function Home() {
       <section className="relative z-10 flex min-h-[58vh] flex-1 flex-col gap-4 lg:min-h-0">
         <header className="flex items-center justify-between">
           <h1 className="text-lg font-semibold tracking-tight">Kali</h1>
-          <span className="text-xs text-neutral-600">Live audit employee</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleLoadDemo}
+              disabled={demoState === "loading" || active}
+              className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-medium text-accent hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+              title="Seed BrightPath brain and run a live demo audit"
+            >
+              {demoState === "loading" ? "Loading..." : "Load Demo"}
+            </button>
+            <span className="text-xs text-neutral-600">Live audit employee</span>
+          </div>
         </header>
 
         <div className="flex-1 space-y-3 overflow-y-auto">
