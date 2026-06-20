@@ -3,24 +3,49 @@ import { traced, SPAN } from "@/lib/observability/phoenix";
 export const EMBEDDING_DIM = 1536;
 
 /**
- * Create an embedding for a chunk of text.
- *
- * TODO: call OpenAI text-embedding-3-small (or Gemini) here. For now this
- * returns a deterministic pseudo-embedding so retrieval can be exercised
- * locally without an API key. Do not ship the fallback to production.
+ * Embed text using OpenAI text-embedding-3-small (1536-dim, fast, cheap).
+ * Falls back to a deterministic pseudo-embedding when no API key is set so
+ * retrieval still works in local dev. Do not ship the pseudo-embed to prod.
  */
 export async function embed(text: string): Promise<number[]> {
-  return traced(SPAN.embeddingCreate, { "text.length": text.length }, async () => {
+  return traced(SPAN.embeddingCreate, { "text.length": text.length }, async (span) => {
     if (process.env.OPENAI_API_KEY) {
-      // Replace with a real embeddings call.
-      // const res = await openai.embeddings.create({ model: "text-embedding-3-small", input: text });
-      // return res.data[0].embedding;
+      const res = await fetch("https://api.openai.com/v1/embeddings", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "text-embedding-3-small",
+          input: text.slice(0, 8000), // model max is 8191 tokens
+          dimensions: EMBEDDING_DIM,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.text().catch(() => res.statusText);
+        throw new Error(`Embeddings API error ${res.status}: ${err}`);
+      }
+
+      const data = (await res.json()) as {
+        data: Array<{ embedding: number[] }>;
+        usage: { total_tokens: number };
+      };
+      span.setAttribute("embedding.tokens", data.usage.total_tokens);
+      return data.data[0].embedding;
     }
+
+    span.setAttribute("embedding.mode", "pseudo");
     return pseudoEmbedding(text);
   });
 }
 
-/** Hash-based deterministic vector. Stable for the same input, dev only. */
+/**
+ * Hash-based deterministic unit vector. Stable across runs for the same input,
+ * dimensionally correct, and cosine-similar inputs cluster loosely — good
+ * enough to exercise retrieval paths without an API key. Dev only.
+ */
 function pseudoEmbedding(text: string): number[] {
   const vec = new Array<number>(EMBEDDING_DIM).fill(0);
   for (let i = 0; i < text.length; i++) {
@@ -35,4 +60,8 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   let dot = 0;
   for (let i = 0; i < a.length && i < b.length; i++) dot += a[i] * b[i];
   return dot;
+}
+
+export function isEmbeddingConfigured(): boolean {
+  return Boolean(process.env.OPENAI_API_KEY);
 }

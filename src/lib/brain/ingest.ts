@@ -1,6 +1,6 @@
 import type { BrainMemory, SourceType, BrainEvidence } from "@/lib/types";
 import { traced, SPAN } from "@/lib/observability/phoenix";
-import { getPool } from "./db";
+import { getPool, ensureSchema } from "./db";
 import { embed } from "./embeddings";
 import { addMemory } from "./store";
 
@@ -23,6 +23,7 @@ export type IngestInput = {
  */
 export async function ingestMemory(input: IngestInput): Promise<BrainMemory> {
   return traced(SPAN.memoryWrite, { "org.id": input.orgId, "source.type": input.sourceType }, async () => {
+    await ensureSchema();
     const now = new Date().toISOString();
     const embedding = await embed(`${input.title}\n${input.content}`);
 
