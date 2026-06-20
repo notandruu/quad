@@ -55,8 +55,11 @@ function contradictsCurrentDate(finding: AuditFinding, today: Date): boolean {
     Number.parseInt(m[1], 10)
   );
   if (years.length === 0) return false;
-  // If the finding only talks about the current or future years, it is wrong.
-  return years.every((y) => y >= year);
+  // A legitimate stale-date finding points at a year OLDER than now. If the
+  // most recent year the finding references is the current year or later, it is
+  // treating current/future content as outdated (the ESPN failure mode), even
+  // when it also suggests downgrading to an older year.
+  return Math.max(...years) >= year;
 }
 
 export function partitionFindings(findings: AuditFinding[], today = new Date()) {

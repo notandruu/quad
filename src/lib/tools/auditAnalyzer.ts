@@ -1,14 +1,15 @@
 import type {
   AuditFinding,
   AuditReport,
+  RecommendedAction,
   RenderedPageEvidence,
 } from "@/lib/types";
-import { publishAuditEvent, bumpCounter, writeRunMeta } from "@/lib/redis";
+import { publishAuditEvent, bumpCounter, writeRunMeta, getRedis, metaKeys, eventTtlSeconds } from "@/lib/redis";
 import { traced, SPAN, evaluateFinding } from "@/lib/observability";
 import { captureHandled, withSpan } from "@/lib/observability/sentry";
 import { retrieveMemories } from "@/lib/brain";
 import { partitionFindings } from "@/lib/runtime/quality";
-import { buildAnalyzePrompt } from "@/lib/runtime/prompts";
+import { buildAnalyzePrompt, buildSynthesisPrompt } from "@/lib/runtime/prompts";
 import { complete, auditModel, extractJsonArray } from "@/lib/llm/anthropic";
 import { discoverPages } from "./discover";
 import { renderPage } from "./browserbase";
@@ -56,7 +57,7 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
       await publishAuditEvent(runId, "page.queued", { url });
       try {
         await publishAuditEvent(runId, "page.rendering", { url });
-        const evidence = await renderPage(url);
+        const evidence = await renderPage(url, runId);
         evidenceByUrl.set(url, evidence);
         await bumpCounter(runId, "pagesFetched");
         await publishAuditEvent(runId, "page.rendered", {
@@ -248,14 +249,34 @@ async function synthesize(
         ? shown.reduce((s, f) => s + f.confidence, 0) / shown.length
         : 0;
 
-    return {
+    // Pull brain context for the synthesis summary.
+    const brainContext = await retrieveMemories({ orgId, query: targetUrl, limit: 4 });
+    const brainSummary = brainContext
+      .map((m) => `${m.title}: ${m.summary ?? m.content.slice(0, 200)}`)
+      .join(" | ");
+
+    // Ask the model for an executive summary grounded in the findings.
+    const summaryText =
+      (await complete({
+        model: auditModel(),
+        system: "You are a concise, company-aware AI employee. Output only plain text.",
+        prompt: buildSynthesisPrompt(targetUrl, shown, brainSummary),
+        maxTokens: 300,
+      })) ??
+      `Found ${shown.length} grounded issues across ${evidenceByUrl.size} pages. ${filtered.length} low-quality findings were filtered out.`;
+
+    // Derive recommended actions from the top findings. One action per
+    // unique category so the list stays actionable, not overwhelming.
+    const actions = deriveActions(top);
+
+    const report: AuditReport = {
       runId,
       orgId,
       targetUrl,
-      summary: `Found ${shown.length} grounded issues across ${evidenceByUrl.size} pages. ${filtered.length} low-quality findings were filtered out.`,
+      summary: summaryText,
       topFindings: top,
       allFindings: shown,
-      recommendedActions: [],
+      recommendedActions: actions,
       metrics: {
         pagesAnalyzed: evidenceByUrl.size,
         findingsShown: shown.length,
@@ -263,7 +284,51 @@ async function synthesize(
         averageConfidence: Number(avg.toFixed(2)),
       },
     };
+
+    // Persist the full report in Redis so post-audit chat can load it by runId.
+    const redis = getRedis();
+    if (redis) {
+      await redis.set(
+        metaKeys.auditRun(`${runId}:report`),
+        JSON.stringify(report),
+        { ex: eventTtlSeconds() }
+      );
+    }
+
+    return report;
   });
+}
+
+/** Derive one RecommendedAction per unique finding category (max 5). */
+function deriveActions(findings: AuditFinding[]): RecommendedAction[] {
+  const seen = new Set<string>();
+  const actions: RecommendedAction[] = [];
+
+  for (const f of findings) {
+    if (seen.has(f.category)) continue;
+    seen.add(f.category);
+
+    const type = categoryToActionType(f.category);
+    actions.push({
+      id: crypto.randomUUID(),
+      type,
+      title: f.title,
+      description: f.recommendedFix,
+      input: { findingId: f.id, pageUrl: f.pageUrl, fix: f.recommendedFix },
+      requiresApproval: true,
+    });
+
+    if (actions.length >= 5) break;
+  }
+
+  return actions;
+}
+
+function categoryToActionType(category: string): RecommendedAction["type"] {
+  if (category === "missing_faq") return "draft_faq";
+  if (category === "thin_page" || category === "missing_public_explanation") return "draft_page";
+  if (category === "internal_external_mismatch") return "save_memory";
+  return "create_task";
 }
 
 function severityRank(f: AuditFinding): number {

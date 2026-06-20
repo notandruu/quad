@@ -1,10 +1,7 @@
 import type { BrainMemory, BrainScope } from "@/lib/types";
-import {
-  INTERNAL_SOURCE_TYPES,
-  EXTERNAL_SOURCE_TYPES,
-} from "@/lib/types";
+import { INTERNAL_SOURCE_TYPES, EXTERNAL_SOURCE_TYPES } from "@/lib/types";
 import { traced, SPAN } from "@/lib/observability/phoenix";
-import { getPool } from "./db";
+import { getClient } from "./db";
 import { embed, cosineSimilarity } from "./embeddings";
 import { seedMemories } from "./store";
 
@@ -16,9 +13,9 @@ export type RetrieveOptions = {
 };
 
 /**
- * Retrieve the most relevant company memories for a query. Uses pgvector when
- * a database is configured, otherwise ranks the in-memory seed store so the
- * demo runs without Postgres.
+ * Retrieve the most relevant company memories for a query. Uses pgvector via
+ * Supabase RPC when configured, otherwise ranks the in-memory seed store so
+ * the demo runs without any database.
  */
 export async function retrieveMemories(
   opts: RetrieveOptions
@@ -27,22 +24,19 @@ export async function retrieveMemories(
 
   return traced(SPAN.brainRetrieve, { "org.id": orgId, scope: scope ?? "all", limit }, async () => {
     const queryEmbedding = await embed(query);
-    const pool = getPool();
+    const db = getClient();
 
-    if (pool) {
+    if (db) {
       const types = scopeToTypes(scope);
-      const typeFilter = types ? "AND source_type = ANY($3)" : "";
-      const params: unknown[] = [orgId, vectorLiteral(queryEmbedding)];
-      if (types) params.push(types);
+      const { data, error } = await db.rpc("match_memories", {
+        query_embedding: `[${queryEmbedding.join(",")}]`,
+        org_id: orgId,
+        source_types: types ?? null,
+        match_count: limit,
+      });
 
-      const { rows } = await pool.query(
-        `SELECT * FROM brain_memory
-         WHERE org_id = $1 ${typeFilter}
-         ORDER BY embedding <=> $2
-         LIMIT ${limit}`,
-        params
-      );
-      return rows.map(rowToMemory);
+      if (error) throw new Error(`Brain retrieve failed: ${error.message}`);
+      return (data ?? []).map(rowToMemory);
     }
 
     // In-memory fallback over seed data.
@@ -57,14 +51,10 @@ export async function retrieveMemories(
   });
 }
 
-function scopeToTypes(scope?: BrainScope) {
-  if (scope === "internal") return INTERNAL_SOURCE_TYPES;
-  if (scope === "external") return EXTERNAL_SOURCE_TYPES;
+function scopeToTypes(scope?: BrainScope): string[] | null {
+  if (scope === "internal") return [...INTERNAL_SOURCE_TYPES];
+  if (scope === "external") return [...EXTERNAL_SOURCE_TYPES];
   return null;
-}
-
-function vectorLiteral(v: number[]): string {
-  return `[${v.join(",")}]`;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

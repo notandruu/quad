@@ -1,19 +1,34 @@
-import { Pool } from "pg";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-let pool: Pool | null = null;
+let client: SupabaseClient | null = null;
 
-/**
- * Lazily create a Postgres pool. Returns null when DATABASE_URL is unset so
- * the app can run against in-memory seed data during early development.
- */
-export function getPool(): Pool | null {
-  if (pool) return pool;
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) return null;
-  pool = new Pool({ connectionString, max: 5 });
-  return pool;
+export function getClient(): SupabaseClient | null {
+  if (client) return client;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY;
+  if (!url || !key) return null;
+  client = createClient(url, key, { auth: { persistSession: false } });
+  return client;
 }
 
 export function isBrainConfigured(): boolean {
-  return Boolean(process.env.DATABASE_URL);
+  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY);
+}
+
+// Schema is applied via MCP at project setup — no runtime migration needed.
+export async function ensureSchema(): Promise<void> {
+  return;
+}
+
+export async function pingBrain(): Promise<{ ok: boolean; latencyMs?: number }> {
+  const db = getClient();
+  if (!db) return { ok: false };
+  const start = Date.now();
+  try {
+    const { error } = await db.from("brain_memory").select("id").limit(1);
+    if (error) return { ok: false };
+    return { ok: true, latencyMs: Date.now() - start };
+  } catch {
+    return { ok: false };
+  }
 }

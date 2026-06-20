@@ -21,6 +21,7 @@
     "@opentelemetry/sdk-trace-node": "^1.25.0",
     "@opentelemetry/semantic-conventions": "^1.25.0",
     "@sentry/nextjs": "^8.20.0",
+    "@supabase/supabase-js": "^2.108.2",
     "@upstash/redis": "^1.34.0",
     "next": "^14.2.35",
     "pg": "^8.12.0",
