@@ -1,6 +1,6 @@
 import type { BrainMemory, SourceType, BrainEvidence } from "@/lib/types";
 import { traced, SPAN } from "@/lib/observability/phoenix";
-import { getPool, ensureSchema } from "./db";
+import { getClient, ensureSchema } from "./db";
 import { embed } from "./embeddings";
 import { addMemory } from "./store";
 
@@ -19,7 +19,7 @@ export type IngestInput = {
 
 /**
  * Persist a new memory into the company brain: embed the content, then write
- * to pgvector (or the in-memory seed store as a fallback).
+ * to Supabase (or the in-memory seed store as a fallback).
  */
 export async function ingestMemory(input: IngestInput): Promise<BrainMemory> {
   return traced(SPAN.memoryWrite, { "org.id": input.orgId, "source.type": input.sourceType }, async () => {
@@ -44,28 +44,23 @@ export async function ingestMemory(input: IngestInput): Promise<BrainMemory> {
       evidence: input.evidence ?? [],
     };
 
-    const pool = getPool();
-    if (pool) {
-      await pool.query(
-        `INSERT INTO brain_memory
-          (id, org_id, source_id, source_type, title, content, summary,
-           entities, embedding, confidence, permissions, evidence)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-        [
-          memory.id,
-          memory.orgId,
-          memory.sourceId,
-          memory.sourceType,
-          memory.title,
-          memory.content,
-          memory.summary ?? null,
-          memory.entities,
-          `[${embedding.join(",")}]`,
-          memory.confidence,
-          memory.permissions,
-          JSON.stringify(memory.evidence),
-        ]
-      );
+    const db = getClient();
+    if (db) {
+      const { error } = await db.from("brain_memory").insert({
+        id: memory.id,
+        org_id: memory.orgId,
+        source_id: memory.sourceId,
+        source_type: memory.sourceType,
+        title: memory.title,
+        content: memory.content,
+        summary: memory.summary ?? null,
+        entities: memory.entities,
+        embedding: `[${embedding.join(",")}]`,
+        confidence: memory.confidence,
+        permissions: memory.permissions,
+        evidence: memory.evidence,
+      });
+      if (error) throw new Error(`Brain ingest failed: ${error.message}`);
     } else {
       addMemory(memory);
     }
