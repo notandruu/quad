@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import { runAudit } from "@/lib/tools/auditAnalyzer";
-import { replayAuditEvents } from "@/lib/redis";
 import { getEmployee } from "@/lib/employees";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { cacheReport } from "@/lib/runtime/reportCache";
@@ -38,12 +37,16 @@ export async function POST(req: NextRequest) {
       send({ type: "run.created", runId, targetUrl });
 
       try {
-        // The worker publishes to Redis; we poll the stream and forward new
-        // events so the client sees them live. Kept simple for the scaffold.
-        const report = await runAudit({ orgId, runId, targetUrl, limit });
+        // Pass onEvent so every published event is forwarded to the SSE
+        // client immediately as it happens rather than replayed at the end.
+        const report = await runAudit({
+          orgId,
+          runId,
+          targetUrl,
+          limit,
+          onEvent: (e) => send(e),
+        });
         cacheReport(report);
-        const events = await replayAuditEvents(runId);
-        for (const e of events) send(e);
         send({ type: "audit.report", report });
       } catch (err) {
         send({ type: "audit.failed", error: err instanceof Error ? err.message : String(err) });

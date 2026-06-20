@@ -5,6 +5,7 @@ import type {
   RenderedPageEvidence,
 } from "@/lib/types";
 import { publishAuditEvent, bumpCounter, writeRunMeta, getRedis, metaKeys, eventTtlSeconds } from "@/lib/redis";
+import type { PublishedEvent } from "@/lib/redis";
 import { traced, SPAN, evaluateFinding } from "@/lib/observability";
 import { captureHandled, withSpan } from "@/lib/observability/sentry";
 import { retrieveMemories } from "@/lib/brain";
@@ -19,6 +20,7 @@ export type RunAuditInput = {
   runId: string;
   targetUrl: string;
   limit?: number;
+  onEvent?: (event: PublishedEvent) => void;
 };
 
 /**
@@ -29,6 +31,13 @@ export type RunAuditInput = {
  */
 export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
   const { orgId, runId, targetUrl, limit = 12 } = input;
+
+  // Local emit: publishes to Redis and immediately forwards to the SSE
+  // caller via onEvent so the client sees events as they happen.
+  const emit = async (type: string, payload: Record<string, unknown> = {}) => {
+    const event = await publishAuditEvent(runId, type, payload);
+    if (event && input.onEvent) input.onEvent(event);
+  };
 
   return withSpan("audit.run", { orgId, runId, auditLimit: limit }, async () => {
     await writeRunMeta({
@@ -43,24 +52,24 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
       findingsCount: 0,
       startedAt: new Date().toISOString(),
     });
-    await publishAuditEvent(runId, "audit.started", { targetUrl, limit });
+    await emit("audit.started", { targetUrl, limit });
 
     const pages = await discoverPages(targetUrl, limit);
     await bumpCounter(runId, "pagesDiscovered", pages.length);
-    await publishAuditEvent(runId, "audit.pages_discovered", { count: pages.length });
+    await emit("audit.pages_discovered", { count: pages.length });
 
     const rawFindings: AuditFinding[] = [];
     const evidenceByUrl = new Map<string, RenderedPageEvidence>();
     const seenTitles = new Set<string>();
 
     for (const url of pages) {
-      await publishAuditEvent(runId, "page.queued", { url });
+      await emit("page.queued", { url });
       try {
-        await publishAuditEvent(runId, "page.rendering", { url });
+        await emit("page.rendering", { url });
         const evidence = await renderPage(url, runId);
         evidenceByUrl.set(url, evidence);
         await bumpCounter(runId, "pagesFetched");
-        await publishAuditEvent(runId, "page.rendered", {
+        await emit("page.rendered", {
           url,
           status: evidence.status,
           // Keep the (potentially large) screenshot data URI out of the stream;
@@ -69,7 +78,7 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
           hasScreenshot: Boolean(evidence.screenshotUrl),
         });
 
-        await publishAuditEvent(runId, "page.analyzing", { url });
+        await emit("page.analyzing", { url });
         const brain = await retrieveMemories({ orgId, query: evidence.text.slice(0, 500), scope: "internal" });
         const findings = await analyzePage(evidence, brain, runId);
 
@@ -78,23 +87,23 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
           seenTitles.add(f.title.toLowerCase());
           rawFindings.push(f);
           await bumpCounter(runId, "findingsCreated");
-          await publishAuditEvent(runId, "finding.created", { id: f.id, title: f.title });
-          await publishAuditEvent(runId, "finding.evaluated", { id: f.id, eval: f.eval });
+          await emit("finding.created", { id: f.id, title: f.title });
+          await emit("finding.evaluated", { id: f.id, eval: f.eval });
         }
 
         await bumpCounter(runId, "pagesAnalyzed");
-        await publishAuditEvent(runId, "page.analyzed", { url, findings: findings.length });
+        await emit("page.analyzed", { url, findings: findings.length });
       } catch (err) {
         await bumpCounter(runId, "failures");
         captureHandled(err, { runId, orgId, toolName: "audit.page" });
-        await publishAuditEvent(runId, "page.failed", {
+        await emit("page.failed", {
           url,
           error: err instanceof Error ? err.message : String(err),
         });
       }
     }
 
-    await publishAuditEvent(runId, "audit.synthesizing", {});
+    await emit("audit.synthesizing", {});
     const report = await synthesize(runId, orgId, targetUrl, rawFindings, evidenceByUrl);
 
     await writeRunMeta({
@@ -110,7 +119,7 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
       startedAt: report.runId ? new Date().toISOString() : new Date().toISOString(),
       completedAt: new Date().toISOString(),
     });
-    await publishAuditEvent(runId, "audit.complete", {
+    await emit("audit.complete", {
       findingsShown: report.metrics.findingsShown,
       findingsFiltered: report.metrics.findingsFiltered,
     });
