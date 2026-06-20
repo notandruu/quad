@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChatBar } from "@/components/ChatBar";
 import { LiveLogs } from "@/components/LiveLogs";
 import { FindingsPanel } from "@/components/FindingsPanel";
+import { DebugDrawer } from "@/components/DebugDrawer";
 import type { AuditReport } from "@/lib/types";
 import type { PublishedEvent } from "@/lib/redis/publisher";
 
@@ -99,6 +100,8 @@ export default function Home() {
         open={logsOpen}
         onToggle={() => setLogsOpen((o) => !o)}
       />
+
+      <DebugDrawer />
     </main>
   );
 }
