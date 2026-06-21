@@ -2,7 +2,7 @@
 
 import Reveal from "@/components/Reveal";
 import HoverText from "@/components/HoverText";
-import { MonoLabel, CountUp } from "@/components/ui";
+import { MonoLabel } from "@/components/ui";
 
 const SITE = ["Platform", "Security", "Customers", "Docs", "Blog", "Changelog"];
 const SOCIAL = ["LinkedIn", "X", "GitHub", "YouTube", "Discord", "Email"];
@@ -119,12 +119,6 @@ export default function Footer() {
                 <div className="text-[20px] font-semibold uppercase tracking-wide">Active</div>
                 <span className="text-[13px] text-ink/70">Employee Status</span>
               </div>
-              <div>
-                <div className="tnum text-[20px] font-semibold">
-                  <CountUp value={12745012} />
-                </div>
-                <span className="text-[13px] text-ink/70">Answers Verified</span>
-              </div>
             </div>
             <div className="md:col-span-1 md:col-start-3">
               <p className="font-mono text-[13px] leading-relaxed text-ink/80">
@@ -136,7 +130,7 @@ export default function Footer() {
           </div>
 
           {/* logo lockup — four-shape mark + Didone wordmark with halftone dissolve */}
-          <div
+          <Reveal
             className="flex select-none items-center gap-[0.1em] py-10"
             style={{ fontSize: "clamp(96px, 23vw, 360px)" }}
           >
@@ -182,7 +176,7 @@ export default function Footer() {
                 Quad
               </span>
             </div>
-          </div>
+          </Reveal>
 
           {/* legal bar */}
           <div className="flex flex-wrap items-center justify-between gap-4 border-t border-ink/20 py-6 text-[13px] text-ink/80">

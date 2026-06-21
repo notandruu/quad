@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, type ElementType, type ReactNode } from "react";
+import { useRef, useEffect, type CSSProperties, type ElementType, type ReactNode } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -16,6 +16,7 @@ type RevealProps = {
   y?: number;
   blur?: boolean;
   once?: boolean;
+  style?: CSSProperties;
 };
 
 /**
@@ -32,6 +33,7 @@ export default function Reveal({
   y = 30,
   blur = true,
   once = true,
+  style,
 }: RevealProps) {
   const ref = useRef<HTMLElement>(null);
 
@@ -70,7 +72,7 @@ export default function Reveal({
 
   const Tag2 = Tag as ElementType;
   return (
-    <Tag2 ref={ref as never} className={className}>
+    <Tag2 ref={ref as never} className={className} style={style}>
       {children}
     </Tag2>
   );
