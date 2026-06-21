@@ -405,6 +405,12 @@ Shipped v7:
 - the dashboard e2e proves an approved execute flow surfaces `browserbase.write_browser` field-fill, screenshot, and pause-before-submit evidence.
 - the visible demo now shows governed browser work happening in the same task stream as approvals, receipts, and connector execution.
 
+Shipped v8:
+
+- operator artifacts now include a booth-safe outcome summary derived from connector execution, browser action, and verification artifacts.
+- connector executions surface controlled Browserbase evidence, before/after screen-capture hashes, field value hashes, target selector, submit state, rollback step, verifier requirements, and open obligations without exposing raw customer answers.
+- the dashboard e2e proves an approved execute flow visibly shows the outcome summary, not-submitted pause state, before/after captures, verifier, and human-review obligation.
+
 ## Gap 4: post-ship verification
 
 Status: shipped v2.

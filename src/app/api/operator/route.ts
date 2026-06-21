@@ -80,7 +80,7 @@ export async function GET(request: Request) {
     runs,
     shipTrails,
     pendingApprovals,
-    artifacts: buildOperatorArtifacts(runs, pendingApprovals),
+    artifacts: buildOperatorArtifacts(snapshots, pendingApprovals),
     capabilities: {
       active: capabilities.activeTools.slice(0, 10),
       blocked: capabilities.installed
@@ -153,9 +153,42 @@ type OperatorApprovalSummary = {
   targetUrl: string | null;
 };
 
-function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorApprovalSummary[]) {
-  const stagedArtifacts = runs.flatMap((run) =>
-    run.artifacts
+type OperatorArtifactOutcome = {
+  summary: string;
+  status: "drafted" | "executed" | "paused" | "verified" | "blocked";
+  submitted: boolean | null;
+  target: {
+    connectorId: string;
+    destination: string;
+    selector: string | null;
+    url: string | null;
+  };
+  evidence: Array<{
+    label: string;
+    storageMode: string;
+    hash: string;
+    storageKey: string | null;
+    sourceUrl: string | null;
+  }>;
+  fields: Array<{
+    label: string;
+    selector: string;
+    valueHash: string;
+  }>;
+  rollback: string[];
+  verifier: {
+    required: boolean;
+    name: string;
+    checks: string[];
+  };
+  openObligations: string[];
+};
+
+type OperatorSnapshot = Awaited<ReturnType<typeof listRunSnapshots>>[number];
+
+function buildOperatorArtifacts(snapshots: OperatorSnapshot[], approvals: OperatorApprovalSummary[]) {
+  const stagedArtifacts = snapshots.flatMap((snapshot) =>
+    snapshot.artifacts
       .filter((artifact) =>
         artifact.kind === "cms_draft" ||
         artifact.kind === "task_draft" ||
@@ -166,19 +199,20 @@ function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorA
       .slice(-3)
       .reverse()
       .map((artifact) => {
-        const receipt = run.receipts.find((item) => item.artifactHash === artifact.hash);
+        const receipt = snapshot.receipts.find((item) => item.artifactHash === artifact.hash);
         const connector = summarizeConnectorDraft(artifact.kind);
 
         return {
           id: `artifact_${artifact.id}`,
-          runId: run.runId,
+          runId: snapshot.run.id,
           artifactId: artifact.id,
-          href: `/api/runs/${run.runId}/artifacts/${artifact.id}`,
-          runHref: `/api/runs/${run.runId}`,
+          href: `/api/runs/${snapshot.run.id}/artifacts/${artifact.id}`,
+          runHref: `/api/runs/${snapshot.run.id}`,
           title: artifact.title,
           kind: artifact.kind,
           status: receipt?.status ?? "ready",
           headline: connector.headline,
+          outcome: buildArtifactOutcome(artifact, snapshot.artifacts),
           preview: {
             label: connector.label,
             primaryMetric: connector.primaryMetric,
@@ -199,20 +233,22 @@ function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorA
       })
   );
 
-  const runArtifacts = runs.slice(0, 3).map((run) => {
-    const readyReceipts = run.receipts.filter((receipt) => receipt.status === "ready").length;
-    const blockedReceipts = run.receipts.filter((receipt) => receipt.status === "blocked").length;
+  const runArtifacts = snapshots.slice(0, 3).map((snapshot) => {
+    const run = summarizeAgentTask(snapshot);
+    const readyReceipts = snapshot.receipts.filter((receipt) => receipt.status === "ready").length;
+    const blockedReceipts = snapshot.receipts.filter((receipt) => receipt.status === "blocked").length;
 
     return {
-      id: `artifact_${run.runId}`,
-      runId: run.runId,
+      id: `artifact_${snapshot.run.id}`,
+      runId: snapshot.run.id,
       artifactId: null,
-      href: `/api/runs/${run.runId}`,
-      runHref: `/api/runs/${run.runId}`,
-      title: run.title,
+      href: `/api/runs/${snapshot.run.id}`,
+      runHref: `/api/runs/${snapshot.run.id}`,
+      title: snapshot.run.title,
       kind: "run_snapshot",
-      status: run.status,
+      status: snapshot.run.status,
       headline: run.nextAction,
+      outcome: null,
       preview: {
         label: "Run artifact",
         primaryMetric: `${readyReceipts}/${run.receipts.length}`,
@@ -221,7 +257,7 @@ function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorA
         secondaryLabel: "approvals",
         risk: blockedReceipts > 0 ? "needs review" : "clean",
       },
-      proof: run.receipts.slice(0, 4).map((receipt) => ({
+      proof: snapshot.receipts.slice(0, 4).map((receipt) => ({
         id: receipt.id,
         status: receipt.status,
         summary: receipt.summary,
@@ -240,6 +276,7 @@ function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorA
     kind: "approval_request",
     status: "pending",
     headline: approval.reason,
+    outcome: null,
     preview: {
       label: "Approval artifact",
       primaryMetric: approval.evidenceVisible ? "yes" : "no",
@@ -259,6 +296,178 @@ function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorA
   }));
 
   return [...stagedArtifacts, ...approvalArtifacts, ...runArtifacts].slice(0, 7);
+}
+
+function buildArtifactOutcome(
+  artifact: OperatorSnapshot["artifacts"][number],
+  artifacts: OperatorSnapshot["artifacts"]
+): OperatorArtifactOutcome | null {
+  const data = isRecord(artifact.data) ? artifact.data : {};
+  if (artifact.kind === "browser_action") {
+    return buildBrowserActionOutcome(data);
+  }
+  if (artifact.kind === "connector_execution") {
+    const browserArtifact = artifacts.find((candidate) => {
+      const candidateData = isRecord(candidate.data) ? candidate.data : {};
+      return candidate.kind === "browser_action" && candidateData.executionArtifactId === artifact.id;
+    });
+    const browserOutcome = browserArtifact && isRecord(browserArtifact.data)
+      ? buildBrowserActionOutcome(browserArtifact.data)
+      : null;
+    return buildConnectorExecutionOutcome(data, browserOutcome);
+  }
+  if (artifact.kind === "verification_report") {
+    return buildVerificationOutcome(data);
+  }
+  return null;
+}
+
+function buildConnectorExecutionOutcome(
+  data: Record<string, unknown>,
+  browserOutcome: OperatorArtifactOutcome | null
+): OperatorArtifactOutcome | null {
+  const connector = isRecord(data.connector) ? data.connector : {};
+  const target = isRecord(data.target) ? data.target : {};
+  const rollbackPlan = isRecord(data.rollbackPlan) ? data.rollbackPlan : {};
+  const postExecutionVerification = isRecord(data.postExecutionVerification) ? data.postExecutionVerification : {};
+  const checks = Array.isArray(postExecutionVerification.checks)
+    ? postExecutionVerification.checks.filter((check): check is string => typeof check === "string")
+    : [];
+  const rollback = Array.isArray(rollbackPlan.steps)
+    ? rollbackPlan.steps.filter((step): step is string => typeof step === "string")
+    : [];
+
+  return {
+    summary: browserOutcome
+      ? "Approved connector execution completed and a controlled Browserbase form-fill proof was captured before submit."
+      : "Approved connector execution completed with rollback and post-ship verification requirements.",
+    status: "executed",
+    submitted: browserOutcome?.submitted ?? null,
+    target: {
+      connectorId: typeof connector.id === "string" ? connector.id : "connector",
+      destination: typeof target.destination === "string" ? target.destination : "approved connector",
+      selector: typeof target.selector === "string" ? target.selector : browserOutcome?.target.selector ?? null,
+      url: typeof data.targetUrl === "string" ? data.targetUrl : browserOutcome?.target.url ?? null,
+    },
+    evidence: browserOutcome?.evidence ?? [],
+    fields: browserOutcome?.fields ?? [],
+    rollback,
+    verifier: {
+      required: postExecutionVerification.required === true,
+      name: typeof postExecutionVerification.verifier === "string"
+        ? postExecutionVerification.verifier
+        : "quad.post_ship_verifier",
+      checks,
+    },
+    openObligations: [
+      ...(browserOutcome?.openObligations ?? []),
+      ...(checks.length > 0 ? ["Run post-ship verifier before claiming the fix is complete."] : []),
+    ],
+  };
+}
+
+function buildBrowserActionOutcome(data: Record<string, unknown>): OperatorArtifactOutcome | null {
+  const connector = isRecord(data.connector) ? data.connector : {};
+  const target = isRecord(data.target) ? data.target : {};
+  const action = isRecord(data.action) ? data.action : {};
+  const evidence = isRecord(data.evidence) ? data.evidence : {};
+  const rollbackPlan = isRecord(data.rollbackPlan) ? data.rollbackPlan : {};
+  const verification = isRecord(data.verification) ? data.verification : {};
+  const fields = Array.isArray(data.fields) ? data.fields.flatMap((field) => {
+    if (!isRecord(field)) return [];
+    const label = typeof field.label === "string" ? field.label : "field";
+    const selector = typeof field.selector === "string" ? field.selector : "";
+    const valueHash = typeof field.valueHash === "string" ? field.valueHash : "";
+    if (!selector || !valueHash) return [];
+    return [{ label, selector, valueHash }];
+  }) : [];
+  const evidenceRows = [
+    evidenceSummary("Before capture", evidence.before),
+    evidenceSummary("After capture", evidence.after),
+  ].filter((row): row is NonNullable<typeof row> => Boolean(row));
+  const screenshotIds = Array.isArray(verification.screenshotEvidenceIds)
+    ? verification.screenshotEvidenceIds.filter((id): id is string => typeof id === "string")
+    : [];
+  const submitted = action.submitted === true;
+
+  return {
+    summary: typeof action.summary === "string"
+      ? action.summary
+      : "Controlled browser action captured with before and after evidence.",
+    status: submitted ? "executed" : "paused",
+    submitted,
+    target: {
+      connectorId: typeof connector.id === "string" ? connector.id : "browserbase.write_browser",
+      destination: typeof target.destination === "string" ? target.destination : "controlled browser",
+      selector: typeof target.selector === "string" ? target.selector : null,
+      url: typeof target.url === "string" ? target.url : null,
+    },
+    evidence: evidenceRows,
+    fields,
+    rollback: Array.isArray(rollbackPlan.steps)
+      ? rollbackPlan.steps.filter((step): step is string => typeof step === "string")
+      : [],
+    verifier: {
+      required: verification.required === true,
+      name: "quad.browser_action_verifier",
+      checks: [
+        typeof verification.expectedSelector === "string" ? `expected selector ${verification.expectedSelector}` : "",
+        typeof verification.expectedValueHash === "string" ? `expected value hash ${verification.expectedValueHash}` : "",
+        screenshotIds.length > 0 ? `${screenshotIds.length} screen captures bound` : "",
+      ].filter(Boolean),
+    },
+    openObligations: submitted
+      ? ["Verify the submitted page state against the browser evidence bundle."]
+      : ["Human must review the filled browser session before final submit."],
+  };
+}
+
+function buildVerificationOutcome(data: Record<string, unknown>): OperatorArtifactOutcome {
+  const items = Array.isArray(data.items) ? data.items.filter(isRecord) : [];
+  const passed = items.filter((item) => item.passed === true).length;
+  const failed = items.filter((item) => item.passed === false).length;
+  return {
+    summary: failed > 0
+      ? `Post-ship verification found ${failed} failed checks.`
+      : `Post-ship verification passed ${passed} checks.`,
+    status: failed > 0 ? "blocked" : "verified",
+    submitted: null,
+    target: {
+      connectorId: "quad.post_ship_verifier",
+      destination: "verification report",
+      selector: null,
+      url: null,
+    },
+    evidence: [],
+    fields: [],
+    rollback: [],
+    verifier: {
+      required: true,
+      name: "quad.post_ship_verifier",
+      checks: items.slice(0, 5).map((item) => {
+        const label = typeof item.label === "string" ? item.label : typeof item.id === "string" ? item.id : "check";
+        return `${label}: ${item.passed === true ? "passed" : "failed"}`;
+      }),
+    },
+    openObligations: failed > 0 ? ["Review failed verification checks before demoing this as shipped."] : [],
+  };
+}
+
+function evidenceSummary(label: string, value: unknown): OperatorArtifactOutcome["evidence"][number] | null {
+  if (!isRecord(value)) return null;
+  const hash = typeof value.hash === "string" ? value.hash : "";
+  if (!hash) return null;
+  return {
+    label,
+    storageMode: typeof value.storageMode === "string" ? value.storageMode : "unknown",
+    hash,
+    storageKey: typeof value.storageKey === "string" ? value.storageKey : null,
+    sourceUrl: typeof value.sourceUrl === "string" ? value.sourceUrl : null,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
 function summarizeConnectorDraft(fallbackKind: string) {

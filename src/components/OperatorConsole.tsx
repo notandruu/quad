@@ -50,6 +50,36 @@ type OperatorArtifact = {
   kind: string;
   status: string;
   headline: string;
+  outcome?: {
+    summary: string;
+    status: "drafted" | "executed" | "paused" | "verified" | "blocked";
+    submitted: boolean | null;
+    target: {
+      connectorId: string;
+      destination: string;
+      selector: string | null;
+      url: string | null;
+    };
+    evidence: Array<{
+      label: string;
+      storageMode: string;
+      hash: string;
+      storageKey: string | null;
+      sourceUrl: string | null;
+    }>;
+    fields: Array<{
+      label: string;
+      selector: string;
+      valueHash: string;
+    }>;
+    rollback: string[];
+    verifier: {
+      required: boolean;
+      name: string;
+      checks: string[];
+    };
+    openObligations: string[];
+  } | null;
   preview: {
     label: string;
     primaryMetric: string;
@@ -1133,6 +1163,95 @@ function ArtifactPreview({ artifact }: { artifact: OperatorArtifact }) {
       <div className="rounded border border-accent/20 bg-accent/5 px-2 py-1 text-[10px] text-accent">
         {artifact.preview.risk}
       </div>
+      {artifact.outcome && <ArtifactOutcome outcome={artifact.outcome} />}
+    </div>
+  );
+}
+
+function ArtifactOutcome({ outcome }: { outcome: NonNullable<OperatorArtifact["outcome"]> }) {
+  const submittedLabel = outcome.submitted === null ? "n/a" : outcome.submitted ? "submitted" : "not submitted";
+
+  return (
+    <div className="rounded border border-pink-300/25 bg-pink-950/10 p-2">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h4 className="text-[10px] font-medium text-neutral-200">Outcome summary</h4>
+          <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-neutral-500">{outcome.summary}</p>
+        </div>
+        <span className={outcome.status === "blocked" ? "shrink-0 text-[10px] text-red-200" : "shrink-0 text-[10px] text-accent"}>
+          {formatStatus(outcome.status)}
+        </span>
+      </div>
+
+      <div className="mt-2 grid grid-cols-2 gap-1.5">
+        <OutcomeRow label="connector" value={outcome.target.connectorId} />
+        <OutcomeRow label="submit" value={submittedLabel} />
+        <OutcomeRow label="selector" value={outcome.target.selector ?? "n/a"} />
+        <OutcomeRow label="captures" value={String(outcome.evidence.length)} />
+      </div>
+
+      {outcome.evidence.length > 0 && (
+        <div className="mt-2 space-y-1">
+          {outcome.evidence.slice(0, 2).map((item) => (
+            <div key={`${item.label}:${item.hash}`} className="rounded border border-edge bg-ink/70 px-2 py-1">
+              <div className="flex justify-between gap-2">
+                <span className="text-[10px] text-neutral-300">{item.label}</span>
+                <span className="font-mono text-[9px] text-neutral-600">{item.storageMode}</span>
+              </div>
+              <div className="mt-0.5 truncate font-mono text-[9px] text-neutral-700">{item.hash}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {outcome.fields.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {outcome.fields.slice(0, 3).map((field) => (
+            <span
+              key={`${field.selector}:${field.valueHash}`}
+              className="rounded-full border border-edge bg-ink px-1.5 py-0.5 font-mono text-[9px] text-neutral-500"
+              title={field.selector}
+            >
+              {field.label}: {field.valueHash}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-2 rounded border border-edge bg-panel/70 px-2 py-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] text-neutral-300">{outcome.verifier.name}</span>
+          <span className={outcome.verifier.required ? "text-[10px] text-accent" : "text-[10px] text-neutral-600"}>
+            {outcome.verifier.required ? "required" : "optional"}
+          </span>
+        </div>
+        {outcome.verifier.checks.length > 0 && (
+          <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-neutral-500">
+            {outcome.verifier.checks.slice(0, 3).join(" / ")}
+          </p>
+        )}
+      </div>
+
+      {outcome.rollback.length > 0 && (
+        <div className="mt-2 rounded border border-edge bg-ink/70 px-2 py-1 text-[10px] text-neutral-500">
+          rollback: {outcome.rollback[0]}
+        </div>
+      )}
+
+      {outcome.openObligations.length > 0 && (
+        <div className="mt-2 rounded border border-amber-300/25 bg-amber-950/20 px-2 py-1 text-[10px] text-amber-100">
+          {outcome.openObligations[0]}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OutcomeRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded border border-edge bg-panel/80 px-2 py-1">
+      <div className="text-[9px] text-neutral-600">{label}</div>
+      <div className="mt-0.5 truncate font-mono text-[9px] text-neutral-300">{value}</div>
     </div>
   );
 }

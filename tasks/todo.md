@@ -184,7 +184,7 @@ hard constraints:
 - [x] add controlled Browserbase security questionnaire form (route-owned fixture; public `/demo-security-questionnaire` page still optional)
 - [x] fill validated security/customer-trust answers through browserbase/playwright with per-field action events
 - [ ] require human approval before submit or publish
-- [ ] show final outcome summary and save a fallback screen capture
+- [x] show final outcome summary and save a fallback screen capture
 - [ ] build verified customer trust packet with preserved claims, source refs, omitted ranges, and open obligations
 - [ ] show quad chain verification status, tokens saved, preserved evidence, omitted ranges, and open obligations in the packet ui
 - [x] record every browser action with intent, selector, value summary, source answer id, approval state, and replay metadata

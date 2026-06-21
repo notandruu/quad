@@ -125,6 +125,12 @@ test.describe("dashboard trust packet flow", () => {
     await expect(operatorConsole.getByRole("link", { name: /Browser field.*Browserbase filled.*browserbase\.write_browser/ })).toBeVisible();
     await expect(operatorConsole.getByText("Browser screenshot")).toBeVisible();
     await expect(operatorConsole.getByText("Browser pause")).toBeVisible();
+    await expect(operatorConsole.getByRole("heading", { name: "Outcome summary" })).toBeVisible();
+    await expect(operatorConsole.getByText("not submitted")).toBeVisible();
+    await expect(operatorConsole.getByText("Before capture")).toBeVisible();
+    await expect(operatorConsole.getByText("After capture")).toBeVisible();
+    await expect(operatorConsole.getByText("quad.post_ship_verifier")).toBeVisible();
+    await expect(operatorConsole.getByText(/Human must review/)).toBeVisible();
     expect(executePublishBody).toMatchObject({
       runId: `trust_${runId}`,
       actor: "demo.operator",
@@ -391,7 +397,55 @@ async function mockDashboardBackends(
                   ? "Post-ship verification passed for staged connector artifacts."
                   : publishExecuted
                     ? "Approved connector execution recorded with rollback and verification proof."
-                  : "Dry-run publisher artifact staged. No customer-facing write was executed.",
+                    : "Dry-run publisher artifact staged. No customer-facing write was executed.",
+                outcome: publishExecuted
+                  ? {
+                      summary: "Approved connector execution completed and a controlled Browserbase form-fill proof was captured before submit.",
+                      status: fixVerified ? "verified" : "executed",
+                      submitted: false,
+                      target: {
+                        connectorId: "cms.publisher",
+                        destination: "website_cms",
+                        selector: "[data-quad-proof-block]",
+                        url: "https://example.com",
+                      },
+                      evidence: [
+                        {
+                          label: "Before capture",
+                          storageMode: "external_provider",
+                          hash: "fnv1a:before1234",
+                          storageKey: "trust_pw_ui_trust_packet/artifact_publish_ui/browser-before.json",
+                          sourceUrl: "https://example.com",
+                        },
+                        {
+                          label: "After capture",
+                          storageMode: "external_provider",
+                          hash: "fnv1a:after1234",
+                          storageKey: "trust_pw_ui_trust_packet/artifact_publish_ui/browser-after.json",
+                          sourceUrl: "https://example.com",
+                        },
+                      ],
+                      fields: [
+                        {
+                          label: "section title",
+                          selector: "[data-quad-proof-block] [data-field='title']",
+                          valueHash: "fnv1a:title1234",
+                        },
+                        {
+                          label: "section body",
+                          selector: "[data-quad-proof-block] [data-field='body']",
+                          valueHash: "fnv1a:body1234",
+                        },
+                      ],
+                      rollback: ["restore previous cms section at [data-quad-proof-block]"],
+                      verifier: {
+                        required: true,
+                        name: "quad.post_ship_verifier",
+                        checks: ["source draft still exists", "execution receipt exists", "proof binding preserved"],
+                      },
+                      openObligations: ["Human must review the filled browser session before final submit."],
+                    }
+                  : null,
                 preview: {
                   label: fixVerified ? "Verification artifact" : publishExecuted ? "Connector execution" : "Publisher artifact",
                   primaryMetric: fixVerified ? "pass" : publishExecuted ? "executed" : "dry",
