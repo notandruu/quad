@@ -232,6 +232,22 @@ Acceptance:
 - customer data has a deletion path.
 - trust packet summaries can be shared without leaking private source text.
 
+## Gap 8: repeatable backend migrations
+
+Status: shipped v1.
+
+Shipped v1:
+
+- `npm run db:migrate:dry` validates that the platform schema can be loaded before deploy.
+- `npm run db:migrate` applies `docs/backend/platform-schema.sql` against `DATABASE_URL`.
+- the migration script redacts credentials in logs and runs the idempotent schema in one transaction.
+- the README documents the durable backend migration path.
+
+Next:
+
+- split the monolithic schema into numbered migrations once schema churn increases.
+- add migration status tracking when the product has multiple deployed environments.
+
 ## Recommended next shipping order
 
 1. post-ship verification.

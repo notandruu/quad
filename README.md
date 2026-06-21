@@ -59,7 +59,14 @@ npm run dev
 
 With no env keys set, the app still runs: Redis falls back to in-stream events, the brain falls back to the seeded demo org, and Browserbase falls back to static fetch. Wire the keys in `.env.local` to make each layer real.
 
-To enable the durable brain, point `DATABASE_URL` at Postgres and run `src/lib/brain/schema.sql`.
+To enable durable backend state, point `DATABASE_URL` at Postgres and run the platform schema:
+
+```bash
+npm run db:migrate:dry
+npm run db:migrate
+```
+
+The migration applies `docs/backend/platform-schema.sql`, which creates the brain memory, workflow ledger, quadchain packet, approval, receipt, and connector credential tables with `IF NOT EXISTS` guards.
 
 Hosted API routes accept `Authorization: Bearer $QUAD_API_SECRET` or `x-quad-api-key: $QUAD_API_SECRET`. In zero-key mode, org-owned routes only allow the seeded demo org. Set `QUAD_ALLOWED_ORGS` to a comma-separated allowlist before hosting customer data.
 
