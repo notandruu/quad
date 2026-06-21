@@ -1,7 +1,7 @@
 import type { RenderedPageEvidence } from "@/lib/types";
 import { traced, SPAN } from "@/lib/observability/phoenix";
 import { captureHandled } from "@/lib/observability/sentry";
-import { uploadScreenshot } from "@/lib/storage/screenshots";
+import { uploadScreenshotWithEvidence } from "@/lib/storage/screenshots";
 import { fetchPageEvidence } from "./fetchPage";
 
 function isConfigured(): boolean {
@@ -19,7 +19,8 @@ function isConfigured(): boolean {
  */
 export async function renderPage(
   url: string,
-  runId = "local"
+  runId = "local",
+  orgId = "org_unknown"
 ): Promise<RenderedPageEvidence> {
   return traced(SPAN.renderPage, { "page.url": url, "render.engine": isConfigured() ? "browserbase" : "static" }, async () => {
     if (!isConfigured()) {
@@ -27,7 +28,7 @@ export async function renderPage(
     }
 
     try {
-      return await renderWithBrowserbase(url, runId);
+      return await renderWithBrowserbase(url, runId, orgId);
     } catch (err) {
       captureHandled(err, { toolName: "browserbase.render_page" });
       return fetchPageEvidence(url);
@@ -40,7 +41,7 @@ export async function renderPage(
  * extract structured evidence and a screenshot. Each call uses a fresh session
  * and tears it down in a finally block so we never leak browser minutes.
  */
-async function renderWithBrowserbase(url: string, runId: string): Promise<RenderedPageEvidence> {
+async function renderWithBrowserbase(url: string, runId: string, orgId: string): Promise<RenderedPageEvidence> {
   const { Browserbase } = await import("@browserbasehq/sdk");
   const { chromium } = await import("playwright-core");
 
@@ -102,15 +103,16 @@ async function renderWithBrowserbase(url: string, runId: string): Promise<Render
     const shot = await page.screenshot({ type: "png", fullPage: false });
     // Upload to Supabase Storage for a permanent public URL. Falls back to a
     // data URI when storage is not configured so local dev still works.
-    const screenshotUrl = await uploadScreenshot(shot, runId, url).catch(() =>
-      `data:image/png;base64,${shot.toString("base64")}`
-    );
+    const screenshot = await uploadScreenshotWithEvidence({ png: shot, orgId, runId, pageUrl: url }).catch(() => ({
+      url: `data:image/png;base64,${shot.toString("base64")}`,
+      evidence: null,
+    }));
 
     return {
       url,
       title: title || url,
       status,
-      screenshotUrl,
+      screenshotUrl: screenshot.url,
       text: extracted.text,
       headings: extracted.headings,
       links: extracted.links,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { isStorageConfigured, screenshotPublicUrl, uploadScreenshot } from "./screenshots";
+import { isStorageConfigured, screenshotPublicUrl, uploadScreenshot, uploadScreenshotWithEvidence } from "./screenshots";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -97,5 +97,35 @@ describe("uploadScreenshot", () => {
     expect(keySegment).not.toMatch(/^https-/);
 
     vi.restoreAllMocks();
+  });
+});
+
+describe("uploadScreenshotWithEvidence", () => {
+  it("returns data URI compatibility plus private evidence summary in fallback mode", async () => {
+    vi.stubEnv("SUPABASE_URL", "");
+    vi.stubEnv("SUPABASE_SERVICE_KEY", "");
+    const png = Buffer.from("fakeimage");
+
+    const result = await uploadScreenshotWithEvidence({
+      png,
+      orgId: "org_screenshot_evidence",
+      runId: "run_screenshot_evidence",
+      pageUrl: "https://example.com/private",
+    });
+
+    expect(result.url).toContain(png.toString("base64"));
+    expect(result.evidence).toMatchObject({
+      orgId: "org_screenshot_evidence",
+      runId: "run_screenshot_evidence",
+      kind: "screenshot",
+      storageMode: "inline_fallback",
+      mimeType: "image/png",
+      byteLength: png.byteLength,
+      publicUrl: null,
+      sourceUrl: "https://example.com/private",
+      metadataKeys: ["fallback"],
+    });
+    expect(result.evidence.hash).toMatch(/^fnv1a:/);
+    expect(JSON.stringify(result.evidence)).not.toContain(png.toString("base64"));
   });
 });

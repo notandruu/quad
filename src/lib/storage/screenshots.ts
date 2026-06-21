@@ -9,8 +9,14 @@
  *
  * URL pattern: https://{project}.supabase.co/storage/v1/object/public/screenshots/{key}
  */
+import { createEvidenceBundle, summarizeEvidenceBundle, type EvidenceBundleSummary } from "./evidence";
 
 const BUCKET = "screenshots";
+
+export type ScreenshotUploadResult = {
+  url: string;
+  evidence: EvidenceBundleSummary;
+};
 
 export function isStorageConfigured(): boolean {
   return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY);
@@ -29,12 +35,44 @@ export async function uploadScreenshot(
   runId: string,
   pageUrl: string
 ): Promise<string> {
+  const result = await uploadScreenshotWithEvidence({
+    png,
+    orgId: "org_unknown",
+    runId,
+    pageUrl,
+  });
+  return result.url;
+}
+
+export async function uploadScreenshotWithEvidence(input: {
+  png: Buffer;
+  orgId: string;
+  runId: string;
+  pageUrl: string;
+}): Promise<ScreenshotUploadResult> {
+  const storageKey = `${input.runId}/${urlSlug(input.pageUrl)}-${Date.now()}.png`;
   if (!isStorageConfigured()) {
-    return `data:image/png;base64,${png.toString("base64")}`;
+    const evidence = await createEvidenceBundle({
+      orgId: input.orgId,
+      runId: input.runId,
+      kind: "screenshot",
+      storageMode: "inline_fallback",
+      mimeType: "image/png",
+      byteLength: input.png.byteLength,
+      bytes: input.png,
+      storageKey,
+      sourceUrl: input.pageUrl,
+      metadata: {
+        fallback: true,
+      },
+    });
+    return {
+      url: `data:image/png;base64,${input.png.toString("base64")}`,
+      evidence: summarizeEvidenceBundle(evidence),
+    };
   }
 
-  const key = `${runId}/${urlSlug(pageUrl)}-${Date.now()}.png`;
-  const uploadUrl = `${process.env.SUPABASE_URL}/storage/v1/object/${BUCKET}/${key}`;
+  const uploadUrl = `${process.env.SUPABASE_URL}/storage/v1/object/${BUCKET}/${storageKey}`;
 
   const res = await fetch(uploadUrl, {
     method: "POST",
@@ -43,7 +81,7 @@ export async function uploadScreenshot(
       "content-type": "image/png",
       "x-upsert": "true",
     },
-    body: new Blob([new Uint8Array(png)], { type: "image/png" }),
+    body: new Blob([new Uint8Array(input.png)], { type: "image/png" }),
   });
 
   if (!res.ok) {
@@ -51,7 +89,24 @@ export async function uploadScreenshot(
     throw new Error(`Screenshot upload failed ${res.status}: ${err}`);
   }
 
-  return `${process.env.SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${key}`;
+  const publicUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${storageKey}`;
+  const evidence = await createEvidenceBundle({
+    orgId: input.orgId,
+    runId: input.runId,
+    kind: "screenshot",
+    storageMode: "supabase_storage",
+    mimeType: "image/png",
+    byteLength: input.png.byteLength,
+    bytes: input.png,
+    publicUrl,
+    storageKey,
+    sourceUrl: input.pageUrl,
+  });
+
+  return {
+    url: publicUrl,
+    evidence: summarizeEvidenceBundle(evidence),
+  };
 }
 
 /** Public URL for an already-uploaded screenshot key. */

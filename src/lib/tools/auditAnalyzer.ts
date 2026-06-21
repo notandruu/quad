@@ -68,15 +68,15 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
       await emit("page.queued", { url });
       try {
         await emit("page.rendering", { url });
-        const evidence = await renderPage(url, runId);
+        const evidence = await renderPage(url, runId, orgId);
         evidenceByUrl.set(url, evidence);
         await bumpCounter(runId, "pagesFetched");
         await emit("page.rendered", {
           url,
           status: evidence.status,
           // Keep the (potentially large) screenshot data URI out of the stream;
-          // findings reference it directly. TODO: upload to object storage and
-          // emit a stable URL instead.
+          // findings reference the URL directly and storage emits an evidence
+          // bundle receipt when object storage is available.
           hasScreenshot: Boolean(evidence.screenshotUrl),
         });
         await saveAuditPacket({

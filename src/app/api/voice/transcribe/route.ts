@@ -3,6 +3,7 @@ import { ingestMemoryWithReceipt } from "@/lib/brain";
 import { buildQuadCoreContext, saveQuadCoreReceipt } from "@/lib/core";
 import { getEmployee } from "@/lib/employees";
 import { getDeepgramSettings, transcribeWithDeepgram } from "@/lib/voice/deepgram";
+import { createEvidenceBundle, summarizeEvidenceBundle } from "@/lib/storage/evidence";
 import { DEMO_ORG_ID } from "@/data/seed";
 import type { QuadChainPacketSummary } from "@/lib/quad-chain";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
@@ -65,6 +66,22 @@ export async function POST(request: Request) {
   }
 
   try {
+    const audioBytes = await audio.arrayBuffer();
+    const audioEvidence = summarizeEvidenceBundle(await createEvidenceBundle({
+      orgId: auth.orgId,
+      runId,
+      kind: "voice_audio",
+      storageMode: "external_provider",
+      mimeType: audio.type || "application/octet-stream",
+      byteLength: audio.size,
+      bytes: audioBytes,
+      visibility: "restricted",
+      classification: "confidential",
+      metadata: {
+        provider: "deepgram",
+        model: settings.sttModel,
+      },
+    }));
     const result = await transcribeWithDeepgram({
       audio,
       mimeType: audio.type || "application/octet-stream",
@@ -94,6 +111,7 @@ export async function POST(request: Request) {
             mimeType: audio.type || "application/octet-stream",
             size: audio.size,
             model: settings.sttModel,
+            evidenceBundle: audioEvidence,
           },
         },
       ],
@@ -125,7 +143,7 @@ export async function POST(request: Request) {
       quadChain.push(memoryResult.quadChain);
     }
 
-    const responseBody = { ...result, memory, quadChain };
+    const responseBody = { ...result, memory, quadChain, evidenceBundle: audioEvidence };
     await saveIdempotentResult({
       orgId: auth.orgId,
       route: "voice.transcribe",

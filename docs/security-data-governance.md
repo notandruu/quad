@@ -171,6 +171,22 @@ for browser actions:
 - screenshots are classified and scoped
 - final submit requires tier 3 approval
 
+## evidence bundle security
+
+quad treats bulky or sensitive proof artifacts as evidence bundles instead of spraying raw payloads into packets, logs, or telemetry.
+
+v1 bundle rules:
+
+- screenshots, voice uploads, and trust packet exports get tenant-scoped bundle ids
+- bundles store hashes, byte lengths, source refs, visibility, classification, retention, and metadata keys
+- inline screenshot fallback keeps the browser-compatible data uri only at the immediate call site
+- evidence summaries never include raw audio, raw markdown, base64 screenshots, api keys, cookies, or auth headers
+- voice audio defaults to restricted and confidential
+- trust packet exports are stored as internal artifact payload references unless a customer storage connector is explicitly configured
+- `/api/operator` exposes only aggregate counts and safe summaries
+
+this lets a downstream agent, reviewer, or sponsor judge verify that evidence existed and was bound to a run without giving every surface access to the underlying customer data.
+
 ## prompt injection and tool safety
 
 quad will read untrusted websites, docs, tickets, and files. all retrieved content should be treated as data, not instructions.

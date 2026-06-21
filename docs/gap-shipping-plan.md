@@ -305,6 +305,31 @@ Shipped v8:
 - retrying clears stale lease/dead-letter state, optionally resets attempts, pushes the job back onto the queue, and records an `Operator retried backend job` event in the run ledger.
 - api and unit tests cover dead-letter recovery, non-retryable jobs, and secret-safe public responses.
 
+## Gap 4.6: durable evidence bundles
+
+Status: shipped v1.
+
+What was missing:
+
+- screenshots, voice uploads, and trust packet exports existed as route-local payloads or urls.
+- the backend did not have a common evidence object that could be summarized safely in the operator console.
+- sensitive evidence could not be referenced without risking raw data leakage into receipts or telemetry.
+
+Shipped v1:
+
+- `src/lib/storage/evidence.ts` creates hash-bound evidence bundles for screenshots, voice audio, and trust packet exports.
+- evidence bundles track org id, run id, kind, storage mode, byte length, hash, visibility, classification, retention, source url, and metadata keys.
+- inline screenshot fallback keeps the old data-url compatibility path but stores only a private evidence summary, not the base64 data.
+- Deepgram voice transcription registers the uploaded audio as restricted confidential evidence before transcription.
+- dry-run trust packet exports attach an `artifact_payload` evidence bundle summary to the staged export artifact.
+- `/api/operator` returns evidence counts and latest safe summaries beside backend readiness, quadchain, memory, and model gateway state.
+
+Acceptance:
+
+- raw audio, inline screenshot data, and trust packet markdown do not appear in evidence summaries.
+- every evidence summary is tenant-scoped and hash-bound.
+- operator surfaces can answer “what proof artifacts exist for this run?” without opening raw artifacts.
+
 ## Gap 5: voice-led enterprise proof interview
 
 Status: partial.

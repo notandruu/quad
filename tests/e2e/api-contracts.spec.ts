@@ -104,6 +104,14 @@ test.describe("api contracts", () => {
     expect(json.backendReadiness.components).toHaveProperty("redis");
     expect(json.backendReadiness.components).toHaveProperty("worker");
     expect(json.backendReadiness.components).toHaveProperty("observability");
+    expect(json.evidence).toMatchObject({
+      total: expect.any(Number),
+      public: expect.any(Number),
+      internal: expect.any(Number),
+      restricted: expect.any(Number),
+      byKind: expect.any(Object),
+      latest: expect.any(Array),
+    });
     expect(json.modelGateway).toMatchObject({
       total: expect.any(Number),
       completed: expect.any(Number),

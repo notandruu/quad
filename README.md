@@ -135,6 +135,8 @@ Brain memory is scoped before retrieval. `/api/ingest` defaults to an approval-b
 
 `POST /api/brain/refresh` turns stale context into an approval-backed memory refresh proposal. It preserves the original scope, evidence, freshness metadata, and relationship trail, and the refreshed memory is not retrievable until the proposal is approved.
 
+Evidence artifacts are now summarized through a shared evidence bundle layer. Screenshots, Deepgram voice uploads, and trust packet exports get tenant-scoped hashes, storage mode, classification, retention, source refs, and metadata keys. `/api/operator` returns evidence counts and latest safe summaries without exposing raw audio, markdown, or inline screenshot data.
+
 The operator console also shows worker uptime from the same backend health surface: latest canary age, canary duration, heartbeat state, queue depth, retrying jobs, dead-letter count, processed count, and latest job age.
 
 `GET /api/sponsor/proof` returns a booth-safe sponsor proof manifest: live/fallback/planned status, product claim, demo moment, route or surface, and explicit `safeToClaim` / `doNotClaim` lists. It never returns secret values.

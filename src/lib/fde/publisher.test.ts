@@ -8,6 +8,7 @@ import {
   summarizeTaskStream,
 } from "@/lib/runs";
 import { getQuadChainPackets } from "@/lib/quad-chain/registry";
+import { getEvidenceBundles } from "@/lib/storage/evidence";
 import { DryRunPublishError, dryRunPublish } from "./publisher";
 
 describe("dry-run publisher", () => {
@@ -66,13 +67,22 @@ describe("dry-run publisher", () => {
         action: expect.objectContaining({ type: "export_markdown_packet", approvalRequired: true }),
         proof: expect.objectContaining({ trustPacketArtifactId: expect.any(String), trustPacketHash: expect.any(String) }),
         validation: expect.objectContaining({ ready: true }),
+        evidenceBundle: expect.objectContaining({
+          kind: "trust_packet_export",
+          storageMode: "artifact_payload",
+          mimeType: "text/markdown",
+          hash: expect.stringMatching(/^fnv1a:/),
+        }),
       }),
     ]);
+    const exportData = result.staged.find((item) => item.artifact.kind === "trust_packet_export")?.artifact.data;
+    expect(JSON.stringify((exportData as { evidenceBundle?: unknown }).evidenceBundle)).not.toContain("Add a concise security proof block");
     expect(result.staged.every((item) => item.packet.type === "connector_action")).toBe(true);
     expect(snapshot?.artifacts.some((artifact) => artifact.kind === "cms_draft")).toBe(true);
     expect(snapshot?.receipts.filter((receipt) => receipt.status === "ready").length).toBeGreaterThanOrEqual(3);
     expect(summarizeTaskStream(snapshot!).filter((event) => event.kind === "task.completed")).toHaveLength(3);
     expect(packets).toHaveLength(3);
+    await expect(getEvidenceBundles({ orgId: "org_publish", runId: run.runId, kind: "trust_packet_export" })).resolves.toHaveLength(1);
   });
 
   it("blocks staging when write connector capabilities are not allowlisted", async () => {

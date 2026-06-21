@@ -88,8 +88,8 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [ ] skill/playbook layer so workflows wrap raw tools with guardrails and synthesis rules
 - [ ] connector registry for source systems, publishers, browser actions, and specialist agents
 - [ ] autonomy tier policy for read, draft, confirm, explicit approve, and irreversible actions
-- [ ] browserbase rendered evidence capture
-- [ ] grounded finding schema with citations and screenshots/selectors where possible
+- [x] browserbase rendered evidence capture
+- [x] grounded finding schema with citations and screenshots/selectors where possible
 - [ ] approval workflow before memory writeback or external action
 - [x] approval-backed public memory write proposals with execution on approval
 - [ ] persistent approval ledger with approver, artifact hash, evidence visible, edit/reject state, and receipt id
@@ -199,6 +199,7 @@ hard constraints:
 - [x] add worker retry, dead-letter, and queue health semantics
 - [x] add guarded manual job retry api that requeues dead-letter work and records a run ledger task
 - [x] expose hosted run artifacts under stable run/task ids
+- [x] add durable evidence bundles for screenshots, voice audio, and trust packet exports
 
 ### phase 4 metaregistry capability layer
 
@@ -218,6 +219,7 @@ hard constraints:
 - [x] add security rows to operator panel for tenant isolation, telemetry redaction, connector scopes, and model routing
 - [x] add validation checks for unsafe telemetry env/config where practical
 - [x] add security packet for quad itself: what data is sent to models, what is stored, what is redacted, what can be deleted
+- [x] expose safe evidence bundle summaries without leaking raw audio, markdown, or inline screenshots
 - [x] add protected deletion dry-run and execution receipts for org/run data
 - [x] add retention sweep planning/execution route for expired run cleanup
 - [x] add encrypted connector credential install/list/revoke substrate

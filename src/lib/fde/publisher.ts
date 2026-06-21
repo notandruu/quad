@@ -1,6 +1,7 @@
 import { createQuadChainPacket, summarizeQuadChainPacket, type QuadChainPacketSummary } from "@/lib/quad-chain";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 import { summarizeCapabilities } from "@/lib/metaregistry";
+import { createEvidenceBundle, summarizeEvidenceBundle } from "@/lib/storage/evidence";
 import {
   addArtifact,
   addTask,
@@ -91,11 +92,18 @@ export async function dryRunPublish(input: DryRunPublisherInput): Promise<DryRun
       detail: "Dry-run artifact staged. No customer-facing write was executed.",
       now,
     });
+    const data = draft.kind === "trust_packet_export"
+      ? await attachTrustPacketExportEvidence({
+          orgId: loaded.run.orgId,
+          runId: loaded.run.id,
+          data: draft.data,
+        })
+      : draft.data;
     const artifact = addArtifact({
       runId: loaded.run.id,
       kind: draft.kind,
       title: draft.title,
-      data: draft.data,
+      data,
       now,
     });
     const receipt = createReceipt({
@@ -222,7 +230,41 @@ type ConnectorDraftPayload = {
   description?: string;
   acceptanceCriteria?: string[];
   markdown?: string;
+  evidenceBundle?: ReturnType<typeof summarizeEvidenceBundle>;
 };
+
+async function attachTrustPacketExportEvidence(input: {
+  orgId: string;
+  runId: string;
+  data: ConnectorDraftPayload;
+}): Promise<ConnectorDraftPayload> {
+  const markdown = typeof input.data.markdown === "string" ? input.data.markdown : "";
+  if (!markdown) return input.data;
+  const filename = typeof input.data.payload.filename === "string" ? input.data.payload.filename : "trust-packet.md";
+  const evidence = await createEvidenceBundle({
+    orgId: input.orgId,
+    runId: input.runId,
+    kind: "trust_packet_export",
+    storageMode: "artifact_payload",
+    mimeType: "text/markdown",
+    byteLength: Buffer.byteLength(markdown),
+    text: markdown,
+    storageKey: `${input.runId}/${filename}`,
+    sourceUrl: input.data.targetUrl,
+    visibility: "internal",
+    classification: "internal",
+    metadata: {
+      filename,
+      connector: input.data.connector.id,
+      dryRun: input.data.dryRun,
+    },
+  });
+
+  return {
+    ...input.data,
+    evidenceBundle: summarizeEvidenceBundle(evidence),
+  };
+}
 
 function buildDrafts(snapshot: RunLedgerSnapshot, trustPacket: WorkflowArtifactRecord, actor: string): DraftSpec[] {
   const packetData = isRecord(trustPacket.data) ? trustPacket.data : {};
