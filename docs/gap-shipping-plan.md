@@ -379,6 +379,12 @@ Shipped v2:
 - The manifest includes `safeToClaim` and `doNotClaim` lists so slide and booth claims match real configured capabilities.
 - Deepgram is now first-class in the metaregistry, and Sentry readiness is keyed to the server-side DSN used by backend readiness.
 
+Shipped v3:
+
+- Sponsor proof now includes a `demoRunbook` with ordered booth steps, live/fallback/planned partitions, judge script lines, and a no-secrets booth checklist.
+- `npm run sponsor:proof` prints the same booth-safe manifest locally from `.env.local`.
+- `docs/sponsor-proof-runbook.md` gives the team exact instructions for what to claim, what to show, and what not to say.
+
 Acceptance:
 
 - each sponsor claim maps to a visible product moment and a real route/integration.

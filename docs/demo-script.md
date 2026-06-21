@@ -114,9 +114,11 @@ Type in the chat: *"Which finding should we fix first?"*
 
 ## Sponsor Claim Check
 
-Before the sponsor booth pass, open `GET /api/sponsor/proof`.
+Before the sponsor booth pass, run `npm run sponsor:proof` or open `GET /api/sponsor/proof`.
 
 - Use `safeToClaim` for the deck and live explanation.
 - Use `doNotClaim` as the no-bullshit guardrail.
+- Use `demoRunbook.sequence` as the sponsor booth order.
 - If a sponsor row is `fallback`, show the product surface but say the hosted credential is not live.
 - If a sponsor row is `live`, show the listed route or surface as proof.
+- See `docs/sponsor-proof-runbook.md` for the exact booth-safe script.

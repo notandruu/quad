@@ -20,6 +20,7 @@
     "e2e": "playwright test",
     "e2e:api": "node scripts/e2e.mjs",
     "demo": "node scripts/demo.mjs",
+    "sponsor:proof": "tsx scripts/sponsor-proof.ts",
     "canary:worker": "node scripts/worker-canary.mjs",
     "worker:preflight": "node scripts/worker-preflight.mjs",
     "worker": "tsx scripts/worker.ts",

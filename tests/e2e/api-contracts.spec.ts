@@ -108,6 +108,33 @@ test.describe("api contracts", () => {
     expect(JSON.stringify(json)).not.toMatch(/QUAD_REDIS_REST_TOKEN|SENTRY_DSN|PHOENIX_API_KEY/);
   });
 
+  test("returns a booth-safe sponsor proof runbook", async ({ request }) => {
+    const response = await request.get("/api/sponsor/proof");
+
+    expect(response.ok()).toBe(true);
+    const json = await response.json();
+    expect(json).toMatchObject({
+      generatedAt: expect.any(String),
+      liveCount: expect.any(Number),
+      total: expect.any(Number),
+      safeToClaim: expect.any(Array),
+      doNotClaim: expect.any(Array),
+      demoRunbook: {
+        headline: expect.stringContaining("Sponsor proof runbook"),
+        sequence: expect.any(Array),
+        judgeScript: expect.any(Array),
+        boothChecklist: expect.any(Array),
+      },
+    });
+    expect(json.demoRunbook.sequence.length).toBe(json.total);
+    expect(json.demoRunbook.sequence[0]).toMatchObject({
+      sponsor: "Redis",
+      routeOrSurface: expect.any(String),
+      safeToSay: expect.any(Boolean),
+    });
+    expect(JSON.stringify(json)).not.toMatch(/sk-ant-|sk-proj-|bb_live_|gQAAAA|eyJhbGciOi/);
+  });
+
   test("runs a protected worker canary without exposing secrets", async ({ request }) => {
     const response = await request.post("/api/jobs/canary?orgId=org_brightpath");
 
