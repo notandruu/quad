@@ -41,8 +41,8 @@ export async function GET(request: Request) {
         .map((capability) => ({
           id: capability.id,
           status: capability.status,
-          reason: capability.reason,
-          missingEnv: capability.missingEnv,
+          reason: "Configuration required before this capability can run.",
+          missingEnvCount: capability.missingEnv.length,
         })),
       starterBundle: capabilities.starterBundle,
     },
