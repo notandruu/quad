@@ -15,7 +15,8 @@ Quad can run with zero keys for demos, but the production backend is only green 
 - Redis-backed job queue with memory fallback.
 - Long-running worker command for Railway: `npm run worker`.
 - Worker canary route: `POST /api/jobs/canary`.
-- Scheduled worker canary mode: `POST /api/jobs/canary?scheduled=1&minIntervalSeconds=300`, safe for Vercel Cron, Railway cron, or external monitors because repeated calls skip while a fresh receipt exists.
+- Scheduled worker canary mode: `POST /api/jobs/canary?scheduled=1&minIntervalSeconds=300`, safe for Railway cron or external monitors because repeated calls skip while a fresh receipt exists.
+- Vercel Cron worker canary: `GET /api/cron/worker-canary`, configured in `vercel.json` to run every five minutes and secured by `CRON_SECRET` when set.
 - Queue/runtime health route: `GET /api/jobs/health`.
 - Backend readiness route: `GET /api/health/backend`.
 - Retention and deletion policy route: `GET /api/security/data`.

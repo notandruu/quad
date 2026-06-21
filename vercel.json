@@ -1,5 +1,11 @@
 {
   "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/cron/worker-canary",
+      "schedule": "*/5 * * * *"
+    }
+  ],
   "functions": {
     "src/app/api/audit/stream/route.ts": {
       "maxDuration": 300

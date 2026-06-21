@@ -284,7 +284,13 @@ Shipped v5:
 
 Next:
 
-- add hosted monitor config examples for Vercel Cron, Railway cron, and external uptime checks.
+- add Railway cron and external uptime check examples that call the scheduled POST path.
+
+Shipped v7:
+
+- `vercel.json` now configures Vercel Cron to call `/api/cron/worker-canary` every five minutes.
+- `/api/cron/worker-canary` supports Vercel's `GET` cron invocation shape and requires `CRON_SECRET` when configured.
+- local and manual calls still fall back to the existing worker auth path, so demo/e2e mode stays zero-key.
 
 Shipped v6:
 
@@ -440,7 +446,7 @@ Next:
 
 ## Recommended next shipping order
 
-1. hosted monitor config examples for Vercel Cron, Railway cron, and external uptime checks.
+1. Railway cron and external uptime check examples for the scheduled POST canary path.
 2. richer connector-specific publish payloads.
 3. sponsor proof fixtures and demo script.
 4. memory refresh actions for stale context.
