@@ -55,6 +55,21 @@ test.describe("api contracts", () => {
     expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
   });
 
+  test("returns a safe operator summary", async ({ request }) => {
+    const response = await request.get("/api/operator?orgId=org_brightpath&limit=5");
+
+    expect(response.ok()).toBe(true);
+    const json = await response.json();
+    expect(json.ok).toBe(true);
+    expect(json.workline).toEqual(["audit", "packet", "approval", "publish"]);
+    expect(Array.isArray(json.runs)).toBe(true);
+    expect(Array.isArray(json.pendingApprovals)).toBe(true);
+    expect(Array.isArray(json.artifacts)).toBe(true);
+    expect(Array.isArray(json.capabilities.active)).toBe(true);
+    expect(Array.isArray(json.capabilities.blocked)).toBe(true);
+    expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+  });
+
   test("returns a 404 for unknown packet verification", async ({ request }) => {
     const response = await request.post("/api/quadchain/verify", {
       data: { packetId: `missing_${Date.now()}` },

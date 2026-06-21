@@ -58,8 +58,16 @@ test.describe("dashboard trust packet flow", () => {
     await page.getByPlaceholder(/Ask Quad/).fill("start an audit https://example.com");
     await page.getByRole("button", { name: "Send" }).click();
 
+    await expect(page.getByRole("heading", { name: "Operator console" })).toBeVisible();
+    await expect(page.getByText("audit --> packet --> approval --> publish")).toBeVisible();
+    await expect(page.getByText("Artifact sidecar")).toBeVisible();
+    await expect(page.getByRole("button", { name: "preview", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "proof", exact: true })).toBeVisible();
+    await expect(page.getByText("ready receipts")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Approval queue" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Capability registry" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Trust trail" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Trust packet" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Trust packet", exact: true })).toBeVisible();
     await expect(page.getByText("Missing security proof", { exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: "Build packet" }).click();
@@ -100,6 +108,107 @@ async function mockDashboardBackends(
     await route.fulfill({
       contentType: "text/event-stream",
       body,
+    });
+  });
+
+  await page.route("**/api/operator?**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        orgId: "org_brightpath",
+        workline: ["audit", "packet", "approval", "publish"],
+        runs: [
+          {
+            runId: `trust_${runId}`,
+            status: "needs_approval",
+            title: "Enterprise proof trust packet",
+            targetUrl: "https://example.com",
+            artifacts: [],
+            approvals: [
+              {
+                id: "approval_ui_1",
+                decision: "pending",
+                reason: "Trust packet is ready for approval with a verifiable quad chain certificate.",
+                evidenceVisible: true,
+              },
+            ],
+            receipts: [
+              {
+                id: "receipt_ui_1",
+                status: "ready",
+                summary: "Trust packet is ready for approval with a verifiable quad chain certificate.",
+                artifactHash: "fnv1a:12345678",
+              },
+            ],
+            nextAction: "Human approval required before customer-facing work can ship.",
+          },
+        ],
+        artifacts: [
+          {
+            id: `artifact_trust_${runId}`,
+            runId: `trust_${runId}`,
+            title: "Enterprise proof trust packet",
+            kind: "run_snapshot",
+            status: "needs_approval",
+            headline: "Human approval required before customer-facing work can ship.",
+            preview: {
+              label: "Run artifact",
+              primaryMetric: "1/1",
+              primaryLabel: "ready receipts",
+              secondaryMetric: "1",
+              secondaryLabel: "approvals",
+              risk: "human gate",
+            },
+            proof: [
+              {
+                id: "receipt_ui_1",
+                status: "ready",
+                summary: "Trust packet is ready for approval with a verifiable quad chain certificate.",
+                artifactHash: "fnv1a:12345678",
+              },
+            ],
+          },
+        ],
+        pendingApprovals: [
+          {
+            id: "approval_ui_1",
+            runId: `trust_${runId}`,
+            runTitle: "Enterprise proof trust packet",
+            decision: "pending",
+            reason: "Trust packet is ready for approval with a verifiable quad chain certificate.",
+            evidenceVisible: true,
+            targetUrl: "https://example.com",
+          },
+        ],
+        capabilities: {
+          active: [
+            {
+              id: "quad.chain_verifier",
+              name: "Quad chain verifier",
+              kind: "verifier",
+              approvalMode: "none",
+              sponsor: undefined,
+            },
+            {
+              id: "fetch.agent_bridge",
+              name: "Fetch agent bridge",
+              kind: "surface",
+              approvalMode: "none",
+              sponsor: "Fetch.ai",
+            },
+          ],
+          blocked: [
+            {
+              id: "cms.publisher",
+              status: "unavailable",
+              reason: "Capability is available in the registry but not enabled by default.",
+              missingEnv: ["CMS_API_KEY"],
+            },
+          ],
+          starterBundle: ["quad.chain_verifier", "fetch.agent_bridge"],
+        },
+      }),
     });
   });
 
