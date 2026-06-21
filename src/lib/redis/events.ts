@@ -46,10 +46,22 @@ export const VOICE_EVENTS = [
   "voice.session_ended",
 ] as const;
 
+export const PROOF_EVENTS = [
+  "question.started",
+  "brain.retrieved",
+  "context.collected",
+  "answer.drafted",
+  "answer.evaluated",
+  "brain.learned",
+  "answer.needs_human",
+] as const;
+
 export type AuditEventType = (typeof AUDIT_EVENTS)[number];
 export type EmployeeEventType = (typeof EMPLOYEE_EVENTS)[number];
 export type VoiceEventType = (typeof VOICE_EVENTS)[number];
+export type ProofEventType = (typeof PROOF_EVENTS)[number];
 export type QuadEventType =
   | AuditEventType
   | EmployeeEventType
-  | VoiceEventType;
+  | VoiceEventType
+  | ProofEventType;
