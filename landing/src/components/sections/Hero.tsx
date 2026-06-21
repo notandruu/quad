@@ -5,7 +5,6 @@ import { gsap } from "gsap";
 import IsoDiagram from "@/components/IsoDiagram";
 import HoverText from "@/components/HoverText";
 import { SPONSORS, SponsorMark } from "@/components/SponsorLogos";
-import { DASHBOARD_URL } from "@/lib/links";
 
 const useIso = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
@@ -235,14 +234,13 @@ export default function Hero() {
               replayable end to end.
             </p>
 
-            <a
+            <button
               data-h="cta"
-              href={DASHBOARD_URL}
               className="mt-9 flex w-full max-w-[514px] items-center justify-center bg-cream lg:ml-9 py-4 text-[12px] font-medium uppercase tracking-[0.1em] text-ink transition-colors hover:bg-paper-2"
               style={{ clipPath: CHAMFER }}
             >
-              <HoverText text="Open dashboard" />
-            </a>
+              <HoverText text="Open Dashboard" />
+            </button>
 
             {accordion}
 

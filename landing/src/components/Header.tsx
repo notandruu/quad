@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import HoverText from "@/components/HoverText";
-import { DASHBOARD_URL, NAV_LINKS } from "@/lib/links";
 
 // ribbon/tab shape: full-width top, bottom corners chamfered inward
 const BANNER_CLIP =
@@ -43,6 +42,8 @@ export function Logo({ className = "" }: { className?: string }) {
   );
 }
 
+const NAV = ["Platform", "Security", "Customers", "Docs"];
+
 export default function Header() {
   const [open, setOpen] = useState(false);
   return (
@@ -69,15 +70,15 @@ export default function Header() {
             }}
           />
           <nav className="relative mr-10 hidden items-center gap-9 md:flex">
-            {NAV_LINKS.map((n, i) => (
+            {NAV.map((n, i) => (
               <a
-                key={n.label}
-                href={n.href}
+                key={n}
+                href="#"
                 className={`navlink text-[14px] tracking-[0.01em] transition-colors ${
                   i === 0 ? "text-bone" : "text-bone/55 hover:text-bone"
                 }`}
               >
-                {n.label}
+                {n}
               </a>
             ))}
           </nav>
@@ -94,26 +95,26 @@ export default function Header() {
 
           {/* GET STARTED orange block — flush right */}
           <a
-            href={DASHBOARD_URL}
+            href="#"
             className="relative -mr-5 hidden h-[64px] items-center justify-center bg-flame px-10 text-[13px] font-semibold uppercase tracking-[0.07em] text-ink transition-colors hover:bg-flame-2 md:-mr-10 md:flex"
           >
-            <HoverText text="Open dashboard" />
+            <HoverText text="Open Dashboard" />
           </a>
         </div>
       </div>
 
       {open && (
         <div className="flex flex-col gap-1 bg-[rgba(20,20,20,0.95)] px-6 py-4 backdrop-blur-md md:hidden">
-          {NAV_LINKS.map((n) => (
-            <a key={n.label} href={n.href} className="py-2 text-[15px] text-bone/85">
-              {n.label}
+          {NAV.map((n) => (
+            <a key={n} href="#" className="py-2 text-[15px] text-bone/85">
+              {n}
             </a>
           ))}
           <a
-            href={DASHBOARD_URL}
+            href="#"
             className="mt-2 rounded-full bg-flame px-5 py-2.5 text-center text-[12px] font-medium uppercase tracking-[0.08em] text-ink"
           >
-            Open dashboard
+            Open Dashboard
           </a>
         </div>
       )}

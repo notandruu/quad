@@ -4,7 +4,6 @@ import { useState } from "react";
 import Reveal from "@/components/Reveal";
 import HoverText from "@/components/HoverText";
 import { MonoLabel } from "@/components/ui";
-import { DASHBOARD_URL } from "@/lib/links";
 
 const ITEMS = [
   {
@@ -64,16 +63,15 @@ export default function FAQ() {
               Watch Quad run a real trust workflow end to end, with evidence,
               approval, and a receipt.
             </p>
-            <a
-              href={DASHBOARD_URL}
+            <button
               className="flex items-center bg-cream px-6 py-3 text-[11px] font-medium uppercase tracking-[0.1em] text-ink transition-colors hover:bg-cream-2"
               style={{
                 clipPath:
                   "polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)",
               }}
             >
-              <HoverText text="Open dashboard" />
-            </a>
+              <HoverText text="Open Dashboard" />
+            </button>
           </div>
         </div>
       </div>
