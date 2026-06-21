@@ -56,6 +56,12 @@ describe("job queue", () => {
     expect(claimed?.status).toBe("running");
     expect(claimed?.attempts).toBe(1);
     expect(claimed?.startedAt).toBeTruthy();
+    expect(claimed?.claimedBy).toMatch(/^lease_/);
+    expect(claimed?.claimExpiresAt).toBeTruthy();
+
+    const completed = await updateJob(result.job.id, { status: "completed" });
+    expect(completed?.claimedBy).toBeUndefined();
+    expect(completed?.claimExpiresAt).toBeUndefined();
   });
 
   it("updates job status without mutating createdAt", async () => {
@@ -100,9 +106,12 @@ describe("job queue", () => {
       attempt: 1,
       message: "browser session timed out",
     });
+    expect(retrying.claimedBy).toBeUndefined();
+    expect(retrying.claimExpiresAt).toBeUndefined();
     expect(health.retrying).toBeGreaterThanOrEqual(1);
     expect(reclaimed?.id).toBe(result.job.id);
     expect(reclaimed?.attempts).toBe(2);
+    expect(reclaimed?.claimedBy).toMatch(/^lease_/);
   });
 
   it("records fresh and stale worker runtime heartbeats", async () => {

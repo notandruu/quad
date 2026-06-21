@@ -126,9 +126,15 @@ Shipped v1:
 - `GET /api/jobs/health` reports queue health and worker runtime liveness.
 - `GET /api/health/backend` marks production readiness degraded until a fresh worker heartbeat exists when workers are expected.
 
+Shipped v2:
+
+- worker claims attach lease metadata to running jobs.
+- hosted workers use a Redis-backed `nx` lease before changing a job to `running`.
+- leases release on retry, dead letter, completion, or deletion.
+- `QUAD_WORKER_JOB_LEASE_SECONDS` tunes the duplicate-execution guard.
+
 Next:
 
-- add distributed claim locks so multiple workers cannot process the same run.
 - add deployment docs for Railway env and start command.
 - add a worker canary that creates and processes a tiny synthetic job.
 

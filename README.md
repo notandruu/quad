@@ -101,7 +101,7 @@ npm run worker:once  # process one queued job locally
 
 `POST /api/jobs` queues a website audit or enterprise proof run, `GET /api/jobs` lists queued/running/completed jobs, `GET /api/jobs/:jobId` inspects a job, and `POST /api/jobs/process` processes one job for cron-style or protected worker calls. Redis is used when configured; local demos fall back to in-memory jobs.
 
-Set `QUAD_WORKER_SECRET` for protected worker processing calls. When it is configured, `POST /api/jobs/process` requires the same bearer/api-key auth shape as the rest of the hosted API. Set `QUAD_WORKER_ENABLED=true` on hosted environments that expect a long-running worker; backend readiness will stay degraded until a fresh heartbeat appears.
+Set `QUAD_WORKER_SECRET` for protected worker processing calls. When it is configured, `POST /api/jobs/process` requires the same bearer/api-key auth shape as the rest of the hosted API. Set `QUAD_WORKER_ENABLED=true` on hosted environments that expect a long-running worker; backend readiness will stay degraded until a fresh heartbeat appears. Worker claims use a short Redis-backed lease so duplicate queue ids or multiple worker processes do not execute the same job at once; tune it with `QUAD_WORKER_JOB_LEASE_SECONDS`.
 
 ## What is stubbed
 

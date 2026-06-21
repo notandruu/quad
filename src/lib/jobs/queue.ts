@@ -41,6 +41,8 @@ export type QuadJob = {
   completedAt?: string;
   retryAt?: string;
   deadLetteredAt?: string;
+  claimedBy?: string;
+  claimExpiresAt?: string;
   error?: string;
   errorHistory?: Array<{
     attempt: number;
@@ -99,18 +101,22 @@ export type WorkerHeartbeatInput = {
 
 const QUEUE_KEY = "quad:jobs:queue";
 const JOB_KEY_PREFIX = "quad:jobs:item:";
+const JOB_LOCK_KEY_PREFIX = "quad:jobs:lock:";
 const WORKER_HEARTBEAT_KEY = "quad:jobs:worker:heartbeat";
 const JOB_TTL_SECONDS = 60 * 60 * 24;
 
 const g = globalThis as typeof globalThis & {
   __quadJobs?: Map<string, QuadJob>;
   __quadJobQueue?: string[];
+  __quadJobLocks?: Map<string, { owner: string; expiresAt: string }>;
   __quadWorkerHeartbeat?: WorkerRuntimeHealth;
 };
 if (!g.__quadJobs) g.__quadJobs = new Map();
 if (!g.__quadJobQueue) g.__quadJobQueue = [];
+if (!g.__quadJobLocks) g.__quadJobLocks = new Map();
 const memoryJobs = g.__quadJobs;
 const memoryQueue = g.__quadJobQueue;
+const memoryLocks = g.__quadJobLocks;
 
 export async function enqueueAuditJob(input: EnqueueAuditJobInput): Promise<EnqueueJobResult> {
   const orgId = input.orgId ?? DEMO_ORG_ID;
@@ -221,11 +227,15 @@ export async function claimNextJob(): Promise<QuadJob | null> {
       if (jobId) {
         const job = await getJob(jobId);
         if (job && isClaimable(job)) {
+          const lease = await acquireJobLease(job.id);
+          if (!lease) return null;
           return updateJob(job.id, {
             status: "running",
             attempts: job.attempts + 1,
             startedAt: new Date().toISOString(),
             retryAt: undefined,
+            claimedBy: lease.owner,
+            claimExpiresAt: lease.expiresAt,
           });
         }
       }
@@ -239,11 +249,15 @@ export async function claimNextJob(): Promise<QuadJob | null> {
     if (!jobId) continue;
     const job = memoryJobs.get(jobId);
     if (!job || !isClaimable(job)) continue;
+    const lease = await acquireJobLease(job.id);
+    if (!lease) continue;
     return updateJob(job.id, {
       status: "running",
       attempts: job.attempts + 1,
       startedAt: new Date().toISOString(),
       retryAt: undefined,
+      claimedBy: lease.owner,
+      claimExpiresAt: lease.expiresAt,
     });
   }
 
@@ -260,6 +274,8 @@ export async function retryJob(
     status: "retrying",
     error: input.error,
     retryAt,
+    claimedBy: undefined,
+    claimExpiresAt: undefined,
     errorHistory: [
       ...(job.errorHistory ?? []),
       {
@@ -283,6 +299,8 @@ export async function deadLetterJob(
     error: input.error,
     completedAt: now,
     deadLetteredAt: now,
+    claimedBy: undefined,
+    claimExpiresAt: undefined,
     errorHistory: [
       ...(job.errorHistory ?? []),
       {
@@ -403,6 +421,10 @@ export async function updateJob(
     createdAt: existing.createdAt,
     updatedAt: new Date().toISOString(),
   };
+  if (shouldReleaseJobLease(updated.status)) {
+    updated.claimedBy = undefined;
+    updated.claimExpiresAt = undefined;
+  }
   memoryJobs.set(jobId, updated);
 
   const redis = getRedis();
@@ -412,6 +434,10 @@ export async function updateJob(
     } catch {
       // memory copy remains authoritative for fallback mode
     }
+  }
+
+  if (shouldReleaseJobLease(updated.status)) {
+    await releaseJobLease(jobId);
   }
 
   return cloneJob(updated);
@@ -437,6 +463,7 @@ export async function deleteJobs(input: { orgId: string; runId?: string }): Prom
   );
   for (const job of jobs) {
     memoryJobs.delete(job.id);
+    memoryLocks.delete(job.id);
   }
   if (jobs.length > 0) {
     const deletedIds = new Set(jobs.map((job) => job.id));
@@ -450,6 +477,7 @@ export async function deleteJobs(input: { orgId: string; runId?: string }): Prom
     for (const job of jobs) {
       try {
         await redis.del(jobKey(job.id));
+        await redis.del(jobLockKey(job.id));
       } catch {
         // Memory deletion is still authoritative for fallback mode.
       }
@@ -485,6 +513,52 @@ function jobKey(jobId: string): string {
   return `${JOB_KEY_PREFIX}${jobId}`;
 }
 
+function jobLockKey(jobId: string): string {
+  return `${JOB_LOCK_KEY_PREFIX}${jobId}`;
+}
+
+async function acquireJobLease(jobId: string): Promise<{ owner: string; expiresAt: string } | null> {
+  const owner = `lease_${crypto.randomUUID()}`;
+  const ttlSeconds = jobLeaseTtlSeconds();
+  const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+  const existingMemoryLock = memoryLocks.get(jobId);
+
+  if (existingMemoryLock && Date.parse(existingMemoryLock.expiresAt) > Date.now()) return null;
+  memoryLocks.set(jobId, { owner, expiresAt });
+
+  const redis = getRedis();
+  if (!redis) return { owner, expiresAt };
+
+  try {
+    const result = await redis.set(jobLockKey(jobId), { owner, expiresAt }, {
+      nx: true,
+      ex: ttlSeconds,
+    });
+    if (result === null) {
+      memoryLocks.delete(jobId);
+      return null;
+    }
+    return { owner, expiresAt };
+  } catch {
+    return { owner, expiresAt };
+  }
+}
+
+async function releaseJobLease(jobId: string): Promise<void> {
+  memoryLocks.delete(jobId);
+  const redis = getRedis();
+  if (!redis) return;
+  try {
+    await redis.del(jobLockKey(jobId));
+  } catch {
+    // Lease expiration is the backstop if explicit release fails.
+  }
+}
+
+function shouldReleaseJobLease(status: JobStatus): boolean {
+  return status !== "running";
+}
+
 function isClaimable(job: QuadJob): boolean {
   if (job.status === "queued") return true;
   if (job.status !== "retrying") return false;
@@ -497,6 +571,12 @@ function retryDelayMs(attempts: number): number {
   if (Number.isFinite(configured)) return Math.max(0, configured);
   const base = 1000 * 2 ** Math.max(0, attempts - 1);
   return Math.min(base, 30_000);
+}
+
+function jobLeaseTtlSeconds(): number {
+  const configured = Number.parseInt(process.env.QUAD_WORKER_JOB_LEASE_SECONDS ?? "", 10);
+  if (Number.isFinite(configured)) return Math.max(5, configured);
+  return 300;
 }
 
 function workerHeartbeatStaleMs(): number {
