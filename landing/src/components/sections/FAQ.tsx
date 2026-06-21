@@ -28,7 +28,7 @@ const ITEMS = [
   },
   {
     q: "How does Quad prove its work?",
-    a: "Every answer cites its source, every run streams live, and every compressed handoff ships with a QuadChain receipt. You can replay any decision end to end.",
+    a: "Every answer cites its source, every run is traced step by step, and every compressed handoff ships with a QuadChain receipt. You can replay any decision end to end.",
   },
 ];
 

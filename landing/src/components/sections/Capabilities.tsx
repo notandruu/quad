@@ -29,7 +29,7 @@ export default function Capabilities() {
                 Company brain
               </span>
             </div>
-            <span className="font-mono text-[11px] text-tan/55">live · 8,600 verified memories</span>
+            <span className="font-mono text-[11px] text-tan/55">8,600 verified memories</span>
           </div>
           <MemoryGraph className="h-auto w-full" />
         </div>

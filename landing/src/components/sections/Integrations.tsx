@@ -14,7 +14,7 @@ const CATEGORIES = [
 const TOOLS_BY_CAT = [
   [
     { name: "Zendesk", desc: "Ticket ingestion and write-back", logo: 2 },
-    { name: "Intercom", desc: "Live conversation capture", logo: 0 },
+    { name: "Intercom", desc: "Conversation capture", logo: 0 },
     { name: "Freshdesk", desc: "Helpdesk webhook connector", logo: 1 },
     { name: "Help Scout", desc: "Inbound queue aggregation", logo: 5 },
     { name: "Front", desc: "Shared inbox orchestration", logo: 3 },

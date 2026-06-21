@@ -103,7 +103,7 @@ export default function Intro() {
                   <span className="grid h-7 w-7 place-items-center rounded-md bg-flame/20 text-flame">↺</span>
                   <span className="text-[14px] text-bone">Security questionnaire</span>
                 </div>
-                <MonoLabel className="text-tan/50">Live run</MonoLabel>
+                <MonoLabel className="text-tan/50">Run trace</MonoLabel>
               </div>
               <div className="space-y-0">
                 {WORKFLOW.map((w, i) => (
