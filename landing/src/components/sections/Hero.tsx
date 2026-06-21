@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useLayoutEffect, Fragment } from "react";
 import { gsap } from "gsap";
 import IsoDiagram from "@/components/IsoDiagram";
 import HoverText from "@/components/HoverText";
+import Parallax from "@/components/Parallax";
 import { SPONSORS, SponsorMark } from "@/components/SponsorLogos";
 
 const useIso = typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -265,7 +266,9 @@ export default function Hero() {
 
           {/* DIAGRAM column — separated by its own left grid-line; draws itself in */}
           <div className="order-2 flex items-center justify-center pt-12 lg:justify-end lg:border-l lg:border-white/[0.07] lg:pl-10 lg:pt-[64px]">
-            <IsoDiagram className="h-auto w-full max-w-[560px]" />
+            <Parallax amount={26} className="w-full max-w-[560px]">
+              <IsoDiagram className="h-auto w-full" />
+            </Parallax>
           </div>
         </div>
       </div>

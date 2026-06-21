@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, IBM_Plex_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import SmoothScroll from "@/components/SmoothScroll";
+import Grain from "@/components/Grain";
 
 const geist = Geist({
   subsets: ["latin"],
@@ -35,6 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geist.variable} ${mono.variable} ${serif.variable}`}>
       <body>
+        <Grain />
         <SmoothScroll>{children}</SmoothScroll>
       </body>
     </html>
