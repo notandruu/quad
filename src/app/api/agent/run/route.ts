@@ -12,6 +12,7 @@ import {
   createWorkflowRun,
   getRunSnapshot,
   requestApproval,
+  saveRunSnapshot,
   summarizeAgentTask,
   transitionRun,
 } from "@/lib/runs";
@@ -133,6 +134,7 @@ export async function POST(req: NextRequest) {
     }
 
     const snapshot = getRunSnapshot(run.id);
+    await saveRunSnapshot(run.id);
     return NextResponse.json({
       agent: "quad",
       workflow,
@@ -144,6 +146,7 @@ export async function POST(req: NextRequest) {
       failureReason: err instanceof Error ? err.message : String(err),
     });
     const snapshot = getRunSnapshot(run.id);
+    await saveRunSnapshot(run.id).catch(() => null);
     return NextResponse.json(
       {
         agent: "quad",

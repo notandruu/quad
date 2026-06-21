@@ -7,6 +7,7 @@ import {
   createWorkflowRun,
   getRunSnapshot,
   requestApproval,
+  saveRunSnapshot,
   summarizeAgentTask,
   transitionRun,
   type AgentTaskSummary,
@@ -104,6 +105,7 @@ export async function buildDashboardTrustPacket(input: {
 
   const snapshot = getRunSnapshot(run.id);
   if (!snapshot) throw new Error(`Trust packet run was not persisted: ${run.id}`);
+  await saveRunSnapshot(run.id);
 
   return {
     workflow,

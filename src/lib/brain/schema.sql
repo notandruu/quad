@@ -48,3 +48,25 @@ CREATE TABLE IF NOT EXISTS quadchain_packets (
 CREATE INDEX IF NOT EXISTS quadchain_packets_org_run_idx ON quadchain_packets (org_id, run_id);
 CREATE INDEX IF NOT EXISTS quadchain_packets_type_idx ON quadchain_packets (packet_type);
 CREATE INDEX IF NOT EXISTS quadchain_packets_source_ids_idx ON quadchain_packets USING gin (source_ids);
+
+CREATE TABLE IF NOT EXISTS workflow_run_snapshots (
+  id                     TEXT PRIMARY KEY,
+  org_id                 TEXT NOT NULL,
+  workflow_kind          TEXT NOT NULL,
+  status                 TEXT NOT NULL,
+  title                  TEXT NOT NULL,
+  target_url             TEXT,
+  created_by             TEXT NOT NULL,
+  approval_count         INTEGER NOT NULL DEFAULT 0,
+  pending_approval_count INTEGER NOT NULL DEFAULT 0,
+  receipt_count          INTEGER NOT NULL DEFAULT 0,
+  artifact_count         INTEGER NOT NULL DEFAULT 0,
+  snapshot               JSONB NOT NULL,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS workflow_run_snapshots_org_idx ON workflow_run_snapshots (org_id);
+CREATE INDEX IF NOT EXISTS workflow_run_snapshots_status_idx ON workflow_run_snapshots (status);
+CREATE INDEX IF NOT EXISTS workflow_run_snapshots_pending_idx ON workflow_run_snapshots (org_id, pending_approval_count);
+CREATE INDEX IF NOT EXISTS workflow_run_snapshots_updated_idx ON workflow_run_snapshots (updated_at DESC);

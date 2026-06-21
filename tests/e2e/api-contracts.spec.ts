@@ -44,6 +44,17 @@ test.describe("api contracts", () => {
     expect(json.packets).toEqual([]);
   });
 
+  test("returns a safe run ledger summary", async ({ request }) => {
+    const response = await request.get("/api/runs?orgId=org_brightpath&limit=5");
+
+    expect(response.ok()).toBe(true);
+    const json = await response.json();
+    expect(json.ok).toBe(true);
+    expect(Array.isArray(json.runs)).toBe(true);
+    expect(Array.isArray(json.pendingApprovals)).toBe(true);
+    expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+  });
+
   test("returns a 404 for unknown packet verification", async ({ request }) => {
     const response = await request.post("/api/quadchain/verify", {
       data: { packetId: `missing_${Date.now()}` },

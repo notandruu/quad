@@ -1,3 +1,5 @@
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
 export type WorkflowKind =
   | "website_audit"
   | "enterprise_proof"
@@ -91,6 +93,11 @@ export type RunLedgerSnapshot = {
   receipts: ReceiptRecord[];
 };
 
+export type RunLedgerPersistResult = {
+  mode: "supabase" | "memory";
+  snapshot: RunLedgerSnapshot;
+};
+
 export type CreateWorkflowRunInput = {
   id?: string;
   orgId: string;
@@ -151,6 +158,78 @@ export function getRunSnapshot(runId: string): RunLedgerSnapshot | null {
   const snapshot = ledger.get(runId);
   if (!snapshot) return null;
   return cloneSnapshot(snapshot);
+}
+
+export async function saveRunSnapshot(runId: string): Promise<RunLedgerPersistResult> {
+  const snapshot = getRunSnapshot(runId);
+  if (!snapshot) throw new Error(`Run not found: ${runId}`);
+
+  const db = getRunLedgerClient();
+  if (!db) return { mode: "memory", snapshot };
+
+  const { error } = await db
+    .from("workflow_run_snapshots")
+    .upsert(toRunSnapshotRow(snapshot), { onConflict: "id" });
+  if (error) return { mode: "memory", snapshot };
+
+  return { mode: "supabase", snapshot };
+}
+
+export async function loadRunSnapshot(runId: string): Promise<RunLedgerSnapshot | null> {
+  const memory = getRunSnapshot(runId);
+  if (memory) return memory;
+
+  const db = getRunLedgerClient();
+  if (!db) return null;
+
+  const { data, error } = await db
+    .from("workflow_run_snapshots")
+    .select("*")
+    .eq("id", runId)
+    .maybeSingle();
+  if (error) return null;
+  if (!data) return null;
+
+  const snapshot = fromRunSnapshotRow(data);
+  ledger.set(snapshot.run.id, cloneSnapshot(snapshot));
+  pruneLedger();
+  return snapshot;
+}
+
+export async function listRunSnapshots(input: {
+  orgId?: string;
+  status?: WorkflowRunStatus;
+  limit?: number;
+} = {}): Promise<RunLedgerSnapshot[]> {
+  const limit = clampListLimit(input.limit);
+  const db = getRunLedgerClient();
+
+  if (db) {
+    let query = db
+      .from("workflow_run_snapshots")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(limit);
+    if (input.orgId) query = query.eq("org_id", input.orgId);
+    if (input.status) query = query.eq("status", input.status);
+    const { data, error } = await query;
+    if (error) return listMemoryRunSnapshots(input, limit);
+    return (data ?? []).map(fromRunSnapshotRow);
+  }
+
+  return listMemoryRunSnapshots(input, limit);
+}
+
+function listMemoryRunSnapshots(
+  input: { orgId?: string; status?: WorkflowRunStatus },
+  limit: number
+): RunLedgerSnapshot[] {
+  return Array.from(ledger.values())
+    .map(cloneSnapshot)
+    .filter((snapshot) => !input.orgId || snapshot.run.orgId === input.orgId)
+    .filter((snapshot) => !input.status || snapshot.run.status === input.status)
+    .sort((a, b) => b.run.updatedAt.localeCompare(a.run.updatedAt))
+    .slice(0, limit);
 }
 
 export function transitionRun(
@@ -404,4 +483,48 @@ function stableStringify(value: unknown): string {
     .filter(([, item]) => item !== undefined)
     .sort(([a], [b]) => a.localeCompare(b));
   return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`).join(",")}}`;
+}
+
+function getRunLedgerClient() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY;
+  if (!url || !key) return null;
+
+  const global = globalThis as typeof globalThis & {
+    __quadRunLedgerClient?: SupabaseClient;
+  };
+  if (global.__quadRunLedgerClient) return global.__quadRunLedgerClient;
+
+  global.__quadRunLedgerClient = createClient(url, key, { auth: { persistSession: false } });
+  return global.__quadRunLedgerClient;
+}
+
+function toRunSnapshotRow(snapshot: RunLedgerSnapshot) {
+  return {
+    id: snapshot.run.id,
+    org_id: snapshot.run.orgId,
+    workflow_kind: snapshot.run.workflowKind,
+    status: snapshot.run.status,
+    title: snapshot.run.title,
+    target_url: snapshot.run.targetUrl ?? null,
+    created_by: snapshot.run.createdBy,
+    approval_count: snapshot.approvals.length,
+    pending_approval_count: snapshot.approvals.filter((approval) => approval.decision === "pending").length,
+    receipt_count: snapshot.receipts.length,
+    artifact_count: snapshot.artifacts.length,
+    snapshot,
+    created_at: snapshot.run.createdAt,
+    updated_at: snapshot.run.updatedAt,
+  };
+}
+
+function fromRunSnapshotRow(row: Record<string, unknown>): RunLedgerSnapshot {
+  const snapshot = row.snapshot as RunLedgerSnapshot | undefined;
+  if (!snapshot?.run) throw new Error("Run ledger row is missing snapshot data.");
+  return cloneSnapshot(snapshot);
+}
+
+function clampListLimit(value: number | undefined): number {
+  if (!Number.isFinite(value)) return 25;
+  return Math.max(1, Math.min(100, Math.floor(value ?? 25)));
 }

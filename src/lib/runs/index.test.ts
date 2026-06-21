@@ -7,7 +7,10 @@ import {
   createWorkflowRun,
   decideApproval,
   getRunSnapshot,
+  listRunSnapshots,
+  loadRunSnapshot,
   requestApproval,
+  saveRunSnapshot,
   summarizeAgentTask,
   transitionRun,
 } from ".";
@@ -118,5 +121,49 @@ describe("run ledger", () => {
     });
 
     expect(() => assertCustomerWriteAllowed(getRunSnapshot(run.id)!)).not.toThrow();
+  });
+
+  it("persists through the memory fallback when supabase is not configured", async () => {
+    const oldUrl = process.env.SUPABASE_URL;
+    const oldKey = process.env.SUPABASE_SERVICE_KEY;
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_KEY;
+
+    try {
+      const run = createWorkflowRun({
+        id: "run_test_persist",
+        orgId: "org_persist",
+        workflowKind: "trust_packet",
+        title: "Trust packet",
+        createdBy: "dashboard",
+        now: "2026-06-21T00:00:00.000Z",
+      });
+      const artifact = addArtifact({
+        runId: run.id,
+        kind: "trust_packet",
+        title: "Trust packet",
+        data: { claims: ["mfa"] },
+        now: "2026-06-21T00:00:01.000Z",
+      });
+      requestApproval({
+        runId: run.id,
+        artifactId: artifact.id,
+        reason: "Needs approval.",
+        evidenceVisible: true,
+        now: "2026-06-21T00:00:02.000Z",
+      });
+
+      const saved = await saveRunSnapshot(run.id);
+      const loaded = await loadRunSnapshot(run.id);
+      const listed = await listRunSnapshots({ orgId: "org_persist", status: "needs_approval" });
+
+      expect(saved.mode).toBe("memory");
+      expect(loaded?.run.id).toBe(run.id);
+      expect(listed.map((snapshot) => snapshot.run.id)).toContain(run.id);
+      expect(summarizeAgentTask(loaded!).approvals).toHaveLength(1);
+    } finally {
+      process.env.SUPABASE_URL = oldUrl;
+      process.env.SUPABASE_SERVICE_KEY = oldKey;
+    }
   });
 });
