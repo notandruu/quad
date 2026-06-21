@@ -29,9 +29,9 @@ export default function Capabilities() {
                 Company brain
               </span>
             </div>
-            <span className="font-mono text-[11px] text-tan/55">8,600 verified memories</span>
+            <span className="font-mono text-[11px] text-tan/55">8,600 verified memories · hover to focus</span>
           </div>
-          <MemoryGraph className="h-auto w-full" />
+          <MemoryGraph className="h-[520px] w-full" />
         </div>
       </Reveal>
 
