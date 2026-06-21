@@ -48,6 +48,8 @@ export default function Header() {
   const [open, setOpen] = useState(false);
   return (
     <header className="fixed inset-x-0 top-0 z-50">
+      {/* solid black nav bar, full width edge-to-edge */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[64px] bg-ink" aria-hidden />
       {/* horizontal line separating the nav — full-bleed to screen edges */}
       <div className="pointer-events-none absolute inset-x-0 top-[64px] hidden border-b border-white/[0.07] lg:block" />
       <div className="mx-auto flex max-w-[1512px] items-start px-5 md:px-10">

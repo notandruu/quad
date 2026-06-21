@@ -11,10 +11,10 @@ const useIso = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 const TITLE: { w: string; dim?: boolean; serif?: boolean }[] = [
   { w: "Quad.", serif: true },
-  { w: "AI", dim: true },
-  { w: "that", dim: true },
-  { w: "proves", dim: false },
-  { w: "it.", dim: false },
+  { w: "Leading", dim: true },
+  { w: "agentic", dim: true },
+  { w: "trust", dim: false },
+  { w: "work.", dim: false },
 ];
 
 const LAYERS = [
