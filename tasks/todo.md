@@ -193,7 +193,7 @@ hard constraints:
 - [x] add post-ship verification and retry/escalation states
 - [x] add backend readiness endpoint and platform schema for durable Supabase tables
 - [x] add worker retry, dead-letter, and queue health semantics
-- [ ] expose hosted run artifacts under stable run/task ids
+- [x] expose hosted run artifacts under stable run/task ids
 
 ### phase 4 metaregistry capability layer
 

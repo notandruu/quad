@@ -3,9 +3,12 @@ import {
   addArtifact,
   addTask,
   assertCustomerWriteAllowed,
+  buildHostedRunDetail,
   createReceipt,
   createWorkflowRun,
   decideApproval,
+  getHostedArtifactDetail,
+  getHostedTaskDetail,
   getRunSnapshot,
   listRunSnapshots,
   loadRunSnapshot,
@@ -267,5 +270,77 @@ describe("run ledger", () => {
     expect(fromWorkflowArtifactRow(artifactRow)).toEqual(artifact);
     expect(fromWorkflowApprovalRow(approvalRow)).toEqual(approval);
     expect(fromWorkflowReceiptRow(receiptRow)).toEqual(receipt);
+  });
+
+  it("builds stable hosted run, artifact, and task details", () => {
+    const run = createWorkflowRun({
+      id: "run_hosted_detail",
+      orgId: "org_hosted",
+      workflowKind: "enterprise_proof",
+      title: "Hosted enterprise proof",
+      createdBy: "dashboard",
+      targetUrl: "https://example.com",
+      now: "2026-06-21T02:00:00.000Z",
+    });
+    const task = addTask({
+      runId: run.id,
+      title: "Collect proof",
+      status: "completed",
+      owner: "quad",
+      detail: "Proof collected.",
+      now: "2026-06-21T02:00:01.000Z",
+    });
+    const artifact = addArtifact({
+      runId: run.id,
+      kind: "trust_packet",
+      title: "Trust packet",
+      data: {
+        claim: "sso enabled",
+        evidence: ["admin screenshot"],
+        internalNotes: "only visible in artifact detail",
+      },
+      now: "2026-06-21T02:00:02.000Z",
+    });
+    const snapshot = getRunSnapshot(run.id)!;
+
+    const detail = buildHostedRunDetail(snapshot);
+    const artifactDetail = getHostedArtifactDetail(snapshot, artifact.id);
+    const taskDetail = getHostedTaskDetail(snapshot, task.id);
+
+    expect(detail.links).toEqual({
+      self: "/api/runs/run_hosted_detail",
+      artifacts: "/api/runs/run_hosted_detail/artifacts",
+      tasks: "/api/runs/run_hosted_detail/tasks",
+    });
+    expect(detail.artifacts[0]).toMatchObject({
+      id: artifact.id,
+      href: `/api/runs/${run.id}/artifacts/${artifact.id}`,
+      dataPreview: {
+        claim: "sso enabled",
+        evidence: ["admin screenshot"],
+        internalNotes: "only visible in artifact detail",
+      },
+    });
+    expect(artifactDetail).toMatchObject({
+      id: artifact.id,
+      data: {
+        claim: "sso enabled",
+        evidence: ["admin screenshot"],
+        internalNotes: "only visible in artifact detail",
+      },
+      links: {
+        self: `/api/runs/${run.id}/artifacts/${artifact.id}`,
+        run: `/api/runs/${run.id}`,
+      },
+    });
+    expect(taskDetail).toMatchObject({
+      id: task.id,
+      links: {
+        self: `/api/runs/${run.id}/tasks/${task.id}`,
+        run: `/api/runs/${run.id}`,
+      },
+    });
+    expect(getHostedArtifactDetail(snapshot, "artifact_missing")).toBeNull();
+    expect(getHostedTaskDetail(snapshot, "task_missing")).toBeNull();
   });
 });

@@ -124,6 +124,39 @@ export type AgentTaskSummary = {
   nextAction: string;
 };
 
+export type HostedRunDetail = {
+  run: WorkflowRunRecord;
+  task: AgentTaskSummary;
+  tasks: WorkflowTaskRecord[];
+  artifacts: Array<Omit<WorkflowArtifactRecord, "data"> & {
+    href: string;
+    dataPreview: unknown;
+  }>;
+  approvals: ApprovalRecord[];
+  receipts: ReceiptRecord[];
+  links: {
+    self: string;
+    artifacts: string;
+    tasks: string;
+  };
+};
+
+export type HostedArtifactDetail = WorkflowArtifactRecord & {
+  run: Pick<WorkflowRunRecord, "id" | "orgId" | "title" | "status" | "targetUrl">;
+  links: {
+    self: string;
+    run: string;
+  };
+};
+
+export type HostedTaskDetail = WorkflowTaskRecord & {
+  run: Pick<WorkflowRunRecord, "id" | "orgId" | "title" | "status" | "targetUrl">;
+  links: {
+    self: string;
+    run: string;
+  };
+};
+
 const g = globalThis as typeof globalThis & {
   __quadRunLedger?: Map<string, RunLedgerSnapshot>;
 };
@@ -483,6 +516,64 @@ export function summarizeAgentTask(snapshot: RunLedgerSnapshot): AgentTaskSummar
   };
 }
 
+export function buildHostedRunDetail(snapshot: RunLedgerSnapshot): HostedRunDetail {
+  return {
+    run: { ...snapshot.run },
+    task: summarizeAgentTask(snapshot),
+    tasks: snapshot.tasks.map((task) => ({ ...task, dependsOn: [...task.dependsOn] })),
+    artifacts: snapshot.artifacts.map((artifact) => ({
+      id: artifact.id,
+      runId: artifact.runId,
+      kind: artifact.kind,
+      title: artifact.title,
+      hash: artifact.hash,
+      createdAt: artifact.createdAt,
+      href: `/api/runs/${snapshot.run.id}/artifacts/${artifact.id}`,
+      dataPreview: previewArtifactData(artifact.data),
+    })),
+    approvals: snapshot.approvals.map((approval) => ({ ...approval })),
+    receipts: snapshot.receipts.map((receipt) => ({ ...receipt })),
+    links: {
+      self: `/api/runs/${snapshot.run.id}`,
+      artifacts: `/api/runs/${snapshot.run.id}/artifacts`,
+      tasks: `/api/runs/${snapshot.run.id}/tasks`,
+    },
+  };
+}
+
+export function getHostedArtifactDetail(
+  snapshot: RunLedgerSnapshot,
+  artifactId: string
+): HostedArtifactDetail | null {
+  const artifact = snapshot.artifacts.find((item) => item.id === artifactId);
+  if (!artifact) return null;
+  return {
+    ...artifact,
+    run: runReference(snapshot.run),
+    links: {
+      self: `/api/runs/${snapshot.run.id}/artifacts/${artifact.id}`,
+      run: `/api/runs/${snapshot.run.id}`,
+    },
+  };
+}
+
+export function getHostedTaskDetail(
+  snapshot: RunLedgerSnapshot,
+  taskId: string
+): HostedTaskDetail | null {
+  const task = snapshot.tasks.find((item) => item.id === taskId);
+  if (!task) return null;
+  return {
+    ...task,
+    dependsOn: [...task.dependsOn],
+    run: runReference(snapshot.run),
+    links: {
+      self: `/api/runs/${snapshot.run.id}/tasks/${task.id}`,
+      run: `/api/runs/${snapshot.run.id}`,
+    },
+  };
+}
+
 function requireSnapshot(runId: string): RunLedgerSnapshot {
   const snapshot = ledger.get(runId);
   if (!snapshot) throw new Error(`Run not found: ${runId}`);
@@ -812,4 +903,21 @@ function optionalString(value: unknown): string | undefined {
 function clampListLimit(value: number | undefined): number {
   if (!Number.isFinite(value)) return 25;
   return Math.max(1, Math.min(100, Math.floor(value ?? 25)));
+}
+
+function runReference(run: WorkflowRunRecord): HostedArtifactDetail["run"] {
+  return {
+    id: run.id,
+    orgId: run.orgId,
+    title: run.title,
+    status: run.status,
+    targetUrl: run.targetUrl,
+  };
+}
+
+function previewArtifactData(data: unknown): unknown {
+  if (data === null || typeof data !== "object") return data;
+  if (Array.isArray(data)) return data.slice(0, 3);
+  const entries = Object.entries(data as Record<string, unknown>).slice(0, 8);
+  return Object.fromEntries(entries);
 }
