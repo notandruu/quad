@@ -147,7 +147,7 @@ async function executeDeletion(
 function buildDeletionWarnings(input: DataDeletionRequest): string[] {
   const warnings = [
     "External provider logs, Sentry events, Arize traces, and Browserbase session history may require deletion in their own consoles.",
-    "Connector token revocation is not part of this deletion receipt yet.",
+    "Connector credential revocation is available through /api/connectors/credentials; provider-side oauth invalidation may still require the vendor console.",
   ];
   if (input.scope === "run") {
     warnings.push("Run-scoped deletion does not delete general company brain memories unless sourceId is provided.");

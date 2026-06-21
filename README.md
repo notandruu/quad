@@ -69,6 +69,8 @@ High-risk mutation routes are protected by org-scoped rate limits and optional `
 
 `POST /api/security/data` supports protected deletion dry-runs and execution receipts for org-scoped or run-scoped data. Execute mode requires the confirmation string returned by the dry-run receipt, such as `delete:demo_org:run_123`.
 
+`/api/connectors/credentials` installs, lists, and revokes connector credentials. Stored credentials are encrypted with `QUAD_CONNECTOR_ENCRYPTION_KEY` and list responses return only metadata, scopes, status, and credential hashes.
+
 ## Verification
 
 ```bash

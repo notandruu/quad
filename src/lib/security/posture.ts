@@ -153,6 +153,16 @@ export function buildSecurityPacket(input: {
       ),
     }),
     control({
+      id: "connector_credentials",
+      label: "Connector credentials",
+      ok: true,
+      warning: !env.QUAD_CONNECTOR_ENCRYPTION_KEY && !env.QUAD_API_SECRET,
+      passDetail: "Connector credentials are encrypted at rest and exposed only as metadata summaries.",
+      warningDetail: "Connector credentials are encrypted with the local development fallback key; configure QUAD_CONNECTOR_ENCRYPTION_KEY before hosting.",
+      missingDetail: "Connector credential vault is missing.",
+      evidence: ["connector_credentials table", "installConnectorCredential()", "revokeConnectorCredential()"],
+    }),
+    control({
       id: "mutation_rate_limits",
       label: "Mutation rate limits",
       ok: true,
@@ -241,6 +251,12 @@ export function buildSecurityPacket(input: {
         isolation: "org-scoped retrieval and tenant memory writes",
         retention: retentionDays ? `${retentionDays} days target` : "not configured",
       },
+      {
+        store: "connector credentials",
+        contents: "encrypted credential envelopes, scopes, install status, hashes, actor, and revocation timestamps",
+        isolation: "org_id filtered and protected by request auth on exposed routes",
+        retention: retentionDays ? `${retentionDays} days target plus explicit revoke` : "explicit revoke supported",
+      },
     ],
     deletion: {
       configured: retentionDays !== null,
@@ -253,7 +269,7 @@ export function buildSecurityPacket(input: {
       ],
       missing: [
         "self-serve org data export",
-        "connector token revocation endpoint",
+        "external provider-side token invalidation",
       ],
     },
     connectorScopes: capabilities.activeTools.map((tool) => {

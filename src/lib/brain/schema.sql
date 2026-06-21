@@ -149,3 +149,21 @@ CREATE TABLE IF NOT EXISTS workflow_receipts (
 
 CREATE INDEX IF NOT EXISTS workflow_receipts_run_idx ON workflow_receipts (run_id);
 CREATE INDEX IF NOT EXISTS workflow_receipts_status_idx ON workflow_receipts (status);
+
+CREATE TABLE IF NOT EXISTS connector_credentials (
+  id                   TEXT PRIMARY KEY,
+  org_id               TEXT NOT NULL,
+  capability_id        TEXT NOT NULL,
+  actor                TEXT NOT NULL,
+  scopes               TEXT[] NOT NULL DEFAULT '{}',
+  status               TEXT NOT NULL,
+  credential_hash      TEXT NOT NULL,
+  encrypted_credential TEXT NOT NULL,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  revoked_at           TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS connector_credentials_org_idx ON connector_credentials (org_id);
+CREATE INDEX IF NOT EXISTS connector_credentials_capability_idx ON connector_credentials (capability_id);
+CREATE INDEX IF NOT EXISTS connector_credentials_status_idx ON connector_credentials (status);

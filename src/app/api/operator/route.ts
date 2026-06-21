@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { DEMO_ORG_ID } from "@/data/seed";
+import { listConnectorCredentials } from "@/lib/connectors";
 import { summarizeCapabilities } from "@/lib/metaregistry";
 import { listRunSnapshots, summarizeAgentTask } from "@/lib/runs";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
@@ -21,6 +22,7 @@ export async function GET(request: Request) {
   const limit = Number(url.searchParams.get("limit") ?? 8);
   const snapshots = await listRunSnapshots({ orgId, limit });
   const capabilities = summarizeCapabilities(process.env);
+  const connectorCredentials = await listConnectorCredentials({ orgId });
   const security = summarizeSecurityPacket(buildSecurityPacket({ orgId }));
   const runs = snapshots.map((snapshot) => summarizeAgentTask(snapshot));
   const pendingApprovals = snapshots.flatMap((snapshot) =>
@@ -57,6 +59,7 @@ export async function GET(request: Request) {
         })),
       starterBundle: capabilities.starterBundle,
     },
+    connectorCredentials,
     security,
   });
 }
