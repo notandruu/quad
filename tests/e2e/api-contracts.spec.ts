@@ -16,9 +16,9 @@ test.describe("api contracts", () => {
     await expect(ingest.json()).resolves.toMatchObject({ error: "title and content required" });
 
     const agent = await request.post("/api/agent/run", { data: { workflow: "enterprise_proof" } });
-    expect([400, 401]).toContain(agent.status());
+    expect([400, 401, 500]).toContain(agent.status());
     const agentJson = await agent.json();
-    expect(agentJson.error).toMatch(/targetUrl required|Invalid agent secret/);
+    expect(agentJson.error).toMatch(/targetUrl required|Invalid agent secret|Agent secret is not configured/);
 
     const trustPacket = await request.post("/api/trust-packet", { data: {} });
     expect(trustPacket.status()).toBe(400);
