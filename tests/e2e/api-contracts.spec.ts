@@ -24,6 +24,10 @@ test.describe("api contracts", () => {
     expect(trustPacket.status()).toBe(400);
     await expect(trustPacket.json()).resolves.toMatchObject({ ok: false, error: "runId is required" });
 
+    const approval = await request.post("/api/approvals/missing/decision", { data: {} });
+    expect(approval.status()).toBe(400);
+    await expect(approval.json()).resolves.toMatchObject({ ok: false });
+
     const verify = await request.post("/api/quadchain/verify", { data: {} });
     expect(verify.status()).toBe(400);
     await expect(verify.json()).resolves.toMatchObject({ error: "packetId required" });
@@ -68,6 +72,19 @@ test.describe("api contracts", () => {
     expect(Array.isArray(json.capabilities.active)).toBe(true);
     expect(Array.isArray(json.capabilities.blocked)).toBe(true);
     expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+  });
+
+  test("returns a 404 for unknown approval decisions", async ({ request }) => {
+    const response = await request.post("/api/approvals/missing/decision", {
+      data: {
+        runId: `missing_${Date.now()}`,
+        decision: "approved",
+        approver: "demo.operator",
+      },
+    });
+
+    expect(response.status()).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({ ok: false, code: "run_not_found" });
   });
 
   test("returns a 404 for unknown packet verification", async ({ request }) => {

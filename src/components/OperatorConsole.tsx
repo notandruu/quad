@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type OperatorRun = {
   runId: string;
@@ -68,11 +68,22 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [activeArtifactId, setActiveArtifactId] = useState<string | null>(null);
   const [artifactTab, setArtifactTab] = useState<"preview" | "data" | "proof">("preview");
+  const [decisionState, setDecisionState] = useState<{ id: string; decision: "approved" | "rejected" } | null>(null);
+
+  const load = useCallback(async () => {
+    const response = await fetch(`/api/operator?orgId=${encodeURIComponent(orgId)}&limit=8`, {
+      cache: "no-store",
+    }).catch(() => null);
+    if (!response?.ok) return;
+    const json = (await response.json()) as OperatorResponse;
+    setData(json);
+    setUpdatedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+  }, [orgId]);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
+    async function loadIfActive() {
       const response = await fetch(`/api/operator?orgId=${encodeURIComponent(orgId)}&limit=8`, {
         cache: "no-store",
       }).catch(() => null);
@@ -84,8 +95,8 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
       }
     }
 
-    void load();
-    const id = window.setInterval(load, 6000);
+    void loadIfActive();
+    const id = window.setInterval(loadIfActive, 6000);
     return () => {
       cancelled = true;
       window.clearInterval(id);
@@ -117,6 +128,26 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
   }
 
   const latestRuns = data.runs.slice(0, 3);
+
+  async function decideApproval(approval: OperatorResponse["pendingApprovals"][number], decision: "approved" | "rejected") {
+    setDecisionState({ id: approval.id, decision });
+    const response = await fetch(`/api/approvals/${encodeURIComponent(approval.id)}/decision`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        runId: approval.runId,
+        orgId: data?.orgId,
+        decision,
+        approver: "demo.operator",
+        reason:
+          decision === "approved"
+            ? "Approved from the operator console."
+            : "Rejected from the operator console.",
+      }),
+    }).catch(() => null);
+    setDecisionState(null);
+    if (response?.ok) await load();
+  }
 
   return (
     <section className="rounded-lg border border-accent/25 bg-panel p-3">
@@ -184,6 +215,24 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
                       <span className="text-[10px] text-accent">pending</span>
                     </div>
                     <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-neutral-500">{approval.reason}</p>
+                    <div className="mt-2 flex gap-1.5">
+                      <button
+                        type="button"
+                        disabled={Boolean(decisionState)}
+                        onClick={() => void decideApproval(approval, "approved")}
+                        className="rounded border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] text-accent hover:border-accent/60 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {decisionState?.id === approval.id && decisionState.decision === "approved" ? "Approving packet" : "Approve packet"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={Boolean(decisionState)}
+                        onClick={() => void decideApproval(approval, "rejected")}
+                        className="rounded border border-red-300/30 bg-red-950/20 px-2 py-0.5 text-[10px] text-red-200 hover:border-red-300/60 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {decisionState?.id === approval.id && decisionState.decision === "rejected" ? "Rejecting packet" : "Reject packet"}
+                      </button>
+                    </div>
                   </div>
                 ))
               ) : (

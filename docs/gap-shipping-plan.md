@@ -35,11 +35,16 @@ Shipped v1:
 - `/api/runs` lists recent runs and pending approvals.
 - memory fallback stays active for zero-key demos and ci.
 
+Shipped v2:
+
+- `POST /api/approvals/[approvalId]/decision` records approve/reject decisions.
+- approval decisions emit `approval` quadchain packets.
+- operator console can approve or reject pending packets.
+
 Next:
 
 - add row-level tenant checks before exposing raw artifacts.
 - split snapshot storage into normalized tables once query needs exceed v1.
-- add approval decision route that emits an `approval` quadchain packet.
 
 ## Gap 2: operator console
 
@@ -157,10 +162,8 @@ Acceptance:
 
 ## Recommended next shipping order
 
-1. operator console on top of `/api/runs`.
-2. approval decision route plus `approval` quadchain packet.
-3. dry-run publisher workbench.
-4. post-ship verification.
-5. voice-led proof interview.
-6. sponsor proof fixtures and demo script.
-7. security retention/deletion controls.
+1. dry-run publisher workbench.
+2. post-ship verification.
+3. voice-led proof interview.
+4. sponsor proof fixtures and demo script.
+5. security retention/deletion controls.

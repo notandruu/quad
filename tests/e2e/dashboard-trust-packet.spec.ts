@@ -50,8 +50,11 @@ const report = {
 test.describe("dashboard trust packet flow", () => {
   test("turns a completed audit into an approval-ready trust packet", async ({ page }) => {
     let trustPacketBody: Record<string, unknown> | null = null;
+    let approvalDecisionBody: Record<string, unknown> | null = null;
     await mockDashboardBackends(page, async (body) => {
       trustPacketBody = body;
+    }, async (body) => {
+      approvalDecisionBody = body;
     });
 
     await page.goto("/");
@@ -70,6 +73,15 @@ test.describe("dashboard trust packet flow", () => {
     await expect(page.getByRole("heading", { name: "Trust packet", exact: true })).toBeVisible();
     await expect(page.getByText("Missing security proof", { exact: true })).toBeVisible();
 
+    const operatorConsole = page.locator("section").filter({ has: page.getByRole("heading", { name: "Operator console" }) });
+    await operatorConsole.getByRole("button", { name: "Approve packet", exact: true }).click();
+    await expect(operatorConsole.getByText("No pending approvals.")).toBeVisible();
+    expect(approvalDecisionBody).toMatchObject({
+      runId: `trust_${runId}`,
+      decision: "approved",
+      approver: "demo.operator",
+    });
+
     await page.getByRole("button", { name: "Build packet" }).click();
 
     await expect(page.getByText("Ready for approval", { exact: true })).toBeVisible();
@@ -82,8 +94,10 @@ test.describe("dashboard trust packet flow", () => {
 
 async function mockDashboardBackends(
   page: Page,
-  onTrustPacket: (body: Record<string, unknown>) => void | Promise<void>
+  onTrustPacket: (body: Record<string, unknown>) => void | Promise<void>,
+  onApprovalDecision?: (body: Record<string, unknown>) => void | Promise<void>
 ) {
+  let approvalDecision: "pending" | "approved" = "pending";
   await page.route("**/api/settings", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -112,6 +126,20 @@ async function mockDashboardBackends(
   });
 
   await page.route("**/api/operator?**", async (route) => {
+    const pendingApprovals = approvalDecision === "pending"
+      ? [
+          {
+            id: "approval_ui_1",
+            runId: `trust_${runId}`,
+            runTitle: "Enterprise proof trust packet",
+            decision: "pending",
+            reason: "Trust packet is ready for approval with a verifiable quad chain certificate.",
+            evidenceVisible: true,
+            targetUrl: "https://example.com",
+          },
+        ]
+      : [];
+
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -128,7 +156,7 @@ async function mockDashboardBackends(
             approvals: [
               {
                 id: "approval_ui_1",
-                decision: "pending",
+                decision: approvalDecision,
                 reason: "Trust packet is ready for approval with a verifiable quad chain certificate.",
                 evidenceVisible: true,
               },
@@ -170,17 +198,7 @@ async function mockDashboardBackends(
             ],
           },
         ],
-        pendingApprovals: [
-          {
-            id: "approval_ui_1",
-            runId: `trust_${runId}`,
-            runTitle: "Enterprise proof trust packet",
-            decision: "pending",
-            reason: "Trust packet is ready for approval with a verifiable quad chain certificate.",
-            evidenceVisible: true,
-            targetUrl: "https://example.com",
-          },
-        ],
+        pendingApprovals,
         capabilities: {
           active: [
             {
@@ -207,6 +225,41 @@ async function mockDashboardBackends(
             },
           ],
           starterBundle: ["quad.chain_verifier", "fetch.agent_bridge"],
+        },
+      }),
+    });
+  });
+
+  await page.route("**/api/approvals/*/decision", async (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    await onApprovalDecision?.(body);
+    approvalDecision = body.decision === "approved" ? "approved" : "pending";
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        approval: {
+          id: "approval_ui_1",
+          decision: approvalDecision,
+          decidedAt: "2026-06-21T00:00:03.000Z",
+          approver: "demo.operator",
+        },
+        receipt: {
+          id: "receipt_ui_decision",
+          status: "executed",
+          summary: "Human approval recorded. The packet is cleared for staged publisher work.",
+          artifactHash: "fnv1a:87654321",
+        },
+        packet: {
+          id: "packet_ui_approval",
+          type: "approval",
+          certificateId: "qchain_ui_approval",
+          accepted: true,
+          tokensSaved: 0,
+          evidencePreserved: 0,
+          evidenceRequired: 0,
+          createdAt: "2026-06-21T00:00:03.000Z",
         },
       }),
     });

@@ -67,7 +67,7 @@ What judges should see:
 
 ## Next after this
 
-1. add approval decision route.
-2. emit `approval` quadchain packets.
-3. build dry-run publisher workbench.
-4. add post-ship verification receipts.
+1. build dry-run publisher workbench.
+2. add post-ship verification receipts.
+3. add row-level tenant checks for artifact drilldown.
+4. add booth-ready sponsor proof panels.
