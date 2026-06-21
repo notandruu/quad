@@ -12,6 +12,16 @@ import {
   type BrainMemoryMetadataInput,
 } from "./metadata";
 
+/**
+ * PostgREST raises code PGRST204 with a message naming the column when an
+ * insert references a column the table does not have. Used to detect a brain
+ * table that predates the memory_metadata sidecar migration.
+ */
+function isMissingColumnError(error: { code?: string; message?: string }, column: string): boolean {
+  const message = error.message ?? "";
+  return error.code === "PGRST204" || (message.includes(column) && /could not find|column/i.test(message));
+}
+
 export type IngestInput = {
   orgId: string;
   sourceId: string;
@@ -70,7 +80,7 @@ export async function ingestMemoryWithReceipt(input: IngestInput): Promise<Inges
 
     const db = getClient();
     if (db) {
-      const { error } = await db.from("brain_memory").insert({
+      const row = {
         id: memory.id,
         org_id: memory.orgId,
         source_id: memory.sourceId,
@@ -84,8 +94,20 @@ export async function ingestMemoryWithReceipt(input: IngestInput): Promise<Inges
         permissions: memory.permissions,
         evidence: memory.evidence,
         memory_metadata: metadata,
-      });
-      if (error) throw new Error(`Brain ingest failed: ${error.message}`);
+      };
+      const { error } = await db.from("brain_memory").insert(row);
+      if (error) {
+        // The memory_metadata column may not be applied yet on an older
+        // brain_memory table. Degrade gracefully: retry without the sidecar so
+        // ingest keeps working until the migration lands.
+        if (isMissingColumnError(error, "memory_metadata")) {
+          const { memory_metadata: _omit, ...rowWithoutMetadata } = row;
+          const retry = await db.from("brain_memory").insert(rowWithoutMetadata);
+          if (retry.error) throw new Error(`Brain ingest failed: ${retry.error.message}`);
+        } else {
+          throw new Error(`Brain ingest failed: ${error.message}`);
+        }
+      }
     } else {
       addMemory(memory);
       saveMemoryMetadata(memory.id, metadata);
