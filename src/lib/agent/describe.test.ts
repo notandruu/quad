@@ -4,7 +4,7 @@ import { buildQuadAgentDescription } from "./describe";
 describe("quad agent description", () => {
   it("builds a public fetch-ready agent card", () => {
     const card = buildQuadAgentDescription({
-      baseUrl: "https://quad.stephenhung.me/",
+      baseUrl: "https://app.quad.stephenhung.me/",
       version: "9.9.9",
       env: {
         BROWSERBASE_API_KEY: "bb_secret",
@@ -16,11 +16,22 @@ describe("quad agent description", () => {
 
     expect(card.id).toBe("quad.enterprise-trust-agent");
     expect(card.version).toBe("9.9.9");
-    expect(card.endpoints.run).toBe("https://quad.stephenhung.me/api/agent/run");
+    expect(card.endpoints.run).toBe("https://app.quad.stephenhung.me/api/agent/run");
     expect(card.protocols).toContain("agent_chat_protocol_ready");
     expect(card.workflows.map((workflow) => workflow.id)).toEqual(["enterprise_proof", "website_audit"]);
     expect(card.capabilities.find((capability) => capability.id === "fetch.agent_bridge")?.status).toBe("active");
     expect(card.sponsorAlignment.map((item) => item.sponsor)).toContain("Fetch.ai");
+  });
+
+  it("never advertises the landing host as the app api surface", () => {
+    const card = buildQuadAgentDescription({
+      baseUrl: "https://quad.stephenhung.me/",
+      env: {},
+    });
+
+    expect(card.provider.url).toBe("https://app.quad.stephenhung.me");
+    expect(card.endpoints.describe).toBe("https://app.quad.stephenhung.me/api/agent/describe");
+    expect(card.endpoints.run).toBe("https://app.quad.stephenhung.me/api/agent/run");
   });
 
   it("does not expose secret values or env key names", () => {

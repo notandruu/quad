@@ -4,7 +4,7 @@
 
 Quad is a company-aware AI employee that connects to systems of record, builds a scoped company brain, audits customer-facing surfaces against that brain, and turns gaps into approved work with verifiable receipts.
 
-**Demo:** [quad.stephenhung.me](https://quad.stephenhung.me)
+**Landing:** [quad.stephenhung.me](https://quad.stephenhung.me) | **Dashboard:** [app.quad.stephenhung.me](https://app.quad.stephenhung.me)
 **Research:** [QuadChain paper](public/papers/quad-chain-research-paper.pdf)
 
 ## What Quad Does

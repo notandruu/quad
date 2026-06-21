@@ -31,7 +31,7 @@ describe("GET /api/agent/describe", () => {
 
 function secretEnv(): Record<string, string> {
   return {
-    NEXT_PUBLIC_APP_URL: "https://quad.example",
+    NEXT_PUBLIC_APP_URL: "https://app.quad.example",
     ANTHROPIC_API_KEY: "sk-ant-agent-describe-secret-1234567890",
     OPENAI_API_KEY: "sk-proj-agent-describe-secret-1234567890",
     QUAD_API_SECRET: "quad-agent-describe-secret-1234567890",

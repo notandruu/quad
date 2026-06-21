@@ -55,9 +55,9 @@ Copy `.env.example` to `.env` and fill in:
 | Variable | Description |
 |---|---|
 | `QUAD_FETCH_AGENT_SEED` | Stable private seed — do not change after registering |
-| `QUAD_AGENT_RUN_URL` | Public URL for `/api/agent/run` (use Vercel URL in prod) |
+| `QUAD_AGENT_RUN_URL` | Public app/API URL for `/api/agent/run`; production is `https://app.quad.stephenhung.me/api/agent/run` |
 | `QUAD_AGENT_RUN_SECRET` | Shared secret matching `QUAD_AGENT_RUN_SECRET` on the Next.js app |
-| `QUAD_AGENT_DEFAULT_TARGET_URL` | Fallback demo URL when no URL is in the message |
+| `QUAD_AGENT_DEFAULT_TARGET_URL` | Fallback audit target when no URL is in the message; production default is the landing site `https://quad.stephenhung.me` |
 
 ## Agentverse registration
 

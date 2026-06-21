@@ -41,7 +41,7 @@ Run these before claiming the hosted backend is ready:
 ```bash
 npm run check
 npm run db:status
-QUAD_SMOKE_BASE_URL=https://quad.example.com npm run smoke:prod
+QUAD_SMOKE_BASE_URL=https://app.quad.stephenhung.me npm run smoke:prod
 ```
 
 For the full browser gate, run:
@@ -161,7 +161,7 @@ Backend readiness and security packets only expose token labels, scopes, counts,
    Optional hosted health preflight:
 
    ```bash
-   QUAD_WORKER_PREFLIGHT_BASE_URL=https://quad.stephenhung.me npm run worker:preflight
+QUAD_WORKER_PREFLIGHT_BASE_URL=https://app.quad.stephenhung.me npm run worker:preflight
    ```
 
    The preflight checks required worker env, validates scoped service token shape, warns when model/observability/browser/voice env is missing, and verifies that the hosted web backend can see Redis when `QUAD_WORKER_PREFLIGHT_BASE_URL` is set.

@@ -20,9 +20,9 @@ load_dotenv()
 AGENT_NAME = os.getenv("QUAD_FETCH_AGENT_NAME", "quad-trust-agent")
 AGENT_PORT = int(os.getenv("QUAD_FETCH_AGENT_PORT", "8001"))
 AGENT_SEED = os.getenv("QUAD_FETCH_AGENT_SEED", "quad-trust-agent-local-dev-seed")
-QUAD_AGENT_RUN_URL = os.getenv("QUAD_AGENT_RUN_URL", "http://localhost:3000/api/agent/run")
+QUAD_AGENT_RUN_URL = os.getenv("QUAD_AGENT_RUN_URL", "https://app.quad.stephenhung.me/api/agent/run")
 QUAD_AGENT_RUN_SECRET = os.getenv("QUAD_AGENT_RUN_SECRET", "")
-DEFAULT_TARGET_URL = os.getenv("QUAD_AGENT_DEFAULT_TARGET_URL", "http://localhost:3000/demo")
+DEFAULT_TARGET_URL = os.getenv("QUAD_AGENT_DEFAULT_TARGET_URL", "https://quad.stephenhung.me")
 
 agent = Agent(
     name=AGENT_NAME,

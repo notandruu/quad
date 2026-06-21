@@ -3,7 +3,7 @@
  * Runs a production backend smoke test against a hosted Quad deployment.
  *
  * Usage:
- *   QUAD_SMOKE_BASE_URL=https://quad.example.com QUAD_API_SECRET=... QUAD_WORKER_SECRET=... npm run smoke:prod
+ *   QUAD_SMOKE_BASE_URL=https://app.quad.stephenhung.me QUAD_API_SECRET=... QUAD_WORKER_SECRET=... npm run smoke:prod
  */
 import { config } from "dotenv";
 import { dirname, resolve } from "path";

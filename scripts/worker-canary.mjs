@@ -3,7 +3,7 @@
  * Runs the hosted worker canary and verifies the backend health receipt.
  *
  * Usage:
- *   QUAD_CANARY_BASE_URL=https://quad.stephenhung.me npm run canary:worker
+ *   QUAD_CANARY_BASE_URL=https://app.quad.stephenhung.me npm run canary:worker
  */
 import { config } from "dotenv";
 import { resolve, dirname } from "path";

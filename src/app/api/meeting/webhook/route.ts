@@ -3,6 +3,7 @@ import { getDurableMeetingSessionByBotId, updateDurableMeetingSession } from "@/
 import { recallEntryToText, type RecallWebhookEvent } from "@/lib/meeting/recall";
 import { buildMeetingIntelligence } from "@/lib/meeting/intelligence";
 import { runMeetingAgentverseHandoff } from "@/lib/meeting/agentverse";
+import { defaultAuditTargetForOrigin } from "@/lib/deployment/domains";
 import { learnFromMeeting } from "@/lib/skills/learnFromMeeting";
 import { publishAuditEvent } from "@/lib/redis/publisher";
 
@@ -136,7 +137,7 @@ async function finalizeMeetingSession(
     await runMeetingAgentverseHandoff({
       orgId: session.orgId,
       meetingRunId: session.runId,
-      targetUrl: new URL("/demo", origin).toString(),
+      targetUrl: defaultAuditTargetForOrigin(origin),
       workflow: "enterprise_proof",
     });
     await updateDurableMeetingSession(session.runId, {

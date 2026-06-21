@@ -1,4 +1,5 @@
 import { summarizeCapabilities } from "@/lib/metaregistry";
+import { normalizeQuadAppUrl, QUAD_APP_URL } from "@/lib/deployment/domains";
 
 export type QuadAgentDescription = {
   id: "quad.enterprise-trust-agent";
@@ -185,14 +186,15 @@ export function buildQuadAgentDescription(input: {
 }
 
 function inferBaseUrl(env: Record<string, string | undefined>): string {
-  if (env.NEXT_PUBLIC_APP_URL) return env.NEXT_PUBLIC_APP_URL;
+  if (env.NEXT_PUBLIC_APP_URL) return normalizeQuadAppUrl(env.NEXT_PUBLIC_APP_URL);
+  if (env.VERCEL_ENV === "production") return QUAD_APP_URL;
   if (env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`;
   if (env.VERCEL_URL) return `https://${env.VERCEL_URL}`;
   return "http://localhost:3000";
 }
 
 function normalizeBaseUrl(value: string): string {
-  return value.replace(/\/+$/, "");
+  return normalizeQuadAppUrl(value);
 }
 
 function titleFromCapabilityId(id: string): string {

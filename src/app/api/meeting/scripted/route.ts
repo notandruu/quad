@@ -4,6 +4,7 @@ import { DEMO_MEETING } from "@/data/demo/meeting";
 import { createMeetingSession, updateMeetingSession } from "@/lib/meeting/sessions";
 import { buildMeetingIntelligence } from "@/lib/meeting/intelligence";
 import { runMeetingAgentverseHandoff } from "@/lib/meeting/agentverse";
+import { defaultAuditTargetForOrigin } from "@/lib/deployment/domains";
 import { learnFromMeeting } from "@/lib/skills/learnFromMeeting";
 import { publishAuditEvent } from "@/lib/redis/publisher";
 import type { PublishedEvent } from "@/lib/redis/publisher";
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
         });
 
         const intelligence = await buildMeetingIntelligence(result);
-        const targetUrl = new URL("/demo", req.nextUrl.origin).toString();
+        const targetUrl = defaultAuditTargetForOrigin(req.nextUrl.origin);
         const agentverse = await runMeetingAgentverseHandoff({
           orgId,
           meetingRunId: runId,

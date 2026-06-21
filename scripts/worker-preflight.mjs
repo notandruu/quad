@@ -4,7 +4,7 @@
  *
  * Usage:
  *   npm run worker:preflight
- *   QUAD_WORKER_PREFLIGHT_BASE_URL=https://quad.example.com npm run worker:preflight
+ *   QUAD_WORKER_PREFLIGHT_BASE_URL=https://app.quad.stephenhung.me npm run worker:preflight
  */
 import { config } from "dotenv";
 import { dirname, resolve } from "path";
