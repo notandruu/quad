@@ -263,6 +263,29 @@ Acceptance v3:
 - refresh proposals do not become retrievable brain memory until approved.
 - refreshed memory receipts explain which prior memory/source they update.
 
+## Gap 2.9: scoped context graph
+
+Status: shipped v1.
+
+What was missing:
+
+- company, team, and personal memory were scoped at retrieval time, but there was no graph object the rest of the platform could build on.
+- operator surfaces could see a latest-memory trail, but agents could not ask for the visible memory topology, relationship edges, stale nodes, and proof receipts in one safe shape.
+- the product story said "company brain" while the backend still exposed memory mostly as ranked chunks.
+
+Shipped v1:
+
+- `src/lib/brain/contextGraph` builds a permission-aware graph over readable memories with company/team/personal counts, validation state, freshness, evidence counts, relationship edges, and latest `brain_memory_write` quadchain packet summaries.
+- `GET /api/brain/graph` exposes the graph through the hosted auth layer with `brain:read` scope support and zero-key demo fallback for the seeded org.
+- `/api/operator` now includes a compact `contextGraph` summary beside memory trail, quadchain, evidence, model gateway, worker, and workspace state.
+- graph nodes expose titles, summaries, counts, scopes, timestamps, and receipt ids, but not raw memory content, evidence quotes, prompts, credentials, or packet source bodies.
+
+Acceptance:
+
+- no requester context sees only company-readable graph nodes.
+- matching team and explicit personal context can widen the graph without changing the raw memory contract.
+- downstream agents and product surfaces can build from one scoped context substrate instead of re-implementing memory visibility rules.
+
 ## Gap 3: dry-run publisher workbench
 
 Status: shipped v3.

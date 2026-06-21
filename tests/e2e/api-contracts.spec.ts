@@ -130,6 +130,36 @@ test.describe("api contracts", () => {
     expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
   });
 
+  test("returns a safe scoped context graph", async ({ request }) => {
+    const response = await request.get("/api/brain/graph?orgId=org_redcross&limit=8");
+
+    expect(response.ok()).toBe(true);
+    const json = await response.json();
+    expect(json).toMatchObject({
+      ok: true,
+      orgId: "org_redcross",
+      summary: {
+        total: expect.any(Number),
+        byVisibility: {
+          company: expect.any(Number),
+          team: expect.any(Number),
+          personal: expect.any(Number),
+        },
+        stale: expect.any(Number),
+        withPackets: expect.any(Number),
+        edges: expect.any(Number),
+        latest: expect.any(Array),
+      },
+      graph: {
+        counts: expect.any(Object),
+        nodes: expect.any(Array),
+        edges: expect.any(Array),
+      },
+    });
+    expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+    expect(JSON.stringify(json)).not.toMatch(/sk-ant-|sk-proj-|postgres:\/\/|service_role|bb_live_|gQAAAA/);
+  });
+
   test("runs the scripted meeting agent into governed artifacts", async ({ request }) => {
     const response = await request.post("/api/meeting/scripted", {
       timeout: 60_000,
@@ -311,6 +341,19 @@ test.describe("api contracts", () => {
       completed: expect.any(Number),
       failed: expect.any(Number),
       averageDurationMs: expect.any(Number),
+      latest: expect.any(Array),
+    });
+    expect(json.contextGraph).toMatchObject({
+      total: expect.any(Number),
+      byVisibility: {
+        company: expect.any(Number),
+        team: expect.any(Number),
+        personal: expect.any(Number),
+      },
+      stale: expect.any(Number),
+      verifiedOrApproved: expect.any(Number),
+      withPackets: expect.any(Number),
+      edges: expect.any(Number),
       latest: expect.any(Array),
     });
     expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);

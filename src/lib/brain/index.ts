@@ -6,5 +6,6 @@ export * from "./proposals";
 export * from "./metadata";
 export * from "./refresh";
 export * from "./summaries";
+export * from "./contextGraph";
 export * from "./store";
 export * from "./retention";

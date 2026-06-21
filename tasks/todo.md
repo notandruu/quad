@@ -11,7 +11,7 @@
 
 quad is not a throwaway hackathon build. quad should be designed as a production product that happens to have a hackathon launch/demo deadline.
 
-2026-06-21 update: the biggest remaining product gap was governance around meeting/voice-derived context. shipped a `meeting_agent` workflow slice where the scripted meeting stages verified facts for approval, emits transcript/summary/memory/follow-up artifacts, writes accepted quadchain packets, and only commits meeting memory through the existing approval decision path.
+2026-06-21 update: shipped the next biggest backend gap as a scoped context graph. quad can now return a permission-aware graph of company/team/personal memories, freshness, validation state, relationships, and latest quadchain packet receipts through `/api/brain/graph`, with a compact summary exposed in `/api/operator`.
 
 the core product is a company-aware ai employee platform: it understands a business goal, retrieves and collects missing context, uses tools, validates its own work, learns only verified knowledge, executes approved actions, and leaves a replayable evidence trail. website audits and security questionnaires are product workflows on top of that runtime, not the whole company.
 
@@ -73,7 +73,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [x] data classification on model payloads, telemetry attributes, and security gateway inputs
 - [x] model gateway with provider policy, payload minimization, and redaction hooks
 - [x] company brain ingestion for docs, notes, urls, and transcripts
-- [ ] scoped context graph for company, team, and personal memories
+- [x] scoped context graph for company, team, and personal memories
 - [x] permission-aware retrieval filters for company, team, and personal memory scopes
 - [x] durable memory store with source provenance, confidence, permissions, embeddings, and metadata sidecars
 - [x] memory freshness/staleness metadata with explicit refresh paths

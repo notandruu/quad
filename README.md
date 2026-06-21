@@ -143,13 +143,15 @@ Chat answers also carry trust context. `/api/chat` emits a `chat_answer` packet 
 
 Brain memory is scoped before retrieval. `/api/ingest` defaults to an approval-backed memory proposal and accepts `visibility`, `userId`, `teamId`, and `teamIds`; retrieval only returns company-readable memory unless the caller supplies matching team context or explicit personal context. Memory writes also carry sidecar metadata for owner, validation status, source freshness, stale-after, and related source ids without changing the frozen memory contract.
 
+`GET /api/brain/graph?orgId=...` returns the scoped context graph that other surfaces should build on: readable company/team/personal memory nodes, freshness and validation state, relationship edges, evidence counts, and latest `brain_memory_write` quadchain receipt ids. The graph is intentionally safe by default; it summarizes memory and proof state without returning raw memory content, evidence quotes, prompts, credentials, or packet source bodies.
+
 `POST /api/enterprise-proof` runs the security-questionnaire trust loop over brain memory plus connector documents. It is protected by the same hosted auth, mutation rate-limit, and idempotency replay path as the other write routes, while zero-key demo fallback remains available for the seeded enterprise-proof org.
 
 Enterprise-proof learned facts are written with explicit target scope. Company scope is the default; team scope requires a team id, and personal scope requires an owner user id. Ambiguous scoped writeback escalates to human review instead of creating memory.
 
 The main chat surface detects security-questionnaire and trust-question prompts and runs the enterprise-proof loop directly. The response shows whether quad learned a company memory, reused verified memory, or needs human evidence before writing anything.
 
-`GET /api/operator` exposes the current workspace boundary plus the memory trail for the dashboard: latest readable memories, freshness counts, company/team/personal scope counts, relationship edges, and confidence/evidence metadata. The operator console renders this so stale or narrowly scoped context is visible before agents rely on it.
+`GET /api/operator` exposes the current workspace boundary plus the memory trail and context graph summary for the dashboard: latest readable memories, freshness counts, company/team/personal scope counts, relationship edges, and confidence/evidence metadata. The operator console renders this so stale or narrowly scoped context is visible before agents rely on it.
 
 `POST /api/brain/refresh` turns stale context into an approval-backed memory refresh proposal. It preserves the original scope, evidence, freshness metadata, and relationship trail, and the refreshed memory is not retrievable until the proposal is approved.
 

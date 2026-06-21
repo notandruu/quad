@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { ENTERPRISE_PROOF_ORG_ID } from "@/data/demo/enterprise-proof";
 import { getBackendReadiness } from "@/lib/backend/readiness";
-import { listBrainMemoryTrail } from "@/lib/brain";
+import { buildScopedContextGraph, listBrainMemoryTrail, summarizeScopedContextGraph } from "@/lib/brain";
 import { listConnectorCredentials } from "@/lib/connectors";
 import { getWorkerCanaryHealth, getWorkerQueueHealth, getWorkerRuntimeHealth } from "@/lib/jobs/queue";
 import { getLatestModelCallReceipts, type ModelCallReceipt } from "@/lib/llm/gateway";
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
   // each source to a safe empty value instead.
   const snapshots = await listRunSnapshots({ orgId, limit }).catch(() => []);
   const capabilities = summarizeCapabilities(process.env, { orgId });
-  const [workspaceContext, connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness, quadChainPackets, memoryTrail, modelReceipts, runtimeTraces, evidenceBundles] = await Promise.all([
+  const [workspaceContext, connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness, quadChainPackets, memoryTrail, contextGraph, modelReceipts, runtimeTraces, evidenceBundles] = await Promise.all([
     getOrgWorkspaceContext({ orgId }).catch(() => null),
     listConnectorCredentials({ orgId }).catch(() => []),
     getWorkerQueueHealth().catch(() => null),
@@ -48,6 +48,7 @@ export async function GET(request: Request) {
     getBackendReadiness().catch(() => null),
     getQuadChainPackets({ orgId, limit: 20 }).catch(() => []),
     listBrainMemoryTrail({ orgId, limit: 6 }).catch(() => null),
+    buildScopedContextGraph({ orgId, limit: 12 }).catch(() => null),
     getLatestModelCallReceipts({ orgId, limit: 8 }).catch(() => []),
     getLatestRuntimeTraceReceipts({ orgId, limit: 12 }).catch(() => []),
     getEvidenceBundles({ orgId, limit: 20 }).catch(() => []),
@@ -113,6 +114,7 @@ export async function GET(request: Request) {
     modelGateway: summarizeModelReceipts(modelReceipts),
     runtimeTraces: summarizeRuntimeTraceReceipts(runtimeTraces),
     memory: memoryTrail,
+    contextGraph: contextGraph ? summarizeScopedContextGraph(contextGraph) : null,
     connectorCredentials,
     security,
   });
