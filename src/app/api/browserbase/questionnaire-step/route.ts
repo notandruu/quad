@@ -1,5 +1,13 @@
 import { NextRequest } from "next/server";
 import { ENTERPRISE_PROOF_ORG_ID } from "@/data/demo/enterprise-proof";
+import { appendTaskEvent, loadRunSnapshot, saveRunSnapshot, type WorkflowTaskEventKind } from "@/lib/runs";
+import {
+  buildRequestFingerprint,
+  checkMutationGuards,
+  idempotencyReplayBody,
+  mutationGuardError,
+} from "@/lib/security/mutations";
+import { authorizeRequest, requestAuthError } from "@/lib/security/request";
 import { uploadScreenshotWithEvidence } from "@/lib/storage/screenshots";
 
 export const runtime = "nodejs";
@@ -25,25 +33,71 @@ type RequestBody = {
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as RequestBody;
   const orgId = body.orgId === ENTERPRISE_PROOF_ORG_ID ? body.orgId : ENTERPRISE_PROOF_ORG_ID;
+  const auth = authorizeRequest({
+    headers: req.headers,
+    requestedOrgId: orgId,
+    defaultOrgId: ENTERPRISE_PROOF_ORG_ID,
+    requiredScopes: ["browser:write"],
+  });
+  if (!auth.ok) {
+    return jsonError(requestAuthError(auth).error, auth.status, requestAuthError(auth).code);
+  }
+
   const question = typeof body.question === "string" ? body.question.trim() : "";
   const answer = typeof body.answer === "string" ? body.answer.trim() : "";
   const questionId = typeof body.questionId === "string" && body.questionId.trim() ? body.questionId.trim() : "trust_question";
   const runId = typeof body.runId === "string" && body.runId.trim() ? body.runId.trim() : `browserbase_${crypto.randomUUID()}`;
   const index = typeof body.index === "number" ? body.index : 0;
+  const answerHash = stableValueHash(answer);
 
   if (!question || !answer) {
     return jsonError("question and answer are required", 400);
+  }
+
+  const guard = await checkMutationGuards({
+    orgId: auth.orgId,
+    route: "browserbase.questionnaire_step",
+    headers: req.headers,
+    fingerprint: buildRequestFingerprint({
+      orgId: auth.orgId,
+      questionId,
+      answerHash,
+      index,
+      runId,
+    }),
+    limit: 10,
+    windowSeconds: 60,
+  });
+  if (!guard.ok) {
+    return jsonError(mutationGuardError(guard).error, guard.status, guard.code);
+  }
+  if (guard.replay) {
+    return new Response(JSON.stringify(idempotencyReplayBody(guard.replay)), {
+      status: guard.replay.status,
+      headers: { "content-type": "application/json" },
+    });
   }
 
   if (!process.env.BROWSERBASE_API_KEY || !process.env.BROWSERBASE_PROJECT_ID) {
     return jsonError("browserbase is not configured", 503);
   }
 
+  const snapshot = await loadRunSnapshot(runId);
+  const ledgerRunId = snapshot?.run.orgId === auth.orgId ? snapshot.run.id : null;
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (event: BrowserbaseEvent) => {
+      const send = (event: BrowserbaseEvent, ledger?: BrowserbaseLedgerEvent) => {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+        if (!ledgerRunId || !ledger) return;
+        appendBrowserbaseEvent({
+          runId: ledgerRunId,
+          questionId,
+          questionIndex: index,
+          answerHash,
+          answerLength: answer.length,
+          event: ledger,
+        });
       };
 
       let browser: Awaited<ReturnType<typeof import("playwright-core").chromium.connectOverCDP>> | null = null;
@@ -51,7 +105,14 @@ export async function POST(req: NextRequest) {
         const { Browserbase } = await import("@browserbasehq/sdk");
         const { chromium } = await import("playwright-core");
 
-        send({ type: "browserbase.session.creating", label: "sessions.create", detail: "creating remote browserbase session" });
+        send(
+          { type: "browserbase.session.creating", label: "sessions.create", detail: "creating remote browserbase session" },
+          {
+            kind: "browser_action.session",
+            message: "Browserbase session creation started.",
+            detail: "creating remote browserbase session",
+          }
+        );
         const bb = new Browserbase({ apiKey: process.env.BROWSERBASE_API_KEY! });
         const session = await bb.sessions.create({
           projectId: process.env.BROWSERBASE_PROJECT_ID!,
@@ -60,6 +121,11 @@ export async function POST(req: NextRequest) {
           type: "browserbase.session.created",
           label: "browserbase session",
           detail: `connected remote browser · ${session.id}`,
+          sessionId: session.id,
+        }, {
+          kind: "browser_action.session",
+          message: "Browserbase session connected.",
+          detail: "connected remote browser",
           sessionId: session.id,
         });
 
@@ -73,6 +139,11 @@ export async function POST(req: NextRequest) {
           label: "page.goto",
           detail: "trust.secureflow.com/vendor/acme/security-questionnaire",
           sessionId: session.id,
+        }, {
+          kind: "browser_action.session",
+          message: "Browserbase loaded the controlled questionnaire page.",
+          detail: "trust.secureflow.com/vendor/acme/security-questionnaire",
+          sessionId: session.id,
         });
         await page.goto(vendorUrl, { waitUntil: "domcontentloaded", timeout: 30_000 });
 
@@ -82,13 +153,25 @@ export async function POST(req: NextRequest) {
           label: "locator.focus",
           detail: selector,
           sessionId: session.id,
+        }, {
+          kind: "browser_action.field",
+          message: "Browserbase focused the questionnaire answer field.",
+          detail: selector,
+          selector,
+          sessionId: session.id,
         });
         await page.locator(selector).focus({ timeout: 10_000 });
 
         send({
           type: "browserbase.field.fill",
           label: "locator.fill",
-          detail: answer.length > 140 ? `${answer.slice(0, 140)}…` : answer,
+          detail: `filled approved answer · ${answerHash}`,
+          sessionId: session.id,
+        }, {
+          kind: "browser_action.field",
+          message: "Browserbase filled the approved questionnaire answer.",
+          detail: `filled approved answer · ${answerHash}`,
+          selector,
           sessionId: session.id,
         });
         await page.locator(selector).fill(answer, { timeout: 10_000 });
@@ -114,11 +197,22 @@ export async function POST(req: NextRequest) {
           detail: "captured remote browser evidence",
           sessionId: session.id,
           screenshotUrl: uploaded.url,
+        }, {
+          kind: "browser_action.screenshot",
+          message: "Browserbase captured questionnaire screenshot evidence.",
+          detail: "captured remote browser evidence",
+          screenshotUrl: uploaded.url,
+          sessionId: session.id,
         });
         send({
           type: "browserbase.pause_before_submit",
           label: "pause_before_submit",
           detail: "real browserbase page is filled; final submit is held for operator approval",
+          sessionId: session.id,
+        }, {
+          kind: "browser_action.paused",
+          message: "Browserbase paused before customer submission.",
+          detail: "final submit is held for operator approval",
           sessionId: session.id,
         });
       } catch (err) {
@@ -126,10 +220,22 @@ export async function POST(req: NextRequest) {
           type: "browserbase.error",
           label: "browserbase.error",
           detail: err instanceof Error ? err.message : String(err),
+        }, {
+          kind: "browser_action.failed",
+          message: "Browserbase questionnaire write failed.",
+          detail: err instanceof Error ? err.message : String(err),
         });
       } finally {
         await browser?.close().catch(() => {});
-        send({ type: "browserbase.session.closed", label: "session.close", detail: "remote browser closed" });
+        send(
+          { type: "browserbase.session.closed", label: "session.close", detail: "remote browser closed" },
+          {
+            kind: "browser_action.session",
+            message: "Browserbase session closed.",
+            detail: "remote browser closed",
+          }
+        );
+        if (ledgerRunId) await saveRunSnapshot(ledgerRunId).catch(() => {});
         controller.close();
       }
     },
@@ -145,11 +251,60 @@ export async function POST(req: NextRequest) {
   });
 }
 
-function jsonError(error: string, status: number) {
-  return new Response(JSON.stringify({ ok: false, error }), {
+type BrowserbaseLedgerEvent = {
+  kind: Extract<
+    WorkflowTaskEventKind,
+    "browser_action.session" | "browser_action.field" | "browser_action.screenshot" | "browser_action.paused" | "browser_action.failed"
+  >;
+  message: string;
+  detail: string;
+  selector?: string;
+  sessionId?: string;
+  screenshotUrl?: string;
+};
+
+function appendBrowserbaseEvent(input: {
+  runId: string;
+  questionId: string;
+  questionIndex: number;
+  answerHash: string;
+  answerLength: number;
+  event: BrowserbaseLedgerEvent;
+}) {
+  appendTaskEvent({
+    runId: input.runId,
+    kind: input.event.kind,
+    actor: "connector",
+    message: input.event.message,
+    capabilityId: "browserbase.write_browser",
+    status: input.event.kind === "browser_action.failed" ? "blocked" : "completed",
+    payloadSummary: {
+      questionId: input.questionId,
+      questionIndex: input.questionIndex,
+      answerHash: input.answerHash,
+      answerLength: input.answerLength,
+      detail: input.event.detail,
+      selector: input.event.selector ?? null,
+      sessionId: input.event.sessionId ?? null,
+      screenshotCaptured: Boolean(input.event.screenshotUrl),
+    },
+  });
+}
+
+function jsonError(error: string, status: number, code?: string) {
+  return new Response(JSON.stringify({ ok: false, error, code }), {
     status,
     headers: { "content-type": "application/json" },
   });
+}
+
+function stableValueHash(value: string): `fnv1a:${string}` {
+  let hash = 2166136261;
+  for (const char of value) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `fnv1a:${(hash >>> 0).toString(16).padStart(8, "0")}`;
 }
 
 function cssEscape(value: string) {

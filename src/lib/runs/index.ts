@@ -112,7 +112,12 @@ export type WorkflowTaskEventKind =
   | "receipt.created"
   | "memory.candidate"
   | "memory.noise"
-  | "memory.proposed";
+  | "memory.proposed"
+  | "browser_action.session"
+  | "browser_action.field"
+  | "browser_action.screenshot"
+  | "browser_action.paused"
+  | "browser_action.failed";
 
 export type WorkflowTaskEventActor = "dashboard" | "agent" | "worker" | "quad" | "human" | "connector" | "system";
 

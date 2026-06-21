@@ -181,13 +181,13 @@ hard constraints:
 
 ### phase 2 approved customer action path
 
-- [ ] add controlled `/demo-security-questionnaire` or `/demo-trust-packet` form
-- [ ] fill validated security/customer-trust answers through browserbase/playwright with per-field action events
+- [x] add controlled Browserbase security questionnaire form (route-owned fixture; public `/demo-security-questionnaire` page still optional)
+- [x] fill validated security/customer-trust answers through browserbase/playwright with per-field action events
 - [ ] require human approval before submit or publish
 - [ ] show final outcome summary and save a fallback screen capture
 - [ ] build verified customer trust packet with preserved claims, source refs, omitted ranges, and open obligations
 - [ ] show quad chain verification status, tokens saved, preserved evidence, omitted ranges, and open obligations in the packet ui
-- [ ] record every browser action with intent, selector, value summary, source answer id, approval state, and replay metadata
+- [x] record every browser action with intent, selector, value summary, source answer id, approval state, and replay metadata
 - [ ] register browser action capability as an allowlisted tool with health and permission metadata
 - [ ] encode form fill as tier 2 draft-and-confirm, and submit as tier 3 explicit approve with a receipt
 

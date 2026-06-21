@@ -386,6 +386,13 @@ Shipped v4:
 - every browser action creates an executed receipt plus a quadchain `connector_action` packet.
 - operator artifact summaries now prefer the latest publisher artifacts, so execution and browser-action proof is visible instead of being hidden behind older dry-run drafts.
 
+Shipped v5:
+
+- `POST /api/browserbase/questionnaire-step` now uses the same request auth boundary as the rest of the hosted platform, with a scoped `browser:write` permission and zero-key demo fallback.
+- live Browserbase questionnaire sessions mirror session, field focus, field fill, screenshot, pause, close, and failure milestones into the durable run task stream when a known run id is supplied.
+- field-fill stream output and ledger payloads carry answer hashes and lengths instead of raw answer text.
+- browser action events use explicit task event kinds, so later dashboard, fetch, and replay surfaces can show per-field action history without parsing generic log strings.
+
 ## Gap 4: post-ship verification
 
 Status: shipped v2.
