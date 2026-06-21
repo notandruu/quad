@@ -27,6 +27,17 @@ type SpeechWindow = Window & {
   webkitSpeechRecognition?: new () => SpeechRecognitionLike;
 };
 
+export type VoiceStoredResult = {
+  transcript?: string;
+  memory: { id: string; title: string } | null;
+  quadChain: QuadChainPacketSummary[];
+  assistant?: {
+    message: string;
+    quadChain: QuadChainPacketSummary;
+    verifiedContext?: QuadChainPacketSummary[];
+  } | null;
+};
+
 export function VoiceButton({
   enabled,
   clientUrl,
@@ -44,7 +55,7 @@ export function VoiceButton({
   runId?: string | null;
   rememberTranscripts?: boolean;
   onTranscript: (text: string) => void;
-  onTranscriptStored?: (input: { memory: { id: string; title: string } | null; quadChain: QuadChainPacketSummary[] }) => void;
+  onTranscriptStored?: (input: VoiceStoredResult) => void;
 }) {
   const [status, setStatus] = useState<VoiceStatus>("idle");
   const [message, setMessage] = useState("Voice mode");
@@ -133,6 +144,7 @@ export function VoiceButton({
       const data = (await response.json()) as {
         transcript?: string;
         memory?: { id: string; title: string } | null;
+        assistant?: VoiceStoredResult["assistant"];
         quadChain?: QuadChainPacketSummary[];
         error?: string;
       };
@@ -140,11 +152,13 @@ export function VoiceButton({
       const transcript = data.transcript?.trim();
       if (transcript) {
         onTranscriptStored?.({
+          transcript,
           memory: data.memory ?? null,
+          assistant: data.assistant ?? null,
           quadChain: Array.isArray(data.quadChain) ? data.quadChain : [],
         });
-        onTranscript(transcript);
-        setMessage(data.memory ? "Memory saved" : "Voice mode");
+        if (!data.assistant?.message) onTranscript(transcript);
+        setMessage(data.assistant?.message ? "Answered" : data.memory ? "Memory saved" : "Voice mode");
       } else {
         setMessage("No speech heard");
       }

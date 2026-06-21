@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { UrlChip } from "./UrlChip";
-import { VoiceButton } from "./VoiceButton";
-import type { QuadChainPacketSummary } from "@/lib/quad-chain";
+import { VoiceButton, type VoiceStoredResult } from "./VoiceButton";
 import type { VoiceInterviewQuestion } from "@/lib/voice/interview";
 
 const URL_RE = /https?:\/\/[^\s]+/i;
@@ -33,7 +32,7 @@ export function ChatBar({
   runId?: string | null;
   voicePrompt?: VoiceInterviewQuestion | null;
   onNextVoicePrompt?: () => void;
-  onVoiceStored?: (input: { memory: { id: string; title: string } | null; quadChain: QuadChainPacketSummary[] }) => void;
+  onVoiceStored?: (input: VoiceStoredResult) => void;
 }) {
   const [value, setValue] = useState("");
   const detectedUrl = value.match(URL_RE)?.[0] ?? null;

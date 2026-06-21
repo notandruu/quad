@@ -216,6 +216,7 @@ async function runChatCommand(
           ...auditContext.sources,
           ...buildMemorySources(coreContext.memories),
         ] satisfies QuadChainSource[],
+        answerConcepts: answerConceptsForSurface(input.surface),
       });
       return {
         ok: true,
@@ -251,6 +252,7 @@ async function runChatCommand(
     output: result.message,
     producer: `quad.${employee.id}`,
     consumer: `quad.${input.surface}`,
+    answerConcepts: answerConceptsForSurface(input.surface),
   });
 
   return {
@@ -266,6 +268,11 @@ async function runChatCommand(
     quadChain,
     verifiedContext: result.verifiedContext,
   };
+}
+
+function answerConceptsForSurface(surface: QuadCoreSurface): string[] | undefined {
+  if (surface !== "voice") return undefined;
+  return ["voice", "transcript", "answer", "intent"];
 }
 
 async function auditGroundedChat(

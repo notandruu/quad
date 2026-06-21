@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ingestMemoryWithReceipt } from "@/lib/brain";
 import { buildQuadCoreContext, saveQuadCoreReceipt } from "@/lib/core";
+import { runQuadCoreCommand } from "@/lib/core/run";
 import { getEmployee } from "@/lib/employees";
 import { getDeepgramSettings, transcribeWithDeepgram } from "@/lib/voice/deepgram";
 import { createEvidenceBundle, summarizeEvidenceBundle } from "@/lib/storage/evidence";
@@ -120,6 +121,14 @@ export async function POST(request: Request) {
     });
     const quadChain: QuadChainPacketSummary[] = [transcriptPacket];
     let memory: { id: string; title: string } | null = null;
+    let assistant: {
+      message: string;
+      intent: string;
+      requiresApproval: boolean;
+      detectedUrl: string | null;
+      quadChain: QuadChainPacketSummary;
+      verifiedContext: QuadChainPacketSummary[];
+    } | null = null;
 
     if (shouldRememberTranscript(form) && transcript) {
       const memoryResult = await ingestMemoryWithReceipt({
@@ -143,7 +152,30 @@ export async function POST(request: Request) {
       quadChain.push(memoryResult.quadChain);
     }
 
-    const responseBody = { ...result, memory, quadChain, evidenceBundle: audioEvidence };
+    if (transcript) {
+      const coreResult = await runQuadCoreCommand({
+        command: "chat",
+        orgId: auth.orgId,
+        runId,
+        text: transcript,
+        surface: "voice",
+        hasActiveAudit: typeof form.get("runId") === "string",
+      });
+      if (coreResult.command !== "chat") {
+        throw new Error("Voice runtime returned a non-chat result.");
+      }
+      assistant = {
+        message: coreResult.message,
+        intent: coreResult.intent,
+        requiresApproval: coreResult.requiresApproval,
+        detectedUrl: coreResult.detectedUrl,
+        quadChain: coreResult.quadChain,
+        verifiedContext: coreResult.verifiedContext,
+      };
+      quadChain.push(coreResult.quadChain);
+    }
+
+    const responseBody = { ...result, memory, assistant, quadChain, evidenceBundle: audioEvidence };
     await saveIdempotentResult({
       orgId: auth.orgId,
       route: "voice.transcribe",

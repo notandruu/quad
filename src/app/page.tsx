@@ -9,6 +9,7 @@ import { AsciiBlossoms } from "@/components/AsciiBlossoms";
 import { TrustTrail } from "@/components/TrustTrail";
 import { TrustPacketPanel } from "@/components/TrustPacketPanel";
 import { OperatorConsole } from "@/components/OperatorConsole";
+import type { VoiceStoredResult } from "@/components/VoiceButton";
 import type { AuditReport } from "@/lib/types";
 import type { PublishedEvent } from "@/lib/redis/publisher";
 import type { BackendSettings } from "@/lib/debug/status";
@@ -193,7 +194,21 @@ export default function Home() {
     }
   }
 
-  function handleVoiceStored(input: { memory: { id: string; title: string } | null; quadChain: QuadChainPacketSummary[] }) {
+  function handleVoiceStored(input: VoiceStoredResult) {
+    if (input.transcript && input.assistant?.message) {
+      setMessages((m) => [
+        ...m,
+        { role: "user", text: input.transcript ?? "" },
+        {
+          role: "quad",
+          text: input.assistant?.message ?? "",
+          quadChain: input.assistant?.quadChain ?? input.quadChain[0] ?? null,
+          verifiedContext: input.assistant?.verifiedContext ?? [],
+        },
+      ]);
+      return;
+    }
+
     const memory = input.memory;
     if (!memory) return;
     const currentReport = report;

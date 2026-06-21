@@ -112,6 +112,13 @@ Shipped v2:
 - Fetch/Agentverse-style runs return queued job state, task summary, runtime capability state, and an `agent_handoff` quadchain receipt from the same core substrate as dashboard queues.
 - the old synchronous one-off agent route logic was removed; execution now belongs to the backend worker path.
 
+Shipped v3:
+
+- `POST /api/voice/transcribe` now turns a successful Deepgram transcript into a `chat` command on the shared core runtime.
+- Voice returns the assistant answer, `chat_answer` packet summary, and verified context beside the existing transcript proof.
+- Voice chat receipts bind the spoken transcript as required evidence while keeping retrieved memory evidence optional unless it is directly preserved in the answer.
+- The dashboard renders one spoken turn as a user message plus a Quad answer instead of double-submitting the transcript through the text chat path.
+
 ## Gap 2.5: post-audit chat grounding
 
 Status: shipped v1.
@@ -415,10 +422,17 @@ Shipped v5:
 - After a voice answer is saved as memory, the dashboard shows a `Rerun audit` action on the memory receipt.
 - The action reruns the same target URL and org, so the next audit compares the website against newly captured voice context.
 
+Shipped v6:
+
+- Deepgram voice mode is now a peer runtime surface, not only a capture tool.
+- A spoken command creates a restricted audio evidence bundle, a `voice_transcript` packet, an optional `brain_memory_write` packet, and a core `chat_answer` packet in one response.
+- The dashboard displays the spoken command and the assistant answer immediately when the backend returns a core voice response.
+
 Acceptance:
 
 - user can speak company facts into quad.
 - quad writes verified memory.
+- quad answers spoken commands through the same runtime as chat.
 - audit finds website gaps based on the voice interview.
 
 ## Gap 6: sponsor proof

@@ -5,6 +5,7 @@ import { getMemoryMetadata } from "@/lib/brain/metadata";
 import { summarizeCapabilities, type ActiveTool, type CapabilitySummary } from "@/lib/metaregistry";
 import {
   createQuadChainPacket,
+  type QuadChainEvidenceObligation,
   summarizeQuadChainPacket,
   type QuadChainOpenObligation,
   type QuadChainPacket,
@@ -50,6 +51,7 @@ export type QuadCoreContext = {
   runId: string;
   surface: QuadCoreSurface;
   employeeId: string;
+  inputText: string;
   intent: Intent;
   detectedUrl: string | null;
   memories: BrainMemory[];
@@ -72,6 +74,7 @@ export type QuadCoreReceiptInput = {
   producer?: string;
   consumer?: string;
   sources?: QuadChainSource[];
+  evidence?: QuadChainEvidenceObligation[];
   answerConcepts?: string[];
   visibility?: QuadChainVisibility;
 };
@@ -141,6 +144,7 @@ export async function buildQuadCoreContext(input: QuadCoreContextInput): Promise
     runId,
     surface: input.surface,
     employeeId: input.employee.id,
+    inputText: input.text,
     intent,
     detectedUrl,
     memories,
@@ -170,19 +174,7 @@ export function selectToolsForRuntime(
 export function createQuadCoreReceipt(input: QuadCoreReceiptInput): QuadChainPacket {
   const context = input.context;
   const sources = input.sources ?? buildDefaultSources(context);
-  const evidence = context.memories
-    .flatMap((memory) =>
-      memory.evidence
-        .filter((item) => item.quote?.trim())
-        .slice(0, 2)
-        .map((item, index) => ({
-          id: `${memory.id}_evidence_${index + 1}`,
-          sourceId: memory.id,
-          quote: item.quote,
-          required: context.intent !== "general_chat",
-        }))
-    )
-    .slice(0, 8);
+  const evidence = input.evidence ?? buildDefaultEvidence(context);
 
   const openObligations: QuadChainOpenObligation[] = [];
   if (context.permission.requiresApproval) {
@@ -215,6 +207,36 @@ export function createQuadCoreReceipt(input: QuadCoreReceiptInput): QuadChainPac
     openObligations,
     visibility: input.visibility ?? "internal",
   });
+}
+
+function buildDefaultEvidence(context: QuadCoreContext): QuadChainEvidenceObligation[] {
+  const memoryEvidence = context.memories
+    .flatMap((memory) =>
+      memory.evidence
+        .filter((item) => item.quote?.trim())
+        .slice(0, 2)
+        .map((item, index) => ({
+          id: `${memory.id}_evidence_${index + 1}`,
+          sourceId: memory.id,
+          quote: item.quote,
+          required: context.intent !== "general_chat",
+        }))
+    )
+    .slice(0, 8);
+
+  if (context.surface !== "voice" || !context.inputText.trim()) {
+    return memoryEvidence;
+  }
+
+  return [
+    {
+      id: "voice_transcript_text",
+      sourceId: "voice_transcript",
+      quote: context.inputText,
+      required: true,
+    },
+    ...memoryEvidence.map((item) => ({ ...item, required: false })),
+  ];
 }
 
 export async function saveQuadCoreReceipt(input: QuadCoreReceiptInput): Promise<QuadChainPacketSummary> {
@@ -292,6 +314,15 @@ function buildDefaultSources(context: QuadCoreContext): QuadChainSource[] {
         verifiedContext: context.verifiedContext.map((packet) => packet.certificateId),
       },
     },
+    ...(context.surface === "voice" && context.inputText.trim()
+      ? [{
+          id: "voice_transcript",
+          kind: "transcript" as const,
+          content: {
+            transcript: context.inputText,
+          },
+        }]
+      : []),
     ...context.memories.slice(0, 6).map((memory) => ({
       id: memory.id,
       kind: "memory" as const,
@@ -310,6 +341,9 @@ function buildReceiptOutput(context: QuadCoreContext, output: string): string {
   return [
     `surface: ${context.surface}`,
     `intent: ${context.intent}`,
+    ...(context.surface === "voice" && context.inputText.trim()
+      ? [`voice transcript: ${context.inputText}`]
+      : []),
     `selected tools: ${context.selectedTools.map((tool) => tool.id).join(", ") || "none"}`,
     `verified receipts: ${context.verifiedContext.map((packet) => packet.certificateId).join(", ") || "none"}`,
     `answer: ${output}`,
