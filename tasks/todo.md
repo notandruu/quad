@@ -89,7 +89,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [ ] grounded finding schema with citations and screenshots/selectors where possible
 - [ ] approval workflow before memory writeback or external action
 - [ ] persistent approval ledger with approver, artifact hash, evidence visible, edit/reject state, and receipt id
-- [ ] post-ship verification step for browser, publisher, task, and team actions
+- [x] post-ship verification step for browser, publisher, task, and team actions
 - [ ] post-audit chat that can cite audit evidence and company memory
 - [ ] arize tracing/evals for retrieval, page analysis, and final findings
 - [ ] sentry monitoring for api routes, workers, browser sessions, redis calls, and model calls
@@ -190,7 +190,7 @@ hard constraints:
 - [ ] create fix workbench as execution center for website, task, team, memory, and trust-packet work
 - [ ] add dry-run publisher connectors for cms, task, team, and memory writeback
 - [ ] add persistent approval ledger and receipt generation
-- [ ] add post-ship verification and retry/escalation states
+- [x] add post-ship verification and retry/escalation states
 - [ ] expose hosted run artifacts under stable run/task ids
 
 ### phase 4 metaregistry capability layer

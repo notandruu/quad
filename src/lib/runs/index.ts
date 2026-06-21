@@ -21,7 +21,8 @@ export type ArtifactKind =
   | "receipt"
   | "cms_draft"
   | "task_draft"
-  | "trust_packet_export";
+  | "trust_packet_export"
+  | "verification_report";
 
 export type ApprovalDecision = "pending" | "approved" | "rejected";
 

@@ -71,6 +71,8 @@ High-risk mutation routes are protected by org-scoped rate limits and optional `
 
 `/api/connectors/credentials` installs, lists, and revokes connector credentials. Stored credentials are encrypted with `QUAD_CONNECTOR_ENCRYPTION_KEY` and list responses return only metadata, scopes, status, and credential hashes.
 
+`POST /api/verify-fix` runs post-ship verification over staged connector artifacts, emits verification reports, creates executed or blocked receipts, and attaches quadchain `connector_action` packets to the run.
+
 ## Verification
 
 ```bash
