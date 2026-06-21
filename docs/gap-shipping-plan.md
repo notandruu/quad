@@ -240,13 +240,14 @@ Shipped v1:
 
 - `npm run db:migrate:dry` validates that the platform schema can be loaded before deploy.
 - `npm run db:migrate` applies `docs/backend/platform-schema.sql` against `DATABASE_URL`.
+- `npm run db:status` checks required tables and the pgvector extension on the target database.
 - the migration script redacts credentials in logs and runs the idempotent schema in one transaction.
 - the README documents the durable backend migration path.
 
 Next:
 
 - split the monolithic schema into numbered migrations once schema churn increases.
-- add migration status tracking when the product has multiple deployed environments.
+- persist migration version history when the product has multiple deployed environments.
 
 ## Recommended next shipping order
 

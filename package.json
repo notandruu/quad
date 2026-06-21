@@ -14,6 +14,7 @@
     "validate": "node scripts/validate.mjs",
     "db:migrate": "node scripts/migrate-platform.mjs",
     "db:migrate:dry": "node scripts/migrate-platform.mjs --dry-run",
+    "db:status": "node scripts/check-platform-schema.mjs",
     "e2e": "playwright test",
     "e2e:api": "node scripts/e2e.mjs",
     "demo": "node scripts/demo.mjs",
