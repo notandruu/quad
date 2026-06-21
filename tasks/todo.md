@@ -117,8 +117,8 @@ shipped first substrate slice:
 
 next functional slice:
 
-- [ ] add `src/lib/runs/**` durable run/task/artifact/approval/receipt contracts
-- [ ] add `/api/agent/run` thin hosted bridge returning normalized task summaries
+- [x] add `src/lib/runs/**` durable run/task/artifact/approval/receipt contracts
+- [x] add `/api/agent/run` thin hosted bridge returning normalized task summaries
 - [ ] add enterprise proof fixture and `answerTrustQuestion()` workflow
 - [ ] add persistent approval ledger before any real external write action
 - [ ] add dry-run publisher connectors behind metaregistry capability ids
