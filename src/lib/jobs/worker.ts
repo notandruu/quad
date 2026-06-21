@@ -1,5 +1,6 @@
+import { buildQuadCoreContext, saveQuadCoreReceipt } from "@/lib/core";
+import { getEmployee } from "@/lib/employees";
 import { buildTrustPacketWorkflow } from "@/lib/fde/workflows";
-import { summarizeCapabilities } from "@/lib/metaregistry";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 import {
   addArtifact,
@@ -118,6 +119,13 @@ async function runCanaryJob(payload: CanaryJobPayload) {
 }
 
 async function runAuditJob(payload: AuditJobPayload) {
+  await createWorkerHandoffReceipt({
+    orgId: payload.orgId,
+    runId: payload.runId,
+    targetUrl: payload.targetUrl,
+    workflow: "website_audit",
+    limit: payload.limit,
+  });
   transitionRun(payload.runId, "running");
   addTask({
     runId: payload.runId,
@@ -153,6 +161,13 @@ async function runAuditJob(payload: AuditJobPayload) {
 }
 
 async function runAgentJob(payload: AgentRunJobPayload) {
+  const coreContext = await createWorkerHandoffReceipt({
+    orgId: payload.orgId,
+    runId: payload.runId,
+    targetUrl: payload.targetUrl,
+    workflow: payload.workflow,
+    limit: payload.limit,
+  });
   transitionRun(payload.runId, "running");
   addTask({
     runId: payload.runId,
@@ -190,8 +205,7 @@ async function runAgentJob(payload: AgentRunJobPayload) {
     return;
   }
 
-  const capabilities = summarizeCapabilities(process.env).activeTools;
-  const plan = buildTrustPacketWorkflow({ report, activeTools: capabilities });
+  const plan = buildTrustPacketWorkflow({ report, activeTools: coreContext.capabilities.activeTools });
   const packetArtifact = addArtifact({
     runId: payload.runId,
     kind: "trust_packet",
@@ -240,4 +254,54 @@ async function runAgentJob(payload: AgentRunJobPayload) {
   const snapshot = getRunSnapshot(payload.runId);
   if (!snapshot) throw new Error(`Run not found after agent job: ${payload.runId}`);
   await saveRunSnapshot(payload.runId);
+}
+
+async function createWorkerHandoffReceipt(input: {
+  orgId: string;
+  runId: string;
+  targetUrl: string;
+  workflow: "website_audit" | "enterprise_proof";
+  limit: number;
+}) {
+  const context = await buildQuadCoreContext({
+    orgId: input.orgId,
+    employee: getEmployee(),
+    runId: input.runId,
+    text: `run audit ${input.targetUrl} for ${input.workflow}`,
+    surface: "worker",
+    pinnedUrl: input.targetUrl,
+    hasActiveAudit: true,
+    contextMode: "skip",
+  });
+  const summary = await saveQuadCoreReceipt({
+    context,
+    type: "agent_handoff",
+    output: `Worker claimed ${input.workflow} for ${input.targetUrl}.`,
+    producer: "quad.worker",
+    consumer: "quad.runtime",
+    sources: [
+      {
+        id: "worker_job",
+        kind: "event",
+        content: {
+          workflow: input.workflow,
+          targetUrl: input.targetUrl,
+          limit: input.limit,
+          selectedTools: context.selectedTools.map((tool) => tool.id),
+          missingCapabilities: context.missingCapabilities.map((capability) => capability.id),
+        },
+      },
+    ],
+    answerConcepts: ["worker", "handoff", input.workflow],
+    visibility: "internal",
+  });
+
+  addArtifact({
+    runId: input.runId,
+    kind: "receipt",
+    title: "Worker handoff receipt",
+    data: summary,
+  });
+
+  return context;
 }

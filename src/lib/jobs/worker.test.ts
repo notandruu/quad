@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { enqueueAuditJob, getJob, getWorkerCanaryHealth } from "./queue";
 import { processNextJob, runWorkerCanary } from "./worker";
 import { runAudit } from "@/lib/tools/auditAnalyzer";
+import { getRunSnapshot } from "@/lib/runs";
 
 vi.mock("@/lib/tools/auditAnalyzer", () => ({
   runAudit: vi.fn(async (input: { orgId: string; runId: string; targetUrl: string }) => ({
@@ -60,6 +61,14 @@ describe("job worker", () => {
       runId: "run_worker_1",
       orgId: "org_worker",
     });
+    expect(getRunSnapshot("run_worker_1")?.artifacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "receipt",
+          title: "Worker handoff receipt",
+        }),
+      ])
+    );
   });
 
   it("retries transient failures before moving a job to dead letter", async () => {

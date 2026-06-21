@@ -31,6 +31,7 @@ export type QuadCoreContextInput = {
   runId?: string;
   pinnedUrl?: string;
   hasActiveAudit?: boolean;
+  contextMode?: "load" | "skip";
   env?: Record<string, string | undefined>;
   retrieve?: (input: {
     orgId: string;
@@ -92,17 +93,20 @@ export async function buildQuadCoreContext(input: QuadCoreContextInput): Promise
   const detectedUrl = extractUrl(input.text) ?? input.pinnedUrl ?? null;
   await emit("core.intent_classified", { intent, detectedUrl });
 
-  const retrieve = input.retrieve ?? retrieveMemoriesWithPackets;
-  const retrieved = await retrieve({
-    orgId: input.orgId,
-    query: input.text,
-    limit: 6,
-  }).catch(async (error) => {
-    await emit("core.context_failed", {
-      reason: error instanceof Error ? error.message : "Context retrieval failed.",
+  const retrieved = input.contextMode === "skip"
+    ? await emit("core.context_skipped", {
+      reason: "Context retrieval is owned by the downstream worker task.",
+    }).then(() => [])
+    : await (input.retrieve ?? retrieveMemoriesWithPackets)({
+      orgId: input.orgId,
+      query: input.text,
+      limit: 6,
+    }).catch(async (error) => {
+      await emit("core.context_failed", {
+        reason: error instanceof Error ? error.message : "Context retrieval failed.",
+      });
+      return [];
     });
-    return [];
-  });
   const memories = retrieved.map((item) => item.memory);
   const verifiedContext = retrieved
     .map((item) => item.quadChain)
