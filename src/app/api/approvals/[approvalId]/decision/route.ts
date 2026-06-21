@@ -13,6 +13,9 @@ import {
 } from "@/lib/security/mutations";
 
 export const runtime = "nodejs";
+// Approval decisions do the slowest mutation I/O (Supabase upsert + Redis +
+// quadchain save); give them headroom over the serverless default.
+export const maxDuration = 30;
 
 const DecisionBody = z.object({
   runId: z.string().min(1),

@@ -39,3 +39,7 @@ test-results/
 .vercel
 __pycache__/
 *.py[cod]
+
+# python venv
+agent/.venv/
+.venv/

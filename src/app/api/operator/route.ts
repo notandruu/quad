@@ -22,14 +22,19 @@ export async function GET(request: Request) {
 
   const orgId = auth.orgId;
   const limit = Number(url.searchParams.get("limit") ?? 8);
-  const snapshots = await listRunSnapshots({ orgId, limit });
+
+  // This route fans out to the runs ledger, connector store, and three worker
+  // health probes, and the operator console polls it every few seconds. A
+  // single transient rejection must not 500 the whole panel mid-demo — degrade
+  // each source to a safe empty value instead.
+  const snapshots = await listRunSnapshots({ orgId, limit }).catch(() => []);
   const capabilities = summarizeCapabilities(process.env);
   const [connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness] = await Promise.all([
-    listConnectorCredentials({ orgId }),
-    getWorkerQueueHealth(),
-    getWorkerRuntimeHealth(),
-    getWorkerCanaryHealth(),
-    getBackendReadiness(),
+    listConnectorCredentials({ orgId }).catch(() => []),
+    getWorkerQueueHealth().catch(() => null),
+    getWorkerRuntimeHealth().catch(() => null),
+    getWorkerCanaryHealth().catch(() => null),
+    getBackendReadiness().catch(() => null),
   ]);
   const security = summarizeSecurityPacket(buildSecurityPacket({ orgId }));
   const runs = snapshots.map((snapshot) => summarizeAgentTask(snapshot));
@@ -76,7 +81,7 @@ export async function GET(request: Request) {
       runtime: workerRuntime,
       canary: workerCanary,
     },
-    backendReadiness: summarizeBackendReadiness(backendReadiness),
+    backendReadiness: backendReadiness ? summarizeBackendReadiness(backendReadiness) : null,
     connectorCredentials,
     security,
   });
@@ -194,7 +199,7 @@ function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorA
   return [...stagedArtifacts, ...approvalArtifacts, ...runArtifacts].slice(0, 7);
 }
 
-function summarizeBackendReadiness(report: Awaited<ReturnType<typeof getBackendReadiness>>) {
+function summarizeBackendReadiness(report: NonNullable<Awaited<ReturnType<typeof getBackendReadiness>>>) {
   return {
     ok: report.ok,
     mode: report.mode,

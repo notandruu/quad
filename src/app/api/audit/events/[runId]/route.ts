@@ -12,10 +12,16 @@ export async function GET(
   { params }: { params: { runId: string } }
 ) {
   const { runId } = params;
-  const [events, counters, meta] = await Promise.all([
-    replayAuditEvents(runId),
-    readCounters(runId),
-    readRunMeta(runId),
-  ]);
-  return NextResponse.json({ runId, meta, counters, events });
+  try {
+    const [events, counters, meta] = await Promise.all([
+      replayAuditEvents(runId),
+      readCounters(runId),
+      readRunMeta(runId),
+    ]);
+    return NextResponse.json({ runId, meta, counters, events });
+  } catch {
+    // A transient Redis error must not break log restore on refresh — degrade
+    // to an empty replay so the live stream can still take over.
+    return NextResponse.json({ runId, meta: null, counters: {}, events: [] });
+  }
 }

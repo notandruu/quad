@@ -23,7 +23,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Deepgram is not configured." }, { status: 503 });
   }
 
-  const form = await request.formData();
+  const form = await request.formData().catch(() => null);
+  if (!form) {
+    return NextResponse.json({ error: "Invalid multipart upload." }, { status: 400 });
+  }
   const audio = form.get("audio");
   if (!(audio instanceof Blob)) {
     return NextResponse.json({ error: "Missing audio upload." }, { status: 400 });

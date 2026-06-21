@@ -5,13 +5,14 @@ import {
   type JudgeResult,
   type TrustQuestionInput,
 } from "./answerTrustQuestion";
-import { listMemoryStore, deleteMemoryStore, addMemory } from "@/lib/brain/store";
+import { deleteMemoryStore, addMemory } from "@/lib/brain/store";
 import type { BrainMemory } from "@/lib/types";
 import { registerLocalDocuments } from "@/lib/connectors/documents";
 import { ENTERPRISE_PROOF_CONNECTOR_DOCS, ENTERPRISE_PROOF_ORG_ID, ENTERPRISE_PROOF_BRAIN } from "@/data/demo/enterprise-proof";
 
 const PASS_JUDGE = async (): Promise<JudgeResult> => ({
   passed: true,
+  answersQuestion: true,
   confidence: 0.91,
   reason: "All claims are traceable to the provided sources.",
   risks: [],
@@ -19,9 +20,19 @@ const PASS_JUDGE = async (): Promise<JudgeResult> => ({
 
 const FAIL_JUDGE = async (): Promise<JudgeResult> => ({
   passed: false,
+  answersQuestion: false,
   confidence: 0.2,
   reason: "The answer makes claims not supported by any provided source.",
   risks: ["hallucination"],
+});
+
+// Grounded, but the answer declines / says the sources do not establish the fact.
+const DECLINE_JUDGE = async (): Promise<JudgeResult> => ({
+  passed: true,
+  answersQuestion: false,
+  confidence: 0.95,
+  reason: "Faithful to sources, but the answer declines because no source covers this.",
+  risks: [],
 });
 
 function captureIngest() {
@@ -137,6 +148,23 @@ describe("answerTrustQuestion", () => {
       _ingestOverride: ingestFn,
     });
 
+    expect(result.status).toBe("needs_human");
+    expect(captures).toHaveLength(0);
+    expect(result.memory).toBeUndefined();
+  });
+
+  it("returns needs_human and does NOT write to brain when the answer is grounded but declines", async () => {
+    const { fn: ingestFn, captures } = captureIngest();
+
+    const result = await answerTrustQuestion({
+      orgId: ENTERPRISE_PROOF_ORG_ID,
+      question: "When was your last third-party penetration test?",
+      runId: "test_run_decline",
+      _judgeOverride: DECLINE_JUDGE,
+      _ingestOverride: ingestFn,
+    });
+
+    // A grounded "we have no evidence for this" answer must escalate, not be learned.
     expect(result.status).toBe("needs_human");
     expect(captures).toHaveLength(0);
     expect(result.memory).toBeUndefined();

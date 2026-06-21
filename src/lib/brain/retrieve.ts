@@ -51,6 +51,32 @@ export async function retrieveMemories(
   });
 }
 
+/**
+ * Look up a single memory by its stable (orgId, sourceId). Used for idempotent
+ * writeback: if a fact was already learned for a question, we reuse it rather
+ * than writing a duplicate. Queries Supabase when configured, otherwise the
+ * in-memory seed store — so the lookup hits whichever store the write went to.
+ */
+export async function findMemoryBySourceId(
+  orgId: string,
+  sourceId: string
+): Promise<BrainMemory | null> {
+  const db = getClient();
+  if (db) {
+    const { data, error } = await db
+      .from("brain_memory")
+      .select("*")
+      .eq("org_id", orgId)
+      .eq("source_id", sourceId)
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    return rowToMemory(data);
+  }
+  const found = seedMemories.find((m) => m.orgId === orgId && m.sourceId === sourceId);
+  return found ? { ...found } : null;
+}
+
 function scopeToTypes(scope?: BrainScope): string[] | null {
   if (scope === "internal") return [...INTERNAL_SOURCE_TYPES];
   if (scope === "external") return [...EXTERNAL_SOURCE_TYPES];

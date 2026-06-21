@@ -61,6 +61,9 @@ export async function POST(req: NextRequest) {
       "content-type": "text/event-stream",
       "cache-control": "no-cache, no-transform",
       connection: "keep-alive",
+      // Stop nginx/edge proxies from buffering the stream into one burst,
+      // which would defeat the live event animation on a hosted demo.
+      "x-accel-buffering": "no",
     },
   });
 }

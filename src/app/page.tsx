@@ -75,56 +75,92 @@ export default function Home() {
       return;
     }
 
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text,
-        pinnedUrl: url,
-        hasActiveAudit: Boolean(report),
-        runId: report?.runId ?? undefined,
-        orgId: report?.orgId ?? undefined,
-      }),
-    });
-    const data = await res.json();
-    setMessages((m) => [...m, { role: "quad", text: data.message, quadChain: data.quadChain ?? null }]);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          pinnedUrl: url,
+          hasActiveAudit: Boolean(report),
+          runId: report?.runId ?? undefined,
+          orgId: report?.orgId ?? undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      const message =
+        typeof data.message === "string" && data.message.trim()
+          ? data.message
+          : "I hit an error answering that. Try again in a moment.";
+      setMessages((m) => [...m, { role: "quad", text: message, quadChain: data.quadChain ?? null }]);
+    } catch {
+      setMessages((m) => [
+        ...m,
+        { role: "quad", text: "I could not reach the server. Check the connection and try again." },
+      ]);
+    }
   }
 
   async function startAudit(targetUrl: string, orgId?: string) {
     setActive(true);
     setEvents([]);
     setReport(null);
-    const res = await fetch("/api/audit/stream", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ targetUrl, ...(orgId ? { orgId } : {}) }),
-    });
-    if (!res.body) {
-      setActive(false);
-      return;
-    }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const chunks = buffer.split("\n\n");
-      buffer = chunks.pop() ?? "";
-      for (const chunk of chunks) {
-        const line = chunk.replace(/^data: /, "").trim();
-        if (!line) continue;
-        const evt = JSON.parse(line);
-        if (evt.type === "audit.report") {
-          setReport(evt.report);
-        } else if (typeof evt.sequence === "number") {
-          setEvents((e) => [...e, evt]);
-          tallyCounters(evt, setCounters);
+    try {
+      const res = await fetch("/api/audit/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUrl, ...(orgId ? { orgId } : {}) }),
+      });
+      if (!res.ok || !res.body) {
+        setMessages((m) => [
+          ...m,
+          { role: "quad", text: `Audit could not start (status ${res.status}). Try again.` },
+        ]);
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const chunks = buffer.split("\n\n");
+        buffer = chunks.pop() ?? "";
+        for (const chunk of chunks) {
+          const line = chunk.replace(/^data: /, "").trim();
+          if (!line) continue;
+          // One malformed frame must never kill the whole stream.
+          let evt: { type?: string; sequence?: number; report?: AuditReport; error?: string };
+          try {
+            evt = JSON.parse(line);
+          } catch {
+            continue;
+          }
+          if (evt.type === "audit.report") {
+            setReport(evt.report ?? null);
+          } else if (evt.type === "audit.failed") {
+            setMessages((m) => [
+              ...m,
+              { role: "quad", text: `Audit failed: ${evt.error ?? "unknown error"}.` },
+            ]);
+          } else if (typeof evt.sequence === "number") {
+            setEvents((e) => [...e, evt as PublishedEvent]);
+            tallyCounters(evt as PublishedEvent, setCounters);
+          }
         }
       }
+    } catch (err) {
+      setMessages((m) => [
+        ...m,
+        {
+          role: "quad",
+          text: `Audit stream interrupted: ${err instanceof Error ? err.message : String(err)}.`,
+        },
+      ]);
+    } finally {
+      setActive(false);
     }
-    setActive(false);
   }
 
   return (

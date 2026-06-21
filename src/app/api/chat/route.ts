@@ -12,6 +12,8 @@ import { createQuadChainPacket, summarizeQuadChainPacket, type QuadChainPacketSu
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 
 export const runtime = "nodejs";
+// Grounded chat makes a model call; give it headroom over the serverless default.
+export const maxDuration = 60;
 
 /**
  * Chat entrypoint. Two modes:

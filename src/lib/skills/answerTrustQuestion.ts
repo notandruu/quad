@@ -1,8 +1,7 @@
 import { createHash } from "crypto";
 import type { BrainMemory } from "@/lib/types";
-import { retrieveMemories } from "@/lib/brain/retrieve";
+import { retrieveMemories, findMemoryBySourceId } from "@/lib/brain/retrieve";
 import { ingestMemory, type IngestInput } from "@/lib/brain/ingest";
-import { listMemoryStore } from "@/lib/brain/store";
 import { listConnectorDocuments, type ConnectorDocument } from "@/lib/connectors/documents";
 import { complete, auditModel, extractJsonObject } from "@/lib/llm/anthropic";
 import { publishAuditEvent } from "@/lib/redis/publisher";
@@ -17,7 +16,14 @@ export type TrustQuestionSource = {
 };
 
 export type JudgeResult = {
+  /** True only when the answer is fully grounded in the provided sources. */
   passed: boolean;
+  /**
+   * True when the answer substantively answers the question. A grounded but
+   * declining answer ("the sources do not establish X") is passed=true,
+   * answersQuestion=false, and must escalate to a human rather than be learned.
+   */
+  answersQuestion: boolean;
   confidence: number;
   reason: string;
   risks: string[];
@@ -127,29 +133,37 @@ export async function answerTrustQuestion(input: TrustQuestionInput): Promise<Tr
   const answer = await draftAnswer({ question, contextBlock }) ?? buildHeuristicAnswer(memories, connectorDocs);
   await publishAuditEvent(runId, "answer.drafted", { questionId, answerLength: answer.length });
 
-  // Step 5: evaluate
-  const sourceTexts = sources.map((s) => `${s.title}: ${s.quote ?? ""}`.trim());
-  const evaluation = await judgeImpl({ question, answer, sources: sourceTexts });
+  // Step 5: evaluate. The judge must see the SAME evidence the drafter saw —
+  // truncated snippets starve it and make it reject claims that are actually
+  // supported deeper in a source. Pass full content.
+  const judgeSources = [
+    ...memories.map((m) => `${m.title}: ${m.content}`),
+    ...connectorDocs.map((d) => `${d.title}: ${d.content}`),
+  ];
+  const evaluation = await judgeImpl({ question, answer, sources: judgeSources });
 
-  if (!evaluation || !evaluation.passed) {
+  // Two ways to land in needs_human:
+  //  1. the answer is not grounded in the sources (judge failed / unavailable)
+  //  2. the answer IS grounded but declines to answer the question — a real
+  //     gap in the evidence that a human must close, not fabricate.
+  const grounded = Boolean(evaluation?.passed);
+  const substantive = Boolean(evaluation?.answersQuestion);
+  if (!evaluation || !grounded || !substantive) {
+    const reason = !evaluation
+      ? "judge_unavailable"
+      : !grounded
+        ? evaluation.reason || "not_grounded"
+        : "insufficient_evidence";
     await publishAuditEvent(runId, "answer.evaluated", {
       questionId,
-      passed: false,
-      reason: evaluation?.reason ?? "judge_unavailable",
+      passed: grounded,
+      answersQuestion: substantive,
+      reason,
       risks: evaluation?.risks ?? [],
     });
-    await publishAuditEvent(runId, "answer.needs_human", {
-      questionId,
-      reason: evaluation?.reason ?? "judge_unavailable",
-    });
+    await publishAuditEvent(runId, "answer.needs_human", { questionId, reason });
 
-    const packet = createNeedsHumanPacket({
-      orgId,
-      runId,
-      questionId,
-      question,
-      reason: evaluation?.reason ?? "judge_unavailable",
-    });
+    const packet = createNeedsHumanPacket({ orgId, runId, questionId, question, reason });
     return {
       questionId,
       question,
@@ -168,14 +182,16 @@ export async function answerTrustQuestion(input: TrustQuestionInput): Promise<Tr
     reason: evaluation.reason,
   });
 
-  // Step 6: writeback — idempotent by sourceId
+  // Step 6: writeback — idempotent by sourceId. Look up across whichever store
+  // the write would land in (Supabase when configured, else in-memory) so reuse
+  // detection works in both modes.
   const sourceId = questionId; // computeQuestionSourceId output IS the sourceId
-  const existing = listMemoryStore({ orgId, sourceId });
+  const existing = await findMemoryBySourceId(orgId, sourceId);
   let memory: BrainMemory;
   let wasReused = false;
 
-  if (existing.length > 0) {
-    memory = existing[0];
+  if (existing) {
+    memory = existing;
     wasReused = true;
   } else {
     const validationTag = `[Validated ${new Date().toISOString().slice(0, 10)} | confidence ${evaluation.confidence.toFixed(2)}]`;
@@ -290,28 +306,35 @@ async function defaultJudge(opts: {
   sources: string[];
 }): Promise<JudgeResult | null> {
   const system =
-    "You are a strict compliance verifier. Evaluate whether the provided answer is fully supported by the sources. " +
-    "Return ONLY a JSON object: { passed: boolean, confidence: number (0-1), reason: string, risks: string[] }. " +
-    "passed=true only if every claim in the answer is traceable to the sources. " +
-    "If any claim lacks source support, set passed=false. Default to false when uncertain.";
+    "You are a strict compliance verifier for security questionnaire answers. " +
+    "Return ONLY a JSON object: " +
+    "{ passed: boolean, answersQuestion: boolean, confidence: number (0-1), reason: string, risks: string[] }. " +
+    "passed=true only if every claim in the answer is traceable to the sources; if any claim lacks source support, passed=false. " +
+    "answersQuestion=true only if the answer substantively answers what was asked. " +
+    "If the answer declines, says the sources do not establish the fact, or says it cannot determine the answer, set answersQuestion=false. " +
+    "Default both to false when uncertain.";
   const prompt =
     `Question: ${opts.question}\n\n` +
     `Sources:\n${opts.sources.map((s, i) => `${i + 1}. ${s}`).join("\n")}\n\n` +
     `Answer to evaluate: ${opts.answer}\n\n` +
     `Evaluation (JSON only):`;
 
-  const raw = await complete({ model: auditModel(), system, prompt, maxTokens: 256, purpose: "evaluation" });
+  // 256 tokens truncates the JSON mid-object when the reason is verbose, which
+  // makes the parse fail and silently escalates a perfectly good answer. Give
+  // the verdict enough room to close its braces.
+  const raw = await complete({ model: auditModel(), system, prompt, maxTokens: 600, purpose: "evaluation" });
   if (!raw) return null;
 
   const obj = extractJsonObject(raw);
   if (!obj) return null;
 
   const passed = Boolean(obj.passed);
+  const answersQuestion = "answersQuestion" in obj ? Boolean(obj.answersQuestion) : true;
   const confidence = typeof obj.confidence === "number" ? Math.min(1, Math.max(0, obj.confidence)) : 0.5;
   const reason = typeof obj.reason === "string" ? obj.reason : "no reason provided";
   const risks = Array.isArray(obj.risks) ? (obj.risks as string[]).filter((r) => typeof r === "string") : [];
 
-  return { passed, confidence, reason, risks };
+  return { passed, answersQuestion, confidence, reason, risks };
 }
 
 function createNeedsHumanPacket(opts: {

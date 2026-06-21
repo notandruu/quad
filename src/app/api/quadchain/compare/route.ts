@@ -7,6 +7,8 @@ import {
 } from "@/lib/quad-chain/workbench";
 
 export const runtime = "nodejs";
+// Comparison runs a model call; avoid the platform's short default timeout.
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as {
