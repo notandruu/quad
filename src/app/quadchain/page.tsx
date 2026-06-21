@@ -103,15 +103,13 @@ export default function QuadChainPage() {
               Back to audit
             </Link>
             <p className="font-mono text-xs text-accent-dark">:: quadchain / proof-carrying context ::</p>
-            <h1 className="text-4xl font-semibold tracking-tight md:text-6xl">Quadchain</h1>
-            <p className="max-w-2xl text-base leading-7 text-muted">{quadChainThesis}</p>
           </div>
           <div className="font-mono text-xs leading-5 text-soft">
-            <div>source chain -- compression chain</div>
-            <div>proof chain -- anchor chain</div>
-            <div>verify before trust</div>
+            <div>prompt -- compress -- verify</div>
           </div>
         </header>
+
+        <QuadChainWorkbench initial={initialComparison} />
 
         <section className="grid gap-3 md:grid-cols-3">
           {quadChainHeadlineMetrics.map((metric) => (
@@ -122,8 +120,6 @@ export default function QuadChainPage() {
             </div>
           ))}
         </section>
-
-        <QuadChainWorkbench initial={initialComparison} />
 
         <section className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="rounded-lg border border-edge bg-panel/80 p-4 shadow-sm">
