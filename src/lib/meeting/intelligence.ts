@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { buildMemoryWriteProposalPayload } from "@/lib/brain/proposals";
+import { captureContextEvents, summarizeContextCapture } from "@/lib/context-capture";
 import {
   createQuadChainPacket,
   summarizeQuadChainPacket,
@@ -68,6 +69,17 @@ export async function buildMeetingIntelligence(
     now,
   });
   transitionRun(run.id, "running", { now });
+  const capture = captureContextEvents({
+    orgId: result.orgId,
+    runId: result.runId,
+    sourceName: `meeting:${result.title}`,
+    events: result.transcript.split("\n").filter(Boolean).map((line, index) => ({
+      id: `${result.runId}:line_${index + 1}`,
+      sourceType: "meeting",
+      text: line,
+    })),
+    now,
+  });
 
   addTask({
     runId: run.id,
@@ -86,6 +98,17 @@ export async function buildMeetingIntelligence(
       retainedFacts.length > 0
         ? `${retainedFacts.length} durable facts were grounded against transcript evidence.`
         : "No durable facts were grounded enough for writeback.",
+    now,
+  });
+  addTask({
+    runId: run.id,
+    title: "Separate context signal from noise",
+    status: capture.summary.signalCount > 0 ? "completed" : "blocked",
+    owner: "quad",
+    detail:
+      capture.summary.signalCount > 0
+        ? `${capture.summary.signalCount} signals kept and ${capture.summary.noiseCount} noisy events filtered before writeback.`
+        : "No durable context signals survived the capture filter.",
     now,
   });
 
@@ -114,6 +137,29 @@ export async function buildMeetingIntelligence(
       factCount: result.facts.length,
       retainedFacts: retainedFacts.map((item) => factPreview(item)),
       rejectedFacts: result.facts.filter((item) => item.status === "rejected").map((item) => factPreview(item)),
+    },
+    now,
+  });
+  const captureArtifact = addArtifact({
+    runId: run.id,
+    kind: "context_capture",
+    title: "Context capture signal report",
+    data: {
+      summary: summarizeContextCapture(capture),
+      signals: capture.signals.map((signal) => ({
+        id: signal.id,
+        sourceId: signal.sourceId,
+        claim: signal.claim,
+        category: signal.category,
+        confidence: signal.confidence,
+        suggestedVisibility: signal.suggestedVisibility,
+      })),
+      noise: capture.noise.map((item) => ({
+        id: item.id,
+        sourceEventId: item.sourceEventId,
+        reason: item.reason,
+        textSummary: item.textSummary,
+      })),
     },
     now,
   });
@@ -178,6 +224,7 @@ export async function buildMeetingIntelligence(
     evidence,
     transcriptArtifact,
     summaryArtifact,
+    captureArtifact,
     proposalArtifact,
     followupArtifact,
     approvalId: approval.id,
@@ -272,6 +319,7 @@ async function saveMeetingPackets(input: {
   evidence: Array<{ quote: string; documentId: string }>;
   transcriptArtifact: WorkflowArtifactRecord;
   summaryArtifact: WorkflowArtifactRecord;
+  captureArtifact: WorkflowArtifactRecord;
   proposalArtifact: WorkflowArtifactRecord;
   followupArtifact: WorkflowArtifactRecord;
   approvalId: string;
@@ -290,6 +338,7 @@ async function saveMeetingPackets(input: {
     `meeting transcript captured for ${input.result.title}`,
     `transcript artifact: ${input.transcriptArtifact.id}`,
     `summary artifact: ${input.summaryArtifact.id}`,
+    `capture artifact: ${input.captureArtifact.id}`,
     `meeting summary: ${input.result.summary}`,
     ...evidence.map((item) => `evidence: ${item.quote}`),
   ].join("\n");

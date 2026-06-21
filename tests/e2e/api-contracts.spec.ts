@@ -160,6 +160,45 @@ test.describe("api contracts", () => {
     expect(JSON.stringify(json)).not.toMatch(/sk-ant-|sk-proj-|postgres:\/\/|service_role|bb_live_|gQAAAA/);
   });
 
+  test("classifies context capture signals without leaking secrets", async ({ request }) => {
+    const response = await request.post("/api/context/capture", {
+      data: {
+        orgId: "org_redcross",
+        sourceName: "playwright context capture",
+        events: [
+          {
+            id: "event_signal",
+            sourceType: "meeting",
+            text: "Maddy: The trust packet launch must include approved SOC 2 evidence by July 1.",
+          },
+          {
+            id: "event_noise",
+            sourceType: "meeting",
+            text: "thanks",
+          },
+        ],
+      },
+    });
+
+    expect(response.ok()).toBe(true);
+    const json = await response.json();
+    expect(json).toMatchObject({
+      ok: true,
+      summary: {
+        signalCount: 1,
+        noiseCount: 1,
+        suggestedWriteCount: 1,
+      },
+      proposals: [],
+    });
+    expect(json.capture.signals[0]).toMatchObject({
+      sourceType: "meeting",
+      suggestedVisibility: "company",
+    });
+    expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+    expect(JSON.stringify(json)).not.toMatch(/sk-ant-|sk-proj-|postgres:\/\/|service_role|bb_live_|gQAAAA/);
+  });
+
   test("runs the scripted meeting agent into governed artifacts", async ({ request }) => {
     const response = await request.post("/api/meeting/scripted", {
       timeout: 60_000,

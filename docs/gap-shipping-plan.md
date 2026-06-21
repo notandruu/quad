@@ -286,6 +286,30 @@ Acceptance:
 - matching team and explicit personal context can widen the graph without changing the raw memory contract.
 - downstream agents and product surfaces can build from one scoped context substrate instead of re-implementing memory visibility rules.
 
+## Gap 2.10: event-driven context capture
+
+Status: shipped v1.
+
+What was missing:
+
+- meeting, voice, chat, and future connector events could write or propose memory, but there was no shared signal/noise filter before writeback.
+- noisy lines, questions, speculation, and chit-chat were handled ad hoc inside individual workflows.
+- the run task stream did not show which raw events became memory candidates and which were discarded as noise.
+
+Shipped v1:
+
+- `src/lib/context-capture` accepts normalized runtime events, classifies durable company signals versus noise, assigns source ids, confidence, category, suggested visibility, and source quotes, and summarizes the capture safely.
+- `POST /api/context/capture` exposes the pipeline to dashboard, voice, connector, and future webhook surfaces. It can run classification only or stage approval-backed memory proposals with `proposeWrites: true`.
+- run task streams now support `memory.candidate`, `memory.noise`, and `memory.proposed` event kinds for replayable context-capture decisions.
+- meeting intelligence now includes a `context_capture` artifact before the meeting memory proposal, so the approval packet is backed by an explicit signal/noise pass.
+- captured writes still route through the existing approval-backed memory proposal flow; no shared brain write happens directly from noisy events.
+
+Acceptance:
+
+- short lines, chit-chat, questions, speculation, and low-signal events are filtered before writeback.
+- durable context candidates create visible memory-candidate task events when tied to a run.
+- captured memory writes are approval-backed proposals, not blind durable writes.
+
 ## Gap 3: dry-run publisher workbench
 
 Status: shipped v3.

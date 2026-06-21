@@ -24,6 +24,7 @@ export type ArtifactKind =
   | "receipt"
   | "meeting_transcript"
   | "meeting_summary"
+  | "context_capture"
   | "meeting_memory_proposal"
   | "meeting_followup"
   | "cms_draft"
@@ -108,7 +109,10 @@ export type WorkflowTaskEventKind =
   | "artifact.created"
   | "approval.requested"
   | "approval.decided"
-  | "receipt.created";
+  | "receipt.created"
+  | "memory.candidate"
+  | "memory.noise"
+  | "memory.proposed";
 
 export type WorkflowTaskEventActor = "dashboard" | "agent" | "worker" | "quad" | "human" | "connector" | "system";
 

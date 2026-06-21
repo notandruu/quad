@@ -70,7 +70,10 @@ describe("meeting intelligence", () => {
     expect(intelligence.receipt.status).toBe("blocked");
     expect(intelligence.approval.decision).toBe("pending");
     expect(intelligence.artifacts.map((artifact) => artifact.kind)).toEqual(
-      expect.arrayContaining(["meeting_transcript", "meeting_summary", "meeting_memory_proposal", "meeting_followup"])
+      expect.arrayContaining(["meeting_transcript", "meeting_summary", "context_capture", "meeting_memory_proposal", "meeting_followup"])
+    );
+    expect(snapshot?.taskEvents.map((event) => event.kind)).toEqual(
+      expect.arrayContaining(["memory.candidate"])
     );
     expect(intelligence.packets.map((packet) => packet.type)).toEqual(
       expect.arrayContaining(["voice_transcript", "approval", "agent_handoff"])

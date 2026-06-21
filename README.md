@@ -145,6 +145,8 @@ Brain memory is scoped before retrieval. `/api/ingest` defaults to an approval-b
 
 `GET /api/brain/graph?orgId=...` returns the scoped context graph that other surfaces should build on: readable company/team/personal memory nodes, freshness and validation state, relationship edges, evidence counts, and latest `brain_memory_write` quadchain receipt ids. The graph is intentionally safe by default; it summarizes memory and proof state without returning raw memory content, evidence quotes, prompts, credentials, or packet source bodies.
 
+`POST /api/context/capture` is the event-driven context capture pipeline. It accepts normalized events from meetings, voice, chat, docs, or future connectors, separates durable company signals from noise, emits safe summaries, and can stage approval-backed memory proposals with `proposeWrites: true`. Captured context does not write directly into the shared brain; it follows the same approval and quadchain receipt path as other memory writes.
+
 `POST /api/enterprise-proof` runs the security-questionnaire trust loop over brain memory plus connector documents. It is protected by the same hosted auth, mutation rate-limit, and idempotency replay path as the other write routes, while zero-key demo fallback remains available for the seeded enterprise-proof org.
 
 Enterprise-proof learned facts are written with explicit target scope. Company scope is the default; team scope requires a team id, and personal scope requires an owner user id. Ambiguous scoped writeback escalates to human review instead of creating memory.

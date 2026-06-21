@@ -11,7 +11,7 @@
 
 quad is not a throwaway hackathon build. quad should be designed as a production product that happens to have a hackathon launch/demo deadline.
 
-2026-06-21 update: shipped the next biggest backend gap as a scoped context graph. quad can now return a permission-aware graph of company/team/personal memories, freshness, validation state, relationships, and latest quadchain packet receipts through `/api/brain/graph`, with a compact summary exposed in `/api/operator`.
+2026-06-21 update: shipped the next biggest backend gap as an event-driven context capture pipeline. quad can now classify runtime events into durable memory signals versus noise, emit memory-candidate task-stream events, expose `/api/context/capture`, and stage approval-backed memory proposals before writeback.
 
 the core product is a company-aware ai employee platform: it understands a business goal, retrieves and collects missing context, uses tools, validates its own work, learns only verified knowledge, executes approved actions, and leaves a replayable evidence trail. website audits and security questionnaires are product workflows on top of that runtime, not the whole company.
 
@@ -79,7 +79,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [x] memory freshness/staleness metadata with explicit refresh paths
 - [x] memory stale-after, owner, validation, and relationship metadata on write/retrieve
 - [x] operator-visible memory trail with stale/scope/relationship signals
-- [ ] event-driven context capture pipeline with signal/noise extraction before writeback
+- [x] event-driven context capture pipeline with signal/noise extraction before writeback
 - [x] audit run model with lifecycle states, retries, dead-letter recovery, and resumability
 - [ ] redis event stream and replay for every run
 - [x] tenant-scoped redis/memory replay for audit and enterprise-proof workflow events
