@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { event, data } = body;
-  const botId = data.bot_id ?? "";
+  const botId = data.bot_id ?? data.bot?.id ?? "";
 
   // --- Bot status events ---
   if (event === "bot.status_change" && botId) {
@@ -50,10 +50,14 @@ export async function POST(req: NextRequest) {
   }
 
   // --- Real-time transcript events ---
-  if (event === "transcript.data" && data.transcript?.is_final) {
-    const { transcript } = data;
-    const speaker = transcript.speaker ?? "Speaker";
-    const text = recallEntryToText({ speaker, words: transcript.words });
+  if (event === "transcript.data") {
+    const legacyTranscript = data.transcript;
+    const speaker =
+      legacyTranscript?.speaker ??
+      data.data?.participant?.name ??
+      "Speaker";
+    const words = legacyTranscript?.words ?? data.data?.words ?? [];
+    const text = recallEntryToText({ speaker, words });
 
     if (!text || text.length < 8) {
       return NextResponse.json({ ok: true, skipped: true });

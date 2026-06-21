@@ -31,8 +31,8 @@ export type RecallBot = {
 
 export type RecallTranscriptWord = {
   text: string;
-  start_timestamp: number;
-  end_timestamp: number;
+  start_timestamp?: number | { relative?: number; absolute?: string };
+  end_timestamp?: number | { relative?: number; absolute?: string } | null;
 };
 
 export type RecallTranscriptEntry = {
@@ -59,6 +59,15 @@ export type RecallWebhookEvent = {
       speaker: string;
       words: RecallTranscriptWord[];
       is_final: boolean;
+    };
+    data?: {
+      words?: RecallTranscriptWord[];
+      participant?: {
+        name?: string | null;
+      };
+    };
+    bot?: {
+      id?: string;
     };
   };
 };
@@ -89,6 +98,9 @@ export async function createRecallBot(input: {
   joinAt?: string;
 }): Promise<RecallBot> {
   const transcriptionProvider = input.transcriptionProvider ?? "meeting_captions";
+  const webhookEvents = transcriptionProvider === "meeting_captions"
+    ? ["transcript.data"]
+    : ["transcript.data"];
   const response = await fetch(`${RECALL_API_BASE}/bot/`, {
     method: "POST",
     headers: {
@@ -101,10 +113,20 @@ export async function createRecallBot(input: {
       ...(input.joinAt ? { join_at: input.joinAt } : {}),
       ...(input.webhookUrl
         ? {
-            transcription_options: { provider: transcriptionProvider },
-            real_time_transcription: {
-              destination_url: input.webhookUrl,
-              partial_results: false,
+            recording_config: {
+              transcript: {
+                provider: buildTranscriptProvider(transcriptionProvider),
+                diarization: {
+                  use_separate_streams_when_available: true,
+                },
+              },
+              realtime_endpoints: [
+                {
+                  type: "webhook",
+                  url: input.webhookUrl,
+                  events: webhookEvents,
+                },
+              ],
             },
           }
         : {}),
@@ -117,6 +139,19 @@ export async function createRecallBot(input: {
   }
 
   return response.json() as Promise<RecallBot>;
+}
+
+function buildTranscriptProvider(provider: RecallTranscriptionProvider) {
+  if (provider === "meeting_captions") return { meeting_captions: {} };
+  if (provider === "recallai") {
+    return {
+      recallai_streaming: {
+        mode: "prioritize_low_latency",
+        language_code: "en",
+      },
+    };
+  }
+  return { [provider]: {} };
 }
 
 function normalizeTranscriptionProvider(value?: string | null): RecallTranscriptionProvider {

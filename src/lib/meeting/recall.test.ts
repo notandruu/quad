@@ -27,7 +27,21 @@ describe("recall meeting bot", () => {
 
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
     const body = JSON.parse(String(init?.body));
-    expect(body.transcription_options).toEqual({ provider: "meeting_captions" });
+    expect(body).not.toHaveProperty("transcription_options");
+    expect(body).not.toHaveProperty("real_time_transcription");
+    expect(body.recording_config).toMatchObject({
+      transcript: {
+        provider: { meeting_captions: {} },
+        diarization: { use_separate_streams_when_available: true },
+      },
+      realtime_endpoints: [
+        {
+          type: "webhook",
+          url: "https://quad.test/api/meeting/webhook",
+          events: ["transcript.data"],
+        },
+      ],
+    });
   });
 
   it("allows an explicit transcription provider override", () => {
