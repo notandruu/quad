@@ -267,7 +267,7 @@ export function QuadWorkspaceDashboard() {
     addBrowserEvent(
       card.status === "answered" ? "write" : "pause",
       card.status === "answered" ? "locator.fill" : "pause_before_submit",
-      card.status === "answered" ? `${card.answer.slice(0, 116)}${card.answer.length > 116 ? "..." : ""}` : "unsupported claim requires human review",
+      card.status === "answered" ? `${card.answer.slice(0, 116)}${card.answer.length > 116 ? "…" : ""}` : "unsupported claim requires human review",
       card.id
     );
     await wait(120);
@@ -516,9 +516,12 @@ export function QuadWorkspaceDashboard() {
           ) : null}
 
           {chat.map((message) => (
-            <div key={message.id} className={`${styles.message} ${message.role === "user" ? styles.userMessage : styles.quadMessage}`}>
-              {message.role === "quad" ? <div className={styles.messageWho}>Quad</div> : null}
-              {message.text}
+            <div key={message.id} className={`${styles.messageRow} ${message.role === "user" ? styles.userMessage : styles.quadMessage}`}>
+              <div className={styles.messageAvatar}>{message.role === "user" ? "S" : "Q"}</div>
+              <div className={styles.messageBody}>
+                <div className={styles.messageWho}>{message.role === "user" ? "you" : "quad"}</div>
+                <p>{message.text}</p>
+              </div>
             </div>
           ))}
 
@@ -554,15 +557,19 @@ export function QuadWorkspaceDashboard() {
         </div>
 
         <form className={styles.composer} onSubmit={sendComposer}>
+          <label className={styles.composerLabel} htmlFor="quad-composer">message quad</label>
           <input
+            id="quad-composer"
+            name="quad-composer"
             value={composer}
             onChange={(event) => setComposer(event.target.value)}
-            placeholder="ask quad, or hand it a questionnaire..."
+            placeholder="ask quad, or hand it a questionnaire…"
+            autoComplete="off"
           />
           {status === "running" ? (
-            <button className={styles.iconButton} onClick={stopRun} type="button">×</button>
+            <button aria-label="stop questionnaire run" className={styles.iconButton} onClick={stopRun} type="button">×</button>
           ) : null}
-          <button className={styles.sendButton} disabled={isChatting || status === "resetting"} type="submit">→</button>
+          <button aria-label="send message" className={styles.sendButton} disabled={isChatting || status === "resetting"} type="submit">→</button>
         </form>
       </section>
 
@@ -758,7 +765,7 @@ function QuestionnairePanel({
             <label key={question.id} className={`${styles.field} ${isActive ? styles.fieldActive : ""}`}>
               <span>{index + 1}. {question.text}</span>
               <div className={`${styles.fieldValue} ${answer?.status === "needs_human" ? styles.fieldFlagged : ""}`}>
-                {answer ? answer.status === "answered" ? answer.answer : "flagged for human review" : isActive ? "quad is typing through browserbase..." : status === "running" ? "waiting..." : ""}
+                {answer ? answer.status === "answered" ? answer.answer : "flagged for human review" : isActive ? "quad is typing through browserbase…" : status === "running" ? "waiting…" : ""}
               </div>
             </label>
           );
