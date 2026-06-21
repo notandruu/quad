@@ -137,11 +137,13 @@ Shipped v3:
 
 - `canary` job type exercises queue storage, claim lease, and worker processing without browser/model work.
 - `POST /api/jobs/canary` runs the synthetic canary through the protected worker API surface.
+- `GET /api/jobs/health`, `GET /api/health/backend`, and `/api/operator` expose the latest canary receipt.
+- operator console shows a compact backend status derived from worker runtime and canary state.
 
 Next:
 
 - add deployment docs for Railway env and start command.
-- show canary status in the operator console and backend readiness response.
+- run the canary from a scheduled monitor after deploy.
 
 ## Gap 5: voice-led enterprise proof interview
 

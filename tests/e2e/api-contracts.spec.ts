@@ -75,6 +75,11 @@ test.describe("api contracts", () => {
     expect(Array.isArray(json.artifacts)).toBe(true);
     expect(Array.isArray(json.capabilities.active)).toBe(true);
     expect(Array.isArray(json.capabilities.blocked)).toBe(true);
+    expect(json.worker).toMatchObject({
+      queue: expect.any(Object),
+      runtime: expect.any(Object),
+      canary: expect.any(Object),
+    });
     expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
   });
 
@@ -92,6 +97,15 @@ test.describe("api contracts", () => {
     });
     expect(json.canary.enqueuedJobId).toMatch(/^job_/);
     expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+
+    const health = await request.get("/api/jobs/health");
+    expect(health.ok()).toBe(true);
+    await expect(health.json()).resolves.toMatchObject({
+      canary: {
+        seen: true,
+        ok: true,
+      },
+    });
   });
 
   test("returns a 404 for unknown approval decisions", async ({ request }) => {

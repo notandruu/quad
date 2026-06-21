@@ -1,5 +1,10 @@
 import { getClient } from "@/lib/brain/db";
-import { getWorkerRuntimeHealth, type WorkerRuntimeHealth } from "@/lib/jobs/queue";
+import {
+  getWorkerCanaryHealth,
+  getWorkerRuntimeHealth,
+  type WorkerCanaryHealth,
+  type WorkerRuntimeHealth,
+} from "@/lib/jobs/queue";
 import { getRedis, isRedisConfigured } from "@/lib/redis";
 import { securityReadiness } from "@/lib/security";
 
@@ -34,6 +39,7 @@ export type BackendReadinessReport = {
       lastHeartbeatAt: string | null;
       processed: number;
       staleAfterMs: number;
+      canary: WorkerCanaryHealth;
     };
   };
   nextActions: string[];
@@ -45,6 +51,7 @@ export type BackendReadinessInput = {
   probeSupabase?: (table: string) => Promise<boolean>;
   probeRedis?: () => Promise<boolean>;
   probeWorker?: (input?: { now?: string }) => Promise<WorkerRuntimeHealth>;
+  probeCanary?: () => Promise<WorkerCanaryHealth>;
 };
 
 export const PLATFORM_REQUIRED_TABLES = [
@@ -76,6 +83,7 @@ export async function getBackendReadiness(
   const supabaseProbe = await probeRequiredTables(input.probeSupabase ?? defaultSupabaseProbe, supabaseConfigured);
   const redisProbe = await probeRedis(input.probeRedis ?? defaultRedisProbe, redisConfigured);
   const workerProbe = await (input.probeWorker ?? getWorkerRuntimeHealth)({ now: generatedAt });
+  const canaryProbe = await (input.probeCanary ?? getWorkerCanaryHealth)();
   const security = securityReadiness(env);
 
   const components: BackendReadinessReport["components"] = {
@@ -152,6 +160,7 @@ export async function getBackendReadiness(
       lastHeartbeatAt: workerProbe.lastHeartbeatAt,
       processed: workerProbe.processed,
       staleAfterMs: workerProbe.staleAfterMs,
+      canary: canaryProbe,
       detail: workerProbe.alive
         ? `Backend worker ${workerProbe.workerId ?? "unknown"} is heartbeating.`
         : workerProbe.seen

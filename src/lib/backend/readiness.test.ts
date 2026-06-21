@@ -26,11 +26,13 @@ describe("getBackendReadiness", () => {
       probeSupabase: async () => true,
       probeRedis: async () => true,
       probeWorker: async () => workerHealth({ alive: true }),
+      probeCanary: async () => canaryHealth({ ok: true }),
     });
 
     expect(report.ok).toBe(true);
     expect(report.mode).toBe("production_ready");
     expect(report.components.supabase.missingTables).toEqual([]);
+    expect(report.components.worker.canary.ok).toBe(true);
     expect(report.nextActions).toEqual([]);
   });
 
@@ -40,6 +42,7 @@ describe("getBackendReadiness", () => {
       probeSupabase: async (table) => table !== "workflow_receipts" && table !== "quadchain_packets",
       probeRedis: async () => true,
       probeWorker: async () => workerHealth({ alive: true }),
+      probeCanary: async () => canaryHealth({ ok: true }),
     });
 
     expect(report.ok).toBe(false);
@@ -55,6 +58,7 @@ describe("getBackendReadiness", () => {
       probeSupabase: async () => true,
       probeRedis: async () => true,
       probeWorker: async () => workerHealth({ configured: false, seen: false, alive: false }),
+      probeCanary: async () => canaryHealth({ seen: false, ok: false }),
     });
 
     expect(report.ok).toBe(false);
@@ -71,6 +75,7 @@ describe("getBackendReadiness", () => {
       probeSupabase: async () => true,
       probeRedis: async () => true,
       probeWorker: async () => workerHealth({ alive: false, seen: true }),
+      probeCanary: async () => canaryHealth({ ok: false }),
     });
 
     expect(report.ok).toBe(false);
@@ -91,5 +96,17 @@ function workerHealth(input: { configured?: boolean; seen?: boolean; alive: bool
     lastHeartbeatAt: input.seen === false ? null : "2026-06-21T00:00:00.000Z",
     processed: 3,
     staleAfterMs: 30000,
+  };
+}
+
+function canaryHealth(input: { seen?: boolean; ok: boolean }) {
+  return {
+    seen: input.seen ?? true,
+    ok: input.ok,
+    mode: "memory" as const,
+    jobId: input.seen === false ? null : "job_canary",
+    status: input.seen === false ? null : input.ok ? "completed" as const : "failed" as const,
+    lastRunAt: input.seen === false ? null : "2026-06-21T00:00:00.000Z",
+    durationMs: input.seen === false ? null : 12,
   };
 }

@@ -17,6 +17,7 @@ import {
   claimJob,
   deadLetterJob,
   enqueueWorkerCanaryJob,
+  recordWorkerCanaryHealth,
   retryJob,
   updateJob,
   type AgentRunJobPayload,
@@ -51,10 +52,18 @@ export async function runWorkerCanary(input: { orgId?: string } = {}): Promise<W
   const claimed = await claimJob(enqueued.job.id);
   if (!claimed) throw new Error(`Worker canary job could not be claimed: ${enqueued.job.id}`);
   const job = await processJob(claimed);
+  const durationMs = Date.now() - started;
+  await recordWorkerCanaryHealth({
+    ok: job.status === "completed",
+    mode: enqueued.mode,
+    jobId: enqueued.job.id,
+    status: job.status,
+    durationMs,
+  });
   return {
     ok: job.status === "completed",
     mode: enqueued.mode,
-    durationMs: Date.now() - started,
+    durationMs,
     enqueuedJobId: enqueued.job.id,
     job,
   };

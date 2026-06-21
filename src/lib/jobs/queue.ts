@@ -98,6 +98,16 @@ export type WorkerRuntimeHealth = {
   staleAfterMs: number;
 };
 
+export type WorkerCanaryHealth = {
+  seen: boolean;
+  ok: boolean;
+  mode: "redis" | "memory";
+  jobId: string | null;
+  status: JobStatus | null;
+  lastRunAt: string | null;
+  durationMs: number | null;
+};
+
 export type WorkerHeartbeatInput = {
   workerId: string;
   startedAt?: string;
@@ -109,6 +119,7 @@ const QUEUE_KEY = "quad:jobs:queue";
 const JOB_KEY_PREFIX = "quad:jobs:item:";
 const JOB_LOCK_KEY_PREFIX = "quad:jobs:lock:";
 const WORKER_HEARTBEAT_KEY = "quad:jobs:worker:heartbeat";
+const WORKER_CANARY_KEY = "quad:jobs:worker:canary";
 const JOB_TTL_SECONDS = 60 * 60 * 24;
 
 const g = globalThis as typeof globalThis & {
@@ -116,6 +127,7 @@ const g = globalThis as typeof globalThis & {
   __quadJobQueue?: string[];
   __quadJobLocks?: Map<string, { owner: string; expiresAt: string }>;
   __quadWorkerHeartbeat?: WorkerRuntimeHealth;
+  __quadWorkerCanary?: WorkerCanaryHealth;
 };
 if (!g.__quadJobs) g.__quadJobs = new Map();
 if (!g.__quadJobQueue) g.__quadJobQueue = [];
@@ -428,6 +440,59 @@ export async function getWorkerRuntimeHealth(input: { now?: string } = {}): Prom
   };
 }
 
+export async function recordWorkerCanaryHealth(input: {
+  ok: boolean;
+  mode: "redis" | "memory";
+  jobId: string;
+  status: JobStatus;
+  durationMs: number;
+  now?: string;
+}): Promise<WorkerCanaryHealth> {
+  const canary: WorkerCanaryHealth = {
+    seen: true,
+    ok: input.ok,
+    mode: input.mode,
+    jobId: input.jobId,
+    status: input.status,
+    lastRunAt: input.now ?? new Date().toISOString(),
+    durationMs: input.durationMs,
+  };
+  g.__quadWorkerCanary = canary;
+
+  const redis = getRedis();
+  if (redis) {
+    try {
+      await redis.set(WORKER_CANARY_KEY, canary, { ex: JOB_TTL_SECONDS });
+    } catch {
+      // Memory canary status still gives local health checks useful signal.
+    }
+  }
+
+  return canary;
+}
+
+export async function getWorkerCanaryHealth(): Promise<WorkerCanaryHealth> {
+  const redis = getRedis();
+  if (redis) {
+    try {
+      const canary = await redis.get<WorkerCanaryHealth>(WORKER_CANARY_KEY);
+      if (isWorkerCanaryHealth(canary)) return canary;
+    } catch {
+      // Fall back to memory below.
+    }
+  }
+
+  return g.__quadWorkerCanary ?? {
+    seen: false,
+    ok: false,
+    mode: redis ? "redis" : "memory",
+    jobId: null,
+    status: null,
+    lastRunAt: null,
+    durationMs: null,
+  };
+}
+
 export async function updateJob(
   jobId: string,
   patch: Partial<Omit<QuadJob, "id" | "createdAt">>
@@ -636,6 +701,15 @@ function isWorkerRuntimeHealth(value: unknown): value is WorkerRuntimeHealth {
       typeof (value as WorkerRuntimeHealth).seen === "boolean" &&
       typeof (value as WorkerRuntimeHealth).alive === "boolean" &&
       typeof (value as WorkerRuntimeHealth).processed === "number"
+  );
+}
+
+function isWorkerCanaryHealth(value: unknown): value is WorkerCanaryHealth {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      typeof (value as WorkerCanaryHealth).seen === "boolean" &&
+      typeof (value as WorkerCanaryHealth).ok === "boolean"
   );
 }
 

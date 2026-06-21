@@ -6,10 +6,12 @@ import {
   enqueueAuditJob,
   enqueueWorkerCanaryJob,
   getJob,
+  getWorkerCanaryHealth,
   getWorkerRuntimeHealth,
   getWorkerQueueHealth,
   listJobs,
   recordWorkerHeartbeat,
+  recordWorkerCanaryHealth,
   retryJob,
   updateJob,
 } from "./queue";
@@ -165,5 +167,27 @@ describe("job queue", () => {
       attempts: 1,
     });
     expect(claimed?.claimedBy).toMatch(/^lease_/);
+  });
+
+  it("records the latest worker canary health", async () => {
+    vi.stubEnv("QUAD_REDIS_REST_URL", "");
+    vi.stubEnv("QUAD_REDIS_REST_TOKEN", "");
+
+    await recordWorkerCanaryHealth({
+      ok: true,
+      mode: "memory",
+      jobId: "job_canary_1",
+      status: "completed",
+      durationMs: 12,
+      now: "2026-06-21T00:00:00.000Z",
+    });
+
+    await expect(getWorkerCanaryHealth()).resolves.toMatchObject({
+      seen: true,
+      ok: true,
+      jobId: "job_canary_1",
+      status: "completed",
+      durationMs: 12,
+    });
   });
 });

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { enqueueAuditJob, getJob } from "./queue";
+import { enqueueAuditJob, getJob, getWorkerCanaryHealth } from "./queue";
 import { processNextJob, runWorkerCanary } from "./worker";
 import { runAudit } from "@/lib/tools/auditAnalyzer";
 
@@ -109,5 +109,11 @@ describe("job worker", () => {
     });
     expect(job?.claimedBy).toBeUndefined();
     expect(job?.claimExpiresAt).toBeUndefined();
+    await expect(getWorkerCanaryHealth()).resolves.toMatchObject({
+      seen: true,
+      ok: true,
+      jobId: canary.enqueuedJobId,
+      status: "completed",
+    });
   });
 });

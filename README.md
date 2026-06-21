@@ -75,7 +75,7 @@ High-risk mutation routes are protected by org-scoped rate limits and optional `
 
 `GET /api/health/backend` reports whether Supabase platform tables, Redis, hosted API auth, credential encryption, the backend worker, Browserbase, voice, Sentry, and Phoenix are configured and reachable. Run `docs/backend/platform-schema.sql` in Supabase before relying on durable runs.
 
-`GET /api/jobs/health` reports worker queue depth, running jobs, retrying jobs, completed jobs, failed jobs, dead-lettered jobs, and the latest worker heartbeat. Worker failures retry up to `maxAttempts`, then move to `dead_letter` for operator review.
+`GET /api/jobs/health` reports worker queue depth, running jobs, retrying jobs, completed jobs, failed jobs, dead-lettered jobs, the latest worker heartbeat, and the latest worker canary receipt. Worker failures retry up to `maxAttempts`, then move to `dead_letter` for operator review.
 
 Hosted run artifacts are addressable after creation: `GET /api/runs/:runId`, `GET /api/runs/:runId/artifacts`, `GET /api/runs/:runId/artifacts/:artifactId`, `GET /api/runs/:runId/tasks`, and `GET /api/runs/:runId/tasks/:taskId`.
 

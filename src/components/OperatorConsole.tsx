@@ -106,6 +106,24 @@ type OperatorResponse = {
     blocked: OperatorCapability[];
     starterBundle: string[];
   };
+  worker?: {
+    queue: {
+      queueDepth: number;
+      retrying: number;
+      deadLetter: number;
+    };
+    runtime: {
+      alive: boolean;
+      seen: boolean;
+      workerId: string | null;
+    };
+    canary: {
+      seen: boolean;
+      ok: boolean;
+      status: string | null;
+      lastRunAt: string | null;
+    };
+  };
 };
 
 export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgId?: string; watchRunId?: string | null }) {
@@ -159,6 +177,7 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
       approvals: data?.pendingApprovals.length ?? 0,
       readyReceipts: runs.flatMap((run) => run.receipts).filter((receipt) => receipt.status === "ready").length,
       activeTools: data?.capabilities.active.length ?? 0,
+      backend: data?.worker?.canary.ok ? "pass" : data?.worker?.runtime.alive ? "live" : "check",
     };
   }, [data]);
 
@@ -281,11 +300,12 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
         </span>
       </div>
 
-      <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+      <div className="mt-3 grid grid-cols-5 gap-2 text-center">
         <OperatorStat label="runs" value={String(counts.runs)} />
         <OperatorStat label="approvals" value={String(counts.approvals)} accent={counts.approvals > 0} />
         <OperatorStat label="receipts" value={String(counts.readyReceipts)} />
         <OperatorStat label="tools" value={String(counts.activeTools)} accent />
+        <OperatorStat label="backend" value={counts.backend} accent={counts.backend === "pass"} />
       </div>
 
       <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(260px,0.9fr)]">

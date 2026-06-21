@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { listConnectorCredentials } from "@/lib/connectors";
+import { getWorkerCanaryHealth, getWorkerQueueHealth, getWorkerRuntimeHealth } from "@/lib/jobs/queue";
 import { summarizeCapabilities } from "@/lib/metaregistry";
 import { buildShipTrail, listRunSnapshots, summarizeAgentTask } from "@/lib/runs";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
@@ -22,7 +23,12 @@ export async function GET(request: Request) {
   const limit = Number(url.searchParams.get("limit") ?? 8);
   const snapshots = await listRunSnapshots({ orgId, limit });
   const capabilities = summarizeCapabilities(process.env);
-  const connectorCredentials = await listConnectorCredentials({ orgId });
+  const [connectorCredentials, workerQueue, workerRuntime, workerCanary] = await Promise.all([
+    listConnectorCredentials({ orgId }),
+    getWorkerQueueHealth(),
+    getWorkerRuntimeHealth(),
+    getWorkerCanaryHealth(),
+  ]);
   const security = summarizeSecurityPacket(buildSecurityPacket({ orgId }));
   const runs = snapshots.map((snapshot) => summarizeAgentTask(snapshot));
   const shipTrails = Object.fromEntries(
@@ -62,6 +68,11 @@ export async function GET(request: Request) {
           missingEnvCount: capability.missingEnv.length,
         })),
       starterBundle: capabilities.starterBundle,
+    },
+    worker: {
+      queue: workerQueue,
+      runtime: workerRuntime,
+      canary: workerCanary,
     },
     connectorCredentials,
     security,
