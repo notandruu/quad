@@ -2,77 +2,56 @@
 
 import Panel from "@/components/Panel";
 import Reveal from "@/components/Reveal";
-import { CountUp, MonoLabel } from "@/components/ui";
 
-function Bars({ data, highlight }: { data: number[]; highlight?: number }) {
-  const max = Math.max(...data);
-  const days = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
-  return (
-    <div>
-      <div className="flex h-32 items-end gap-2">
-        {data.map((v, i) => (
-          <div
-            key={i}
-            className={`hatch-ink flex-1 ${i === highlight ? "bg-flame" : "bg-ink/12"}`}
-            style={{ height: `${(v / max) * 100}%` }}
-          />
-        ))}
-      </div>
-      <div className="mt-2 flex gap-2">
-        {data.map((_, i) => (
-          <span
-            key={i}
-            className={`flex-1 text-center font-mono text-[9px] ${
-              i === highlight ? "text-ink/70" : "text-ink/35"
-            }`}
-          >
-            {days[i] ?? ""}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
+const CARDS = [
+  {
+    n: "001",
+    title: "Grounded in evidence",
+    body: "Every answer traces back to the source it came from. 98% land with a citation on the first pass.",
+    icon: "trail" as const,
+  },
+  {
+    n: "002",
+    title: "Validated, then learned",
+    body: "Each draft is scored for grounding and hallucination risk. Only what passes, 96% of the time, is written back to memory.",
+    icon: "gate" as const,
+  },
+  {
+    n: "003",
+    title: "Replayable receipts",
+    body: "Every run leaves a receipt of sources, evals, and approvals. Replay any decision end to end.",
+    icon: "receipt" as const,
+  },
+];
 
-function Spark({ up = true }: { up?: boolean }) {
+function ProofIcon({ kind }: { kind: "trail" | "gate" | "receipt" }) {
+  const s = "#111111";
   return (
-    <svg viewBox="0 0 120 36" className="h-9 w-full" preserveAspectRatio="none">
-      <polyline
-        points="0,30 18,26 36,28 54,18 72,20 90,10 108,12 120,4"
-        fill="none"
-        stroke={up ? "#E63E96" : "#1d1d1d"}
-        strokeWidth="2"
-      />
+    <svg viewBox="0 0 200 150" className="h-full w-full" fill="none" stroke={s}>
+      {kind === "trail" && (
+        <g strokeWidth="1.1" opacity="0.85">
+          <polyline points="34,112 74,84 110,96 146,54" />
+          <circle cx="34" cy="112" r="3.4" fill={s} stroke="none" />
+          <circle cx="74" cy="84" r="3.4" fill={s} stroke="none" />
+          <circle cx="110" cy="96" r="3.4" fill={s} stroke="none" />
+          <circle cx="146" cy="54" r="13" />
+          <path d="M140 54 l4.5 5 8.5 -10.5" strokeWidth="1.5" />
+        </g>
+      )}
+      {kind === "gate" && (
+        <g strokeWidth="1.1" opacity="0.85">
+          <circle cx="100" cy="75" r="42" />
+          <path d="M100 33 a42 42 0 0 1 29.7 71.7" strokeWidth="2.2" />
+          <path d="M85 75 l10 10 22 -27" strokeWidth="1.6" />
+        </g>
+      )}
+      {kind === "receipt" && (
+        <g strokeWidth="1.1" opacity="0.85">
+          <path d="M64 30 H136 V100 l-6 6 -6 -6 -6 6 -6 -6 -6 6 -6 -6 -6 6 -6 -6 -6 6 -6 -6 H64 Z" />
+          <path d="M76 50 H124 M76 64 H124 M76 78 H106" />
+        </g>
+      )}
     </svg>
-  );
-}
-
-function Cell({
-  label,
-  sub,
-  children,
-  className = "",
-}: {
-  label: string;
-  sub?: string;
-  children?: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={`relative flex flex-col bg-paper p-5 ${className}`}>
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-[12px] font-medium uppercase tracking-[0.04em] text-ink/70">
-          {label}
-        </span>
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 opacity-30">
-          <path d="M8 2l5.5 3-5.5 3-5.5-3z" fill="#1d1d1d" />
-          <path d="M2.5 8l5.5 3 5.5-3" stroke="#1d1d1d" strokeWidth="1.1" fill="none" />
-          <path d="M2.5 11l5.5 3 5.5-3" stroke="#1d1d1d" strokeWidth="1.1" fill="none" />
-        </svg>
-      </div>
-      {sub && <span className="mt-1 text-[12px] text-ink-soft">{sub}</span>}
-      <div className="mt-auto pt-4">{children}</div>
-    </div>
   );
 }
 
@@ -81,107 +60,50 @@ export default function Numbers() {
     <Panel
       id="numbers"
       label="Proof"
-      desc="Every number here is backed by evidence Quad collected and validated during real runs."
+      desc="Every number here is backed by evidence Quad collected and validated during real runs. No vibes, receipts."
       title="The work, with receipts."
     >
-      <Reveal className="mt-9 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-ink/10 bg-ink/10 md:grid-cols-4">
-        {/* questions answered — spans 2 cols */}
-        <Cell label="Questions answered" sub="Questionnaires + trust packets" className="col-span-2 row-span-2">
-          <div className="tnum font-medium text-[46px] font-normal leading-none text-ink">
-            <CountUp value={1231} />
-          </div>
-          <div className="mt-5">
-            <Bars data={[6, 9, 7, 10, 13, 8, 5]} highlight={4} />
-          </div>
-        </Cell>
-
-        {/* work automated list */}
-        <Cell label="Work automated" className="col-span-2 md:col-span-2">
-          <div className="space-y-2.5">
-            {[
-              ["Questionnaires completed", "420"],
-              ["Evidence packets shipped", "1.2k"],
-              ["Memories verified", "8.6k"],
-            ].map(([k, v]) => (
-              <div key={k} className="flex items-center justify-between border-b border-ink/10 pb-2 text-[12px]">
-                <span className="text-ink-soft">{k}</span>
-                <span className="tnum font-medium text-ink">{v}</span>
-              </div>
-            ))}
-          </div>
-        </Cell>
-
-        {/* grounded answers */}
-        <Cell label="Grounded answers" sub="Cited to a source" className="col-span-1">
-          <div className="flex items-end justify-between">
-            <span className="tnum font-medium text-[32px] leading-none text-ink">
-              <CountUp value={98} suffix="%" />
-            </span>
-            <div className="w-16">
-              <Spark />
+      <Reveal
+        stagger
+        className="mt-9 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-ink/15 bg-ink/15 md:grid-cols-3"
+      >
+        {CARDS.map((c) => (
+          <div key={c.n} className="relative flex flex-col bg-paper px-6 py-7 transition-colors duration-200 hover:bg-cream/60">
+            {/* top-center notch */}
+            <span
+              className="absolute left-1/2 top-0 h-2.5 w-4 -translate-x-1/2 bg-ink/85"
+              style={{ clipPath: "polygon(0 0, 100% 0, 50% 100%)" }}
+            />
+            <div className="flex items-start justify-between">
+              <h3 className="text-[20px] font-normal text-ink">{c.title}</h3>
+              <span className="font-mono text-[12px] text-ink/35">{c.n}</span>
             </div>
-          </div>
-        </Cell>
-
-        {/* resolution mode */}
-        <Cell label="Resolution mode" className="col-span-1">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-[12px]">
-              <span className="text-ink-soft">Auto-shipped</span>
-              <span className="tnum text-[24px] text-ink">71%</span>
-            </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-ink/10">
-              <div className="h-full rounded-full bg-flame" style={{ width: "71%" }} />
-            </div>
-            <div className="flex items-center justify-between text-[12px]">
-              <span className="text-ink-soft">Human-approved</span>
-              <span className="tnum text-[24px] text-ink">29%</span>
-            </div>
-          </div>
-        </Cell>
-
-        {/* evidence reuse */}
-        <Cell label="Evidence reuse" sub="Answered from memory" className="col-span-1">
-          <div className="flex items-end justify-between gap-3">
-            <span className="tnum font-medium text-[30px] leading-none text-ink">
-              +<CountUp value={65.4} suffix="%" />
-            </span>
-            <div className="flex items-end gap-1.5">
-              <div className="flex flex-col items-center gap-1">
-                <div className="h-7 w-4 rounded-sm bg-ink/15" />
-                <span className="font-mono text-[9px] text-ink/40">FEB</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <div className="h-12 w-4 rounded-sm bg-flame" />
-                <span className="font-mono text-[9px] text-ink/40">MAR</span>
+            {/* line-art illustration on hatched ground, corner-bracketed */}
+            <div
+              className="relative mt-6 aspect-[4/3] w-full"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(135deg, rgba(74,72,68,0.13) 0 1px, transparent 1px 7px)",
+              }}
+            >
+              {[
+                "left-0 top-0 border-l border-t",
+                "right-0 top-0 border-r border-t",
+                "left-0 bottom-0 border-l border-b",
+                "right-0 bottom-0 border-r border-b",
+              ].map((p) => (
+                <span
+                  key={p}
+                  className={`pointer-events-none absolute h-3 w-3 border-ink/40 ${p}`}
+                />
+              ))}
+              <div className="absolute inset-0 grid place-items-center p-6">
+                <ProofIcon kind={c.icon} />
               </div>
             </div>
+            <p className="mt-6 text-[13px] leading-relaxed text-ink-soft">{c.body}</p>
           </div>
-        </Cell>
-
-        {/* workflows covered */}
-        <Cell label="Workflows covered" sub="Quarter over quarter" className="col-span-1">
-          <div className="flex items-end justify-between">
-            <span className="tnum font-medium text-[30px] leading-none text-ink">
-              +<CountUp value={247} suffix="%" />
-            </span>
-            <div className="w-16">
-              <Spark />
-            </div>
-          </div>
-        </Cell>
-
-        {/* eval pass rate */}
-        <Cell label="Eval pass rate" sub="Checked before any writeback" className="col-span-2 md:col-span-2">
-          <div className="flex items-center gap-3">
-            <span className="tnum font-medium text-[30px] leading-none text-ink">
-              <CountUp value={96} suffix="%" />
-            </span>
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-ink/10">
-              <div className="h-full rounded-full bg-ink/70" style={{ width: "96%" }} />
-            </div>
-          </div>
-        </Cell>
+        ))}
       </Reveal>
     </Panel>
   );
