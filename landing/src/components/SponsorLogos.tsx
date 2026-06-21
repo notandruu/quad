@@ -36,13 +36,22 @@ export const SPONSORS: { name: string; mark: ReactNode }[] = [
     ),
   },
   {
+    // Browserbase — bold "B" in a rounded square
     name: "Browserbase",
     mark: (
-      <g stroke="currentColor" strokeWidth="1.7" fill="none">
-        <rect x="3" y="5" width="18" height="14" rx="2.5" />
-        <path d="M3 9h18" />
-        <circle cx="6" cy="7" r="0.85" fill="currentColor" stroke="none" />
-        <circle cx="8.6" cy="7" r="0.85" fill="currentColor" stroke="none" />
+      <g>
+        <rect x="2.5" y="2.5" width="19" height="19" rx="3.5" fill="currentColor" />
+        <text
+          x="12"
+          y="17.6"
+          textAnchor="middle"
+          fontSize="15.5"
+          fontWeight="800"
+          fontFamily="var(--font-geist), system-ui, sans-serif"
+          fill="#111111"
+        >
+          B
+        </text>
       </g>
     ),
   },
@@ -53,12 +62,19 @@ export const SPONSORS: { name: string; mark: ReactNode }[] = [
     ),
   },
   {
+    // Arize — rounded upward caret with a dot below the apex
     name: "Arize",
     mark: (
-      <g fill="currentColor">
-        <rect x="3.5" y="13" width="3.6" height="7.5" rx="1" />
-        <rect x="10.2" y="8.5" width="3.6" height="12" rx="1" />
-        <rect x="16.9" y="4" width="3.6" height="16.5" rx="1" />
+      <g>
+        <path
+          d="M4 18.5 L12 6.3 L20 18.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="12" cy="16.6" r="1.9" fill="currentColor" />
       </g>
     ),
   },
