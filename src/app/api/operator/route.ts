@@ -3,6 +3,7 @@ import { DEMO_ORG_ID } from "@/data/seed";
 import { summarizeCapabilities } from "@/lib/metaregistry";
 import { listRunSnapshots, summarizeAgentTask } from "@/lib/runs";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
+import { buildSecurityPacket, summarizeSecurityPacket } from "@/lib/security/posture";
 
 export const runtime = "nodejs";
 
@@ -20,6 +21,7 @@ export async function GET(request: Request) {
   const limit = Number(url.searchParams.get("limit") ?? 8);
   const snapshots = await listRunSnapshots({ orgId, limit });
   const capabilities = summarizeCapabilities(process.env);
+  const security = summarizeSecurityPacket(buildSecurityPacket({ orgId }));
   const runs = snapshots.map((snapshot) => summarizeAgentTask(snapshot));
   const pendingApprovals = snapshots.flatMap((snapshot) =>
     snapshot.approvals
@@ -55,6 +57,7 @@ export async function GET(request: Request) {
         })),
       starterBundle: capabilities.starterBundle,
     },
+    security,
   });
 }
 
