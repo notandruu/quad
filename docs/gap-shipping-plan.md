@@ -163,10 +163,17 @@ What exists:
 - voice transcript quadchain packets.
 - dashboard voice entrypoint.
 
+Shipped v1:
+
+- `POST /api/voice/transcribe` now treats voice as company context by default.
+- A successful Deepgram transcript emits a `voice_transcript` quadchain packet and a `brain_memory_write` quadchain packet.
+- The transcript is persisted as tenant-scoped meeting memory with internal permissions, confidence from Deepgram, and transcript evidence.
+- Callers can opt out with `remember=false` for one-off commands.
+- The response returns the created memory id plus both packet summaries.
+
 Build:
 
 - voice mode asks buyer-readiness questions.
-- answers become brain memory writes.
 - transcript, memory write, and chat answer all emit quadchain packets.
 - next audit compares website against newly captured voice context.
 

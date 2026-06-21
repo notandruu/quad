@@ -8,6 +8,7 @@ Quad can run with zero keys for demos, but the production backend is only green 
 
 - Next.js API routes for audits, chat, voice transcription, agent runs, workflow runs, approvals, trust packets, quadchain packets, jobs, security, and backend health.
 - Public agent discovery at `GET /api/agent/describe`, with no secret values or raw tenant data.
+- Voice transcription writes verified company memory by default, with `voice_transcript` and `brain_memory_write` quadchain packet summaries returned to the caller.
 - Redis-backed job queue with memory fallback.
 - Long-running worker command for Railway: `npm run worker`.
 - Worker canary route: `POST /api/jobs/canary`.

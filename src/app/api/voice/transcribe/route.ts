@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { ingestMemoryWithReceipt } from "@/lib/brain";
 import { getDeepgramSettings, transcribeWithDeepgram } from "@/lib/voice/deepgram";
 import { DEMO_ORG_ID } from "@/data/seed";
-import { createQuadChainPacket, summarizeQuadChainPacket } from "@/lib/quad-chain";
+import { createQuadChainPacket, summarizeQuadChainPacket, type QuadChainPacketSummary } from "@/lib/quad-chain";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
 import {
@@ -92,8 +93,31 @@ export async function POST(request: Request) {
       visibility: "restricted",
     });
     await saveQuadChainPacket(packet);
+    const quadChain: QuadChainPacketSummary[] = [summarizeQuadChainPacket(packet)];
+    let memory: { id: string; title: string } | null = null;
 
-    const responseBody = { ...result, quadChain: summarizeQuadChainPacket(packet) };
+    if (shouldRememberTranscript(form) && result.transcript.trim()) {
+      const memoryResult = await ingestMemoryWithReceipt({
+        orgId: auth.orgId,
+        sourceId: runId,
+        sourceType: "meeting",
+        title: "Voice-captured company context",
+        content: result.transcript.trim(),
+        summary: result.transcript.trim().slice(0, 240),
+        entities: ["voice", "company_context"],
+        confidence: normalizeConfidence(result.confidence),
+        permissions: ["internal"],
+        evidence: [
+          {
+            quote: result.transcript.trim(),
+          },
+        ],
+      });
+      memory = { id: memoryResult.memory.id, title: memoryResult.memory.title };
+      quadChain.push(memoryResult.quadChain);
+    }
+
+    const responseBody = { ...result, memory, quadChain };
     await saveIdempotentResult({
       orgId: auth.orgId,
       route: "voice.transcribe",
@@ -108,4 +132,15 @@ export async function POST(request: Request) {
       { status: 502 }
     );
   }
+}
+
+function shouldRememberTranscript(form: FormData): boolean {
+  const raw = form.get("remember");
+  if (raw === null) return true;
+  return !["0", "false", "no", "off"].includes(String(raw).toLowerCase());
+}
+
+function normalizeConfidence(value: number | null): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0.72;
+  return Math.max(0, Math.min(1, value));
 }

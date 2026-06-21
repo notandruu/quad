@@ -115,6 +115,8 @@ Set `QUAD_WORKER_SECRET` for protected worker processing calls. When it is confi
 
 `GET /api/agent/describe` exposes Quad as a public external-agent card for Fetch.ai/Agentverse-style discovery. The descriptor includes workflows, endpoints, protocol readiness, keywords, sponsor alignment, and quadchain receipt guarantees, but deliberately omits raw env keys, secrets, and tenant data. External agent surfaces should call `POST /api/agent/run` after discovery.
 
+`POST /api/voice/transcribe` uses Deepgram when configured, emits a `voice_transcript` packet, and writes the transcript into the company brain as verified meeting memory by default. Pass `remember=false` in the multipart form for one-off voice commands that should not become durable context.
+
 For Vercel plus Railway:
 
 1. Deploy the Next.js app on Vercel with the shared app env.

@@ -3,7 +3,7 @@ import { traced, SPAN } from "@/lib/observability/phoenix";
 import { getClient, ensureSchema } from "./db";
 import { embed } from "./embeddings";
 import { addMemory } from "./store";
-import { createQuadChainPacket } from "@/lib/quad-chain";
+import { createQuadChainPacket, type QuadChainPacketSummary } from "@/lib/quad-chain";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 
 export type IngestInput = {
@@ -19,11 +19,21 @@ export type IngestInput = {
   evidence?: BrainEvidence[];
 };
 
+export type IngestMemoryResult = {
+  memory: BrainMemory;
+  quadChain: QuadChainPacketSummary;
+};
+
 /**
  * Persist a new memory into the company brain: embed the content, then write
  * to Supabase (or the in-memory seed store as a fallback).
  */
 export async function ingestMemory(input: IngestInput): Promise<BrainMemory> {
+  const result = await ingestMemoryWithReceipt(input);
+  return result.memory;
+}
+
+export async function ingestMemoryWithReceipt(input: IngestInput): Promise<IngestMemoryResult> {
   return traced(SPAN.memoryWrite, { "org.id": input.orgId, "source.type": input.sourceType }, async () => {
     await ensureSchema();
     const now = new Date().toISOString();
@@ -77,7 +87,7 @@ export async function ingestMemory(input: IngestInput): Promise<BrainMemory> {
       `summary: ${memory.summary ?? memory.content.slice(0, 240)}`,
       ...evidenceQuotes.map((quote) => `evidence: ${quote}`),
     ].join("\n");
-    await saveQuadChainPacket(createQuadChainPacket({
+    const savedPacket = await saveQuadChainPacket(createQuadChainPacket({
       type: "brain_memory_write",
       orgId: memory.orgId,
       runId: input.sourceId,
@@ -109,6 +119,6 @@ export async function ingestMemory(input: IngestInput): Promise<BrainMemory> {
       visibility: "restricted",
     }));
 
-    return memory;
+    return { memory, quadChain: savedPacket.summary };
   });
 }
