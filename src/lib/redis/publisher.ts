@@ -1,5 +1,5 @@
 import { getRedis, eventTtlSeconds } from "./client";
-import { streamKeys } from "./keys";
+import { streamKeys, tenantScopedKeys } from "./keys";
 import type { QuadEventType } from "./events";
 
 export type PublishedEvent = {
@@ -7,7 +7,20 @@ export type PublishedEvent = {
   payload: Record<string, unknown>;
   sequence: number;
   createdAt: string;
+  runId?: string;
+  orgId?: string;
+  storage?: "redis" | "memory";
 };
+
+export type PublishAuditEventOptions = {
+  orgId?: string;
+};
+
+const g = globalThis as typeof globalThis & {
+  __quadAuditEventStreams?: Map<string, PublishedEvent[]>;
+};
+if (!g.__quadAuditEventStreams) g.__quadAuditEventStreams = new Map();
+const memoryStreams = g.__quadAuditEventStreams;
 
 /**
  * Append an event to an audit run's stream and set a TTL so demo data
@@ -19,20 +32,35 @@ export type PublishedEvent = {
 export async function publishAuditEvent(
   runId: string,
   type: QuadEventType | string,
-  payload: Record<string, unknown> = {}
+  payload: Record<string, unknown> = {},
+  options: PublishAuditEventOptions = {}
 ): Promise<PublishedEvent | null> {
   const redis = getRedis();
-  const key = streamKeys.auditEvents(runId);
+  const key = auditEventStreamKey(runId, options.orgId);
   const createdAt = new Date().toISOString();
 
   if (!redis) {
-    // Degrade gracefully: still return the event so callers can stream it
-    // directly to the client even when no Redis is configured.
-    return { type, payload, sequence: -1, createdAt };
+    return publishMemoryEvent(key, {
+      type,
+      payload,
+      sequence: 0,
+      createdAt,
+      runId,
+      orgId: options.orgId,
+      storage: "memory",
+    });
   }
 
   const len = await redis.xlen(key);
-  const event: PublishedEvent = { type, payload, sequence: len, createdAt };
+  const event: PublishedEvent = {
+    type,
+    payload,
+    sequence: len,
+    createdAt,
+    runId,
+    orgId: options.orgId,
+    storage: "redis",
+  };
 
   // Store as plain object — Upstash serializes/deserializes JSON field values
   // automatically, so xrange returns the object directly without JSON.parse.
@@ -40,4 +68,23 @@ export async function publishAuditEvent(
   await redis.expire(key, eventTtlSeconds());
 
   return event;
+}
+
+export function getMemoryAuditEvents(runId: string, options: PublishAuditEventOptions = {}): PublishedEvent[] {
+  return [...(memoryStreams.get(auditEventStreamKey(runId, options.orgId)) ?? [])];
+}
+
+export function auditEventStreamKey(runId: string, orgId?: string): string {
+  return orgId ? tenantScopedKeys.auditEvents(orgId, runId) : streamKeys.auditEvents(runId);
+}
+
+function publishMemoryEvent(key: string, event: PublishedEvent): PublishedEvent {
+  const events = memoryStreams.get(key) ?? [];
+  const stored = {
+    ...event,
+    sequence: events.length,
+  };
+  events.push(stored);
+  memoryStreams.set(key, events.slice(-500));
+  return stored;
 }

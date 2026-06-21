@@ -21,5 +21,6 @@ describe("redis key builders", () => {
   it("builds tenant-scoped keys without leaking raw org formatting", () => {
     expect(tenantScopedKeys.auditEvents("Acme Inc.", "Run 1")).toBe("org:acme_inc:audit:run:run_1:events");
     expect(tenantScopedKeys.approval("Acme Inc.", "Approval 1")).toBe("org:acme_inc:approval:approval_1");
+    expect(tenantScopedKeys.auditCounter("Acme Inc.", "Run 1", "pages_fetched")).toBe("org:acme_inc:audit:run:run_1:pages_fetched");
   });
 });

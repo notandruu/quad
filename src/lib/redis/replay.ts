@@ -1,6 +1,5 @@
 import { getRedis } from "./client";
-import { streamKeys } from "./keys";
-import type { PublishedEvent } from "./publisher";
+import { auditEventStreamKey, getMemoryAuditEvents, type PublishedEvent, type PublishAuditEventOptions } from "./publisher";
 
 type StreamEntry = [id: string, fields: Record<string, string>];
 
@@ -9,12 +8,13 @@ type StreamEntry = [id: string, fields: Record<string, string>];
  * This is what lets the live log survive a page refresh.
  */
 export async function replayAuditEvents(
-  runId: string
+  runId: string,
+  options: PublishAuditEventOptions = {}
 ): Promise<PublishedEvent[]> {
   const redis = getRedis();
-  if (!redis) return [];
+  if (!redis) return getMemoryAuditEvents(runId, options);
 
-  const key = streamKeys.auditEvents(runId);
+  const key = auditEventStreamKey(runId, options.orgId);
   // xrange returns entries from oldest to newest.
   const entries = (await redis.xrange(key, "-", "+")) as unknown as Record<
     string,

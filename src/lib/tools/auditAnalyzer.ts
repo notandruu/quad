@@ -37,7 +37,7 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
   // Local emit: publishes to Redis and immediately forwards to the SSE
   // caller via onEvent so the client sees events as they happen.
   const emit = async (type: string, payload: Record<string, unknown> = {}) => {
-    const event = await publishAuditEvent(runId, type, payload);
+    const event = await publishAuditEvent(runId, type, payload, { orgId });
     if (event && input.onEvent) input.onEvent(event);
   };
 
@@ -57,7 +57,7 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
     await emit("audit.started", { targetUrl, limit });
 
     const pages = await discoverPages(targetUrl, limit);
-    await bumpCounter(runId, "pagesDiscovered", pages.length);
+    await bumpCounter(runId, "pagesDiscovered", pages.length, orgId);
     await emit("audit.pages_discovered", { count: pages.length });
 
     const rawFindings: AuditFinding[] = [];
@@ -70,7 +70,7 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
         await emit("page.rendering", { url });
         const evidence = await renderPage(url, runId, orgId);
         evidenceByUrl.set(url, evidence);
-        await bumpCounter(runId, "pagesFetched");
+        await bumpCounter(runId, "pagesFetched", 1, orgId);
         await emit("page.rendered", {
           url,
           status: evidence.status,
@@ -111,16 +111,16 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
           f.eval = await evaluateFinding(f, evidence, seenTitles);
           seenTitles.add(f.title.toLowerCase());
           rawFindings.push(f);
-          await bumpCounter(runId, "findingsCreated");
+          await bumpCounter(runId, "findingsCreated", 1, orgId);
           await emit("finding.created", { id: f.id, title: f.title });
           await emit("finding.evaluated", { id: f.id, eval: f.eval });
           await saveFindingPacket(orgId, f);
         }
 
-        await bumpCounter(runId, "pagesAnalyzed");
+        await bumpCounter(runId, "pagesAnalyzed", 1, orgId);
         await emit("page.analyzed", { url, findings: findings.length });
       } catch (err) {
-        await bumpCounter(runId, "failures");
+        await bumpCounter(runId, "failures", 1, orgId);
         captureHandled(err, { runId, orgId, toolName: "audit.page" });
         await emit("page.failed", {
           url,

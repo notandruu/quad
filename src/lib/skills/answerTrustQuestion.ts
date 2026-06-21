@@ -85,16 +85,18 @@ export async function answerTrustQuestion(input: TrustQuestionInput): Promise<Tr
   const ingestImpl = input._ingestOverride ?? ingestMemory;
 
   const questionId = computeQuestionSourceId(orgId, question);
+  const emit = (type: string, payload: Record<string, unknown>) =>
+    publishAuditEvent(runId, type, payload, { orgId });
 
   // Step 1: retrieve
-  await publishAuditEvent(runId, "question.started", { questionId, question, orgId });
+  await emit("question.started", { questionId, question, orgId });
 
   const memories = await retrieveMemories({ orgId, query: question, scope: "internal", limit: 6 });
-  await publishAuditEvent(runId, "brain.retrieved", { questionId, count: memories.length, titles: memories.map((m) => m.title) });
+  await emit("brain.retrieved", { questionId, count: memories.length, titles: memories.map((m) => m.title) });
 
   // Step 2: collect from connectors
   const connectorDocs = await listConnectorDocuments({ orgId, query: question, limit: 6 });
-  await publishAuditEvent(runId, "context.collected", {
+  await emit("context.collected", {
     questionId,
     brainCount: memories.length,
     connectorCount: connectorDocs.length,
@@ -118,7 +120,7 @@ export async function answerTrustQuestion(input: TrustQuestionInput): Promise<Tr
 
   // Step 3: no context => needs_human immediately
   if (sources.length === 0) {
-    await publishAuditEvent(runId, "answer.needs_human", {
+    await emit("answer.needs_human", {
       questionId,
       reason: "no_evidence",
       question,
@@ -137,7 +139,7 @@ export async function answerTrustQuestion(input: TrustQuestionInput): Promise<Tr
   // Step 4: draft answer
   const contextBlock = buildContextBlock(memories, connectorDocs);
   const answer = await draftAnswer({ orgId, runId, question, contextBlock }) ?? buildHeuristicAnswer(memories, connectorDocs);
-  await publishAuditEvent(runId, "answer.drafted", { questionId, answerLength: answer.length });
+  await emit("answer.drafted", { questionId, answerLength: answer.length });
 
   // Step 5: evaluate. The judge must see the SAME evidence the drafter saw —
   // truncated snippets starve it and make it reject claims that are actually
@@ -160,14 +162,14 @@ export async function answerTrustQuestion(input: TrustQuestionInput): Promise<Tr
       : !grounded
         ? evaluation.reason || "not_grounded"
         : "insufficient_evidence";
-    await publishAuditEvent(runId, "answer.evaluated", {
+    await emit("answer.evaluated", {
       questionId,
       passed: grounded,
       answersQuestion: substantive,
       reason,
       risks: evaluation?.risks ?? [],
     });
-    await publishAuditEvent(runId, "answer.needs_human", { questionId, reason });
+    await emit("answer.needs_human", { questionId, reason });
 
     const packet = createNeedsHumanPacket({ orgId, runId, questionId, question, reason });
     return {
@@ -181,7 +183,7 @@ export async function answerTrustQuestion(input: TrustQuestionInput): Promise<Tr
     };
   }
 
-  await publishAuditEvent(runId, "answer.evaluated", {
+  await emit("answer.evaluated", {
     questionId,
     passed: true,
     confidence: evaluation.confidence,
@@ -227,7 +229,7 @@ export async function answerTrustQuestion(input: TrustQuestionInput): Promise<Tr
     memory = await ingestImpl(ingestInput);
   }
 
-  await publishAuditEvent(runId, "brain.learned", {
+  await emit("brain.learned", {
     questionId,
     memoryId: memory.id,
     sourceId,

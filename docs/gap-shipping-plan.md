@@ -305,6 +305,14 @@ Shipped v8:
 - retrying clears stale lease/dead-letter state, optionally resets attempts, pushes the job back onto the queue, and records an `Operator retried backend job` event in the run ledger.
 - api and unit tests cover dead-letter recovery, non-retryable jobs, and secret-safe public responses.
 
+Shipped v9:
+
+- audit and enterprise-proof progress events now write through tenant-scoped redis stream keys when an org id is known.
+- zero-key mode keeps a bounded in-memory run event stream, so replay can still be tested and demoed without Upstash.
+- replay reads the same tenant-scoped event stream and requires the existing hosted auth guard when service tokens or api secrets are configured.
+- progress counters and audit run metadata now use org-scoped redis keys for hosted runs.
+- unit tests cover memory replay, sequence stability, and org isolation when run ids collide.
+
 ## Gap 4.6: durable evidence bundles
 
 Status: shipped v1.

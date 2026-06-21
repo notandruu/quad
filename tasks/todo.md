@@ -80,6 +80,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [ ] event-driven context capture pipeline with signal/noise extraction before writeback
 - [x] audit run model with lifecycle states, retries, dead-letter recovery, and resumability
 - [ ] redis event stream and replay for every run
+- [x] tenant-scoped redis/memory replay for audit and enterprise-proof workflow events
 - [ ] normalized task stream schema shared by dashboard, fetch agent, future cli, and replay
 - [ ] quad chain certificate schema for audit briefs, customer trust packets, learned memory receipts, and agent handoffs
 - [ ] dynamic tool catalog with eager hot tools, deferred cold tools, health state, and allowlist filtering
@@ -240,7 +241,7 @@ hard constraints:
 - [ ] keep the route-specific audit engine internals stable while the rest of the app migrates onto core
 - [x] verify the slice with unit tests, typecheck, and no changes to frozen `src/lib/types`
 
-- [ ] implement real redis streams for audit events and replay
+- [x] implement tenant-scoped redis streams plus memory fallback replay for audit and enterprise-proof events
 - [ ] use browserbase for rendered page capture, screenshots, visible text, selectors, buttons, images, and forms
 - [ ] require every finding to include url, quote/dom snippet, confidence, severity, and recommended fix
 - [ ] add arize phoenix tracing/evals for page analysis, retrieval, and final findings

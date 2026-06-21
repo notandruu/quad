@@ -33,6 +33,8 @@ export const tenantScopedKeys = {
   auditRun: (orgId: string, runId: string) => tenantKey(orgId, "audit", "run", runId, "meta"),
   pagesDiscovered: (orgId: string, runId: string) =>
     tenantKey(orgId, "audit", "run", runId, "pages_discovered"),
+  auditCounter: (orgId: string, runId: string, counterName: string) =>
+    tenantKey(orgId, "audit", "run", runId, counterName),
   modelCall: (orgId: string, requestId: string) => tenantKey(orgId, "model", "call", requestId),
   approval: (orgId: string, approvalId: string) => tenantKey(orgId, "approval", approvalId),
 };
