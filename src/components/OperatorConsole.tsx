@@ -207,6 +207,7 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
   const [publishingRunId, setPublishingRunId] = useState<string | null>(null);
   const [verifyingRunId, setVerifyingRunId] = useState<string | null>(null);
   const [installPlan, setInstallPlan] = useState<InstallPlanResponse["plan"] | null>(null);
+  const [installRequestState, setInstallRequestState] = useState<"idle" | "requesting" | "requested" | "error">("idle");
 
   const load = useCallback(async () => {
     const response = await fetch(`/api/operator?orgId=${encodeURIComponent(orgId)}&limit=8`, {
@@ -387,6 +388,25 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
     }
   }
 
+  async function requestCapabilityInstall() {
+    setInstallRequestState("requesting");
+    const response = await fetch("/api/metaregistry/install-request", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        orgId: data?.orgId,
+        actor: "demo.operator",
+        includeWriteTools: true,
+      }),
+    }).catch(() => null);
+    if (!response?.ok) {
+      setInstallRequestState("error");
+      return;
+    }
+    setInstallRequestState("requested");
+    await load();
+  }
+
   return (
     <section className="rounded-lg border border-accent/25 bg-panel p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -504,7 +524,11 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
             </div>
           </div>
 
-          <CapabilityInstallPlan plan={installPlan} />
+          <CapabilityInstallPlan
+            plan={installPlan}
+            state={installRequestState}
+            onRequestInstall={() => void requestCapabilityInstall()}
+          />
           <TaskStream events={taskEvents} />
         </div>
       </div>
@@ -960,7 +984,15 @@ function CapabilityPill({ capability, active = false }: { capability: OperatorCa
   );
 }
 
-function CapabilityInstallPlan({ plan }: { plan: InstallPlanResponse["plan"] | null }) {
+function CapabilityInstallPlan({
+  plan,
+  state,
+  onRequestInstall,
+}: {
+  plan: InstallPlanResponse["plan"] | null;
+  state: "idle" | "requesting" | "requested" | "error";
+  onRequestInstall: () => void;
+}) {
   if (!plan) {
     return (
       <div className="rounded border border-dashed border-edge bg-ink/30 p-2 text-[10px] text-neutral-600">
@@ -993,6 +1025,20 @@ function CapabilityInstallPlan({ plan }: { plan: InstallPlanResponse["plan"] | n
           missing env: {envKeys.join(", ")}
         </div>
       )}
+      <button
+        type="button"
+        onClick={onRequestInstall}
+        disabled={state === "requesting" || state === "requested"}
+        className="mt-2 rounded border border-accent/30 bg-panel px-2 py-1 text-[10px] text-accent hover:border-accent/60 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {state === "requesting"
+          ? "Requesting install"
+          : state === "requested"
+            ? "Install requested"
+            : state === "error"
+              ? "Retry install request"
+              : "Request install"}
+      </button>
     </div>
   );
 }

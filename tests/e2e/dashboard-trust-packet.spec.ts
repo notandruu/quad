@@ -53,6 +53,7 @@ test.describe("dashboard trust packet flow", () => {
     let approvalDecisionBody: Record<string, unknown> | null = null;
     let dryRunPublishBody: Record<string, unknown> | null = null;
     let verifyFixBody: Record<string, unknown> | null = null;
+    let installRequestBody: Record<string, unknown> | null = null;
     await mockDashboardBackends(page, async (body) => {
       trustPacketBody = body;
     }, async (body) => {
@@ -61,6 +62,8 @@ test.describe("dashboard trust packet flow", () => {
       dryRunPublishBody = body;
     }, async (body) => {
       verifyFixBody = body;
+    }, async (body) => {
+      installRequestBody = body;
     });
 
     await page.goto("/");
@@ -84,6 +87,13 @@ test.describe("dashboard trust packet flow", () => {
     await expect(page.getByRole("heading", { name: "Starter install plan" })).toBeVisible();
     await expect(page.getByText("dry run")).toBeVisible();
     await expect(page.getByText(/missing env: CMS_API_KEY/)).toBeVisible();
+    await page.getByRole("button", { name: "Request install" }).click();
+    await expect(page.getByRole("button", { name: "Install requested" })).toBeVisible();
+    expect(installRequestBody).toMatchObject({
+      orgId: "org_brightpath",
+      actor: "demo.operator",
+      includeWriteTools: true,
+    });
     await expect(page.getByRole("heading", { name: "Task stream" })).toBeVisible();
     await expect(page.getByText("approval.decided")).toBeVisible();
     await expect(page.getByRole("link", { name: /task\.blocked.*cms\.publisher/ })).toBeVisible();
@@ -129,7 +139,8 @@ async function mockDashboardBackends(
   onTrustPacket: (body: Record<string, unknown>) => void | Promise<void>,
   onApprovalDecision?: (body: Record<string, unknown>) => void | Promise<void>,
   onDryRunPublish?: (body: Record<string, unknown>) => void | Promise<void>,
-  onVerifyFix?: (body: Record<string, unknown>) => void | Promise<void>
+  onVerifyFix?: (body: Record<string, unknown>) => void | Promise<void>,
+  onInstallRequest?: (body: Record<string, unknown>) => void | Promise<void>
 ) {
   let approvalDecision: "pending" | "approved" = "pending";
   let publishStaged = false;
@@ -472,6 +483,43 @@ async function mockDashboardBackends(
             { id: "quad.chain_verifier", name: "Quad chain verifier", kind: "verifier" },
             { id: "trust_packet.exporter", name: "Trust packet exporter", kind: "publisher" },
           ],
+        },
+      }),
+    });
+  });
+
+  await page.route("**/api/metaregistry/install-request", async (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    await onInstallRequest?.(body);
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        runId: "run_install_ui",
+        approvalId: "approval_install_ui",
+        task: {
+          runId: "run_install_ui",
+          status: "needs_approval",
+          title: "Capability install request",
+          approvals: [
+            {
+              id: "approval_install_ui",
+              decision: "pending",
+              reason: "Review capability blockers before enabling this bundle.",
+              evidenceVisible: true,
+            },
+          ],
+          artifacts: [],
+          receipts: [],
+          taskEvents: [],
+          nextAction: "Human approval required before customer-facing work can ship.",
+        },
+        plan: {
+          bundleId: "enterprise_proof_starter",
+          requestedIds: ["cms.publisher"],
+          knownIds: ["cms.publisher"],
+          unknownIds: [],
         },
       }),
     });

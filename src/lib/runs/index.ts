@@ -4,7 +4,8 @@ export type WorkflowKind =
   | "website_audit"
   | "enterprise_proof"
   | "trust_packet"
-  | "agent_bridge";
+  | "agent_bridge"
+  | "capability_install";
 
 export type WorkflowRunStatus =
   | "queued"
