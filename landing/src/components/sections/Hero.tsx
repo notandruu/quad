@@ -240,7 +240,7 @@ export default function Hero() {
 
             <a
               data-h="cta"
-              href="/quad-dashboard.html"
+              href="https://app.quad.stephenhung.me"
               className="mt-9 flex w-full max-w-[514px] items-center justify-center bg-cream lg:ml-9 py-4 text-[12px] font-medium tracking-[0.01em] text-ink transition-colors hover:bg-paper-2"
               style={{ clipPath: CHAMFER }}
             >

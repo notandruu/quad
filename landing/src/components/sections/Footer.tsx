@@ -92,7 +92,7 @@ export default function Footer() {
                 knowledge into verified, customer-ready work.
               </p>
               <a
-                href="/quad-dashboard.html"
+                href="https://app.quad.stephenhung.me"
                 className="mt-9 inline-flex items-center justify-center bg-cream px-12 py-4 text-[12px] font-medium tracking-[0.01em] text-ink transition-colors hover:bg-paper-2"
                 style={{ clipPath: CHAMFER }}
               >
