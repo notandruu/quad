@@ -118,6 +118,14 @@ type LogLine = {
   text: string;
 };
 
+type BrowserEvent = {
+  id: string;
+  tone: "session" | "nav" | "focus" | "write" | "proof" | "pause" | "error";
+  label: string;
+  detail: string;
+  questionId?: string;
+};
+
 type ChatMessage = {
   id: string;
   role: "user" | "quad";
@@ -159,10 +167,16 @@ function sourceLabel(source: TrustSource) {
   return `${source.kind === "brain" ? "brain" : "connector"} · ${source.title}`;
 }
 
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 export function QuadWorkspaceDashboard() {
   const [status, setStatus] = useState<RunStatus>("idle");
   const [answers, setAnswers] = useState<AnswerCard[]>([]);
   const [logs, setLogs] = useState<LogLine[]>([]);
+  const [browserEvents, setBrowserEvents] = useState<BrowserEvent[]>([]);
+  const [browserPhase, setBrowserPhase] = useState("idle");
   const [chat, setChat] = useState<ChatMessage[]>(initialChat);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [activeView, setActiveView] = useState<"brain" | "questionnaire" | "logs">("brain");
@@ -226,8 +240,44 @@ export function QuadWorkspaceDashboard() {
     setLogs((current) => [...current, { id: uid("log"), tone, text }].slice(-80));
   }
 
+  function addBrowserEvent(tone: BrowserEvent["tone"], label: string, detail: string, questionId?: string) {
+    setBrowserEvents((current) => [...current, { id: uid("browser"), tone, label, detail, questionId }].slice(-60));
+  }
+
   function addChat(role: ChatMessage["role"], text: string) {
     setChat((current) => [...current, { id: uid("msg"), role, text }]);
+  }
+
+  async function streamBrowserStep(index: number, question: TrustQuestion) {
+    setBrowserPhase(`q${index + 1} controlled browser`);
+    addBrowserEvent("session", "browserbase session", `reuse authenticated vendor session · org ${ORG_ID}`, question.id);
+    await wait(130);
+    if (cancelledRef.current) return;
+    addBrowserEvent("nav", "page.goto", "https://trust.secureflow.com/vendor/acme/security-questionnaire", question.id);
+    await wait(160);
+    if (cancelledRef.current) return;
+    addBrowserEvent("focus", "locator.focus", `[data-question-id="${question.id}"]`, question.id);
+    await wait(190);
+    if (cancelledRef.current) return;
+    addBrowserEvent("proof", "read company brain", "retrieve memories, connector docs, and quadchain receipts", question.id);
+  }
+
+  async function completeBrowserStep(index: number, card: AnswerCard) {
+    setBrowserPhase(`q${index + 1} writing answer`);
+    addBrowserEvent(
+      card.status === "answered" ? "write" : "pause",
+      card.status === "answered" ? "locator.fill" : "pause_before_submit",
+      card.status === "answered" ? `${card.answer.slice(0, 116)}${card.answer.length > 116 ? "..." : ""}` : "unsupported claim requires human review",
+      card.id
+    );
+    await wait(120);
+    if (cancelledRef.current) return;
+    addBrowserEvent(
+      "proof",
+      "evidence attached",
+      `${card.sources.length} sources · ${card.certificateId ?? card.runId ?? "receipt pending"}`,
+      card.id
+    );
   }
 
   async function runQuestionnaire() {
@@ -237,8 +287,10 @@ export function QuadWorkspaceDashboard() {
     setError(null);
     setAnswers([]);
     setLogs([]);
+    setBrowserEvents([]);
+    setBrowserPhase("opening browserbase session");
     setActiveIndex(null);
-    setActiveView("brain");
+    setActiveView("questionnaire");
     setSelectedSource(null);
     setChat([
       ...initialChat,
@@ -262,8 +314,9 @@ export function QuadWorkspaceDashboard() {
         const question = TRUST_QUESTIONS[index];
         setActiveIndex(index);
         addLog("read", `question.started q${index + 1} · ${question.text}`);
+        const browserStep = streamBrowserStep(index, question);
 
-        const response = await fetch("/api/enterprise-proof", {
+        const responsePromise = fetch("/api/enterprise-proof", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -272,6 +325,8 @@ export function QuadWorkspaceDashboard() {
             targetVisibility: "company",
           }),
         });
+        await browserStep;
+        const response = await responsePromise;
         const data = (await response.json().catch(() => ({}))) as EnterpriseProofResponse;
         if (!response.ok || !data.result) {
           throw new Error(data.error ?? `enterprise proof failed (${response.status})`);
@@ -302,11 +357,14 @@ export function QuadWorkspaceDashboard() {
         if (data.brainGrowth?.status === "reused") addLog("read", `brain.reused · ${data.brainGrowth.title ?? data.brainGrowth.memoryId}`);
 
         setAnswers((current) => [...current, card]);
+        await completeBrowserStep(index, card);
         await refreshOperator();
       }
 
       setActiveIndex(null);
       setStatus("needs_approval");
+      setBrowserPhase("waiting on operator approval");
+      addBrowserEvent("pause", "pause_before_submit", "all fields staged; browser is waiting for operator approval", "submit");
       addChat("quad", "done. the questionnaire is filled from real enterprise-proof runs. new facts are behind approval receipts before customer-facing use.");
       addLog("act", "approval.required · operator review before submit");
       setActiveView("questionnaire");
@@ -315,6 +373,8 @@ export function QuadWorkspaceDashboard() {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
       setStatus("error");
+      setBrowserPhase("browser stream failed");
+      addBrowserEvent("error", "workflow.error", message);
       addLog("error", message);
       addChat("quad", `that run failed: ${message}`);
     }
@@ -358,6 +418,8 @@ export function QuadWorkspaceDashboard() {
   function approveSubmit() {
     setStatus("done");
     setActiveView("questionnaire");
+    setBrowserPhase("submitted");
+    addBrowserEvent("write", "click submit", "operator approved; questionnaire submitted through controlled browser", "submit");
     addLog("act", `operator.approved · ${answeredCount}/${TRUST_QUESTIONS.length} answers submitted`);
     addChat("quad", "submitted. approval captured locally; run receipts remain visible in the operator ledger.");
   }
@@ -366,6 +428,8 @@ export function QuadWorkspaceDashboard() {
     cancelledRef.current = true;
     setStatus("idle");
     setActiveIndex(null);
+    setBrowserPhase("stopped");
+    addBrowserEvent("pause", "session.paused", "operator stopped the browser workflow");
     addLog("act", "run.cancelled by operator");
   }
 
@@ -519,7 +583,14 @@ export function QuadWorkspaceDashboard() {
             <BrainPanel nodes={graphNodes} operator={operator} capabilityCount={capabilityCount} latestRun={latestRun} />
           ) : null}
           {activeView === "questionnaire" ? (
-            <QuestionnairePanel questions={TRUST_QUESTIONS} answers={answers} status={status} />
+            <QuestionnairePanel
+              questions={TRUST_QUESTIONS}
+              answers={answers}
+              status={status}
+              activeIndex={activeIndex}
+              browserEvents={browserEvents}
+              browserPhase={browserPhase}
+            />
           ) : null}
           {activeView === "logs" ? (
             <LogsPanel logs={logs} />
@@ -629,11 +700,19 @@ function QuestionnairePanel({
   questions,
   answers,
   status,
+  activeIndex,
+  browserEvents,
+  browserPhase,
 }: {
   questions: TrustQuestion[];
   answers: AnswerCard[];
   status: RunStatus;
+  activeIndex: number | null;
+  browserEvents: BrowserEvent[];
+  browserPhase: string;
 }) {
+  const latestEvents = browserEvents.slice(-7).reverse();
+
   return (
     <div className={styles.formPanel}>
       <div className={styles.browserBar}>
@@ -642,16 +721,44 @@ function QuestionnairePanel({
         <span />
         <strong>trust.secureflow.com/vendor/acme</strong>
       </div>
+      <section className={styles.browserStream}>
+        <div className={styles.browserStreamHead}>
+          <div>
+            <div className={styles.kicker}>browserbase write stream</div>
+            <strong>{browserPhase}</strong>
+          </div>
+          <span className={styles.browserLive}>{status === "running" || status === "resetting" ? "live" : "ready"}</span>
+        </div>
+        <div className={styles.browserViewport}>
+          <div className={styles.vendorHeader}>
+            <span>secureflow trust portal</span>
+            <b>vendor: acme software</b>
+          </div>
+          <div className={styles.browserEventList}>
+            {latestEvents.length ? (
+              latestEvents.map((event) => (
+                <div key={event.id} className={`${styles.browserEvent} ${styles[`browser_${event.tone}`]}`}>
+                  <span>{event.label}</span>
+                  <p>{event.detail}</p>
+                </div>
+              ))
+            ) : (
+              <div className={styles.browserEmpty}>controlled browser will stream actions here</div>
+            )}
+          </div>
+        </div>
+      </section>
       <div className={styles.formScroll}>
         <h2>Vendor Security Questionnaire</h2>
         <p>SecureFlow · SIG-lite · {questions.length} items</p>
         {questions.map((question, index) => {
           const answer = answers.find((item) => item.id === question.id);
+          const isActive = activeIndex === index;
           return (
-            <label key={question.id} className={styles.field}>
+            <label key={question.id} className={`${styles.field} ${isActive ? styles.fieldActive : ""}`}>
               <span>{index + 1}. {question.text}</span>
               <div className={`${styles.fieldValue} ${answer?.status === "needs_human" ? styles.fieldFlagged : ""}`}>
-                {answer ? answer.status === "answered" ? answer.answer : "flagged for human review" : status === "running" ? "waiting..." : ""}
+                {answer ? answer.status === "answered" ? answer.answer : "flagged for human review" : isActive ? "quad is typing through browserbase..." : status === "running" ? "waiting..." : ""}
               </div>
             </label>
           );
