@@ -29,7 +29,7 @@ export type ToolPermission = {
   actionMode: ActionMode;
 };
 
-export type KaliEmployee = {
+export type QuadEmployee = {
   id: string;
   orgId: string;
   name: string;

@@ -38,7 +38,7 @@ export type BrainMemory = {
 };
 
 /**
- * Kali keeps two conceptual brains. The internal brain is what the
+ * Quad keeps two conceptual brains. The internal brain is what the
  * organization actually knows; the external brain is what the public can
  * understand. The product magic is comparing the two.
  */

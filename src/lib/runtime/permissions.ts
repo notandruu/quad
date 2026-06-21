@@ -1,4 +1,4 @@
-import type { ActionMode, KaliEmployee, Intent } from "@/lib/types";
+import type { ActionMode, QuadEmployee, Intent } from "@/lib/types";
 
 /** Intents that perform an external-facing action and need approval first. */
 const EXTERNAL_ACTION_INTENTS: Intent[] = [
@@ -19,7 +19,7 @@ export type PermissionDecision = {
  * read, draft, and propose, but external actions always need a human approval.
  */
 export function checkPermission(
-  employee: KaliEmployee,
+  employee: QuadEmployee,
   intent: Intent
 ): PermissionDecision {
   const external = EXTERNAL_ACTION_INTENTS.includes(intent);

@@ -10,7 +10,7 @@ import type { AuditReport } from "@/lib/types";
 import type { PublishedEvent } from "@/lib/redis/publisher";
 import type { BackendSettings } from "@/lib/debug/status";
 
-type Message = { role: "user" | "kali"; text: string };
+type Message = { role: "user" | "quad"; text: string };
 type DemoState = "idle" | "loading" | "done";
 
 export default function Home() {
@@ -46,7 +46,7 @@ export default function Home() {
       setDemoState("done");
       setMessages([
         {
-          role: "kali",
+          role: "quad",
           text: `BrightPath brain loaded (${json.memoriesLoaded} memories). Auditing their public site now...`,
         },
       ]);
@@ -57,7 +57,7 @@ export default function Home() {
       setDemoState("idle");
       setMessages((m) => [
         ...m,
-        { role: "kali", text: `Demo reset failed: ${err instanceof Error ? err.message : String(err)}` },
+        { role: "quad", text: `Demo reset failed: ${err instanceof Error ? err.message : String(err)}` },
       ]);
     }
   }
@@ -83,7 +83,7 @@ export default function Home() {
       }),
     });
     const data = await res.json();
-    setMessages((m) => [...m, { role: "kali", text: data.message }]);
+    setMessages((m) => [...m, { role: "quad", text: data.message }]);
   }
 
   async function startAudit(targetUrl: string, orgId?: string) {
@@ -128,7 +128,7 @@ export default function Home() {
       <AsciiBlossoms />
       <section className="relative z-10 flex min-h-[58vh] flex-1 flex-col gap-4 lg:min-h-0">
         <header className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold tracking-tight">Kali</h1>
+          <h1 className="text-lg font-semibold tracking-tight">Quad</h1>
           <div className="flex items-center gap-3">
             <button
               onClick={handleLoadDemo}

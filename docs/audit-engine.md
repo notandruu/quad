@@ -85,7 +85,7 @@ All actions are `requiresApproval: true`.
 | --- | --- | --- |
 | Embed | `text-embedding-3-small` (OpenAI) | deterministic hash vector (dev only) |
 | Render | Browserbase + Playwright | static `fetch` |
-| Analyze | Claude (`KALI_AUDIT_MODEL`) | heuristic internal-vs-external comparison |
+| Analyze | Claude (`QUAD_AUDIT_MODEL`) | heuristic internal-vs-external comparison |
 | Evaluate | Claude LLM-as-judge | `heuristicJudge` (pure, unit-tested) |
 | Summarize | Claude | fallback string with counts |
 

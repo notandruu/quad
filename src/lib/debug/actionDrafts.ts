@@ -70,7 +70,7 @@ export function draftFindingAction(
         body: [
           "Hi team,",
           "",
-          `Kali found a website gap on ${finding.pageUrl}. ${finding.businessImpact}`,
+          `Quad found a website gap on ${finding.pageUrl}. ${finding.businessImpact}`,
           "",
           `Recommended fix: ${finding.recommendedFix}`,
           "",

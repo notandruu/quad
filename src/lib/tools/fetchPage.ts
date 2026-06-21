@@ -9,7 +9,7 @@ export async function fetchPageEvidence(
   url: string
 ): Promise<RenderedPageEvidence> {
   const res = await fetch(url, {
-    headers: { "user-agent": "KaliAuditBot/0.1 (+https://github.com/notandruu/quad)" },
+    headers: { "user-agent": "QuadAuditBot/0.1 (+https://github.com/notandruu/quad)" },
     redirect: "follow",
   });
   const html = await res.text();

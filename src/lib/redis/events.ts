@@ -49,7 +49,7 @@ export const VOICE_EVENTS = [
 export type AuditEventType = (typeof AUDIT_EVENTS)[number];
 export type EmployeeEventType = (typeof EMPLOYEE_EVENTS)[number];
 export type VoiceEventType = (typeof VOICE_EVENTS)[number];
-export type KaliEventType =
+export type QuadEventType =
   | AuditEventType
   | EmployeeEventType
   | VoiceEventType;

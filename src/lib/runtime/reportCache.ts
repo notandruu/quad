@@ -2,9 +2,9 @@ import type { AuditReport } from "@/lib/types";
 
 // Attach to globalThis so the cache survives Next.js dev-mode module reloads
 // and is shared across all route handlers in the same Node.js process.
-const g = globalThis as typeof globalThis & { __kaliReportCache?: Map<string, AuditReport> };
-if (!g.__kaliReportCache) g.__kaliReportCache = new Map();
-const cache = g.__kaliReportCache;
+const g = globalThis as typeof globalThis & { __quadReportCache?: Map<string, AuditReport> };
+if (!g.__quadReportCache) g.__quadReportCache = new Map();
+const cache = g.__quadReportCache;
 
 export function cacheReport(report: AuditReport): void {
   cache.set(report.runId, report);

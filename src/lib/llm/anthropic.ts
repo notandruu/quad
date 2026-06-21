@@ -11,11 +11,11 @@ export function getAnthropic(): Anthropic | null {
 }
 
 export function auditModel(): string {
-  return process.env.KALI_AUDIT_MODEL || "claude-opus-4-8";
+  return process.env.QUAD_AUDIT_MODEL || "claude-opus-4-8";
 }
 
 export function chatModel(): string {
-  return process.env.KALI_CHAT_MODEL || "claude-opus-4-8";
+  return process.env.QUAD_CHAT_MODEL || "claude-opus-4-8";
 }
 
 /**

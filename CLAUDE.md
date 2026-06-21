@@ -1,4 +1,4 @@
-# Kali — team rules
+# Quad — team rules
 
 ## identity
 
@@ -66,8 +66,8 @@ Copy `.env.example` to `.env.local`. The app runs with zero keys — every backe
 ```
 ANTHROPIC_API_KEY       audit analysis + grounded chat
 DATABASE_URL            Postgres + pgvector (schema in src/lib/brain/schema.sql)
-KALI_REDIS_REST_URL     Upstash REST URL
-KALI_REDIS_REST_TOKEN   Upstash REST token
+QUAD_REDIS_REST_URL     Upstash REST URL
+QUAD_REDIS_REST_TOKEN   Upstash REST token
 BROWSERBASE_API_KEY     browser-rendered audits
 BROWSERBASE_PROJECT_ID
 PHOENIX_COLLECTOR_ENDPOINT  Arize Phoenix

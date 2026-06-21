@@ -1,10 +1,10 @@
-# Kali
+# Quad
 
 > An AI employee that audits a company's website against its company brain, streams the work live, and turns every gap into an approved fix.
 
-**[kali-audit.vercel.app](https://kali-audit.vercel.app)** &nbsp;|&nbsp; AI Hackathon, Berkeley 2026.
+**[quad-audit.vercel.app](https://quad-audit.vercel.app)** &nbsp;|&nbsp; AI Hackathon, Berkeley 2026.
 
-Kali is not a chatbot. It is a company-aware AI employee with memory, browser-grounded work, live execution logs, quality evaluation, production observability, and a path to natural voice conversation.
+Quad is not a chatbot. It is a company-aware AI employee with memory, browser-grounded work, live execution logs, quality evaluation, production observability, and a path to natural voice conversation.
 
 ## What it does
 

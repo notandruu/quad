@@ -14,7 +14,7 @@ config({ path: resolve(__dirname, '../.env.local') });
 
 const BASE_URL = process.env.BASE_URL ?? 'http://localhost:3000';
 
-console.log(`\nKali demo setup  —  ${BASE_URL}\n`);
+console.log(`\nQuad demo setup  —  ${BASE_URL}\n`);
 
 // ---------------------------------------------------------------------------
 // 1. Verify server is running
@@ -79,7 +79,7 @@ await checkDemoPage();
 
 console.log(`
 Demo ready. Open ${BASE_URL} and click "Load Demo".
-Kali will seed BrightPath's brain and immediately audit ${BASE_URL}/demo.
+Quad will seed BrightPath's brain and immediately audit ${BASE_URL}/demo.
 
 Key findings to expect:
   - Summer Leadership Camp (sold out, 2026 waitlisted) not on website

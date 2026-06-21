@@ -32,7 +32,7 @@ export function registerPhoenix(): void {
 
   const provider = new NodeTracerProvider({
     resource: new Resource({
-      [SemanticResourceAttributes.SERVICE_NAME]: "kali",
+      [SemanticResourceAttributes.SERVICE_NAME]: "quad",
     }),
   });
   provider.addSpanProcessor(
@@ -42,7 +42,7 @@ export function registerPhoenix(): void {
   registered = true;
 }
 
-const tracer = () => trace.getTracer("kali");
+const tracer = () => trace.getTracer("quad");
 
 /**
  * Trace span names used across the audit and chat flows. Keep these stable so

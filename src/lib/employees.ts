@@ -1,14 +1,14 @@
-import type { KaliEmployee } from "@/lib/types";
+import type { QuadEmployee } from "@/lib/types";
 import { DEMO_ORG_ID } from "@/data/seed";
 
 /**
- * MVP ships one employee: Kali Chief of Staff. The Growth employee owns the
+ * MVP ships one employee: Quad Chief of Staff. The Growth employee owns the
  * website audit and can be added later. Kept here so routes share one source.
  */
-export const chiefOfStaff: KaliEmployee = {
+export const chiefOfStaff: QuadEmployee = {
   id: "emp_chief_of_staff",
   orgId: DEMO_ORG_ID,
-  name: "Kali",
+  name: "Quad",
   role: "chief_of_staff",
   mission:
     "Know the company, answer with citations, audit the public website, and turn gaps into approved work.",
@@ -27,6 +27,6 @@ export const chiefOfStaff: KaliEmployee = {
   updatedAt: "2026-06-20T00:00:00.000Z",
 };
 
-export function getEmployee(_id?: string): KaliEmployee {
+export function getEmployee(_id?: string): QuadEmployee {
   return chiefOfStaff;
 }

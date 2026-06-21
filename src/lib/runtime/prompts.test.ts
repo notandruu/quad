@@ -110,13 +110,13 @@ describe("buildSynthesisPrompt", () => {
 describe("buildAuditChatSystemPrompt", () => {
   it("includes employee name, tone, summary, and findings", () => {
     const prompt = buildAuditChatSystemPrompt(
-      "Kali",
+      "Quad",
       "warm, direct",
       [makeMem()],
       "Found 3 issues",
       [{ title: "Missing page", severity: "high", recommendedFix: "Add page", pageUrl: "https://example.org" }]
     );
-    expect(prompt).toContain("Kali");
+    expect(prompt).toContain("Quad");
     expect(prompt).toContain("warm, direct");
     expect(prompt).toContain("Found 3 issues");
     expect(prompt).toContain("Missing page");

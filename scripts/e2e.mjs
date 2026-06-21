@@ -151,7 +151,7 @@ async function step4() {
 // ---------------------------------------------------------------------------
 async function step5() {
   const redisConfigured =
-    process.env.KALI_REDIS_REST_URL && process.env.KALI_REDIS_REST_TOKEN;
+    process.env.QUAD_REDIS_REST_URL && process.env.QUAD_REDIS_REST_TOKEN;
   if (!redisConfigured) {
     console.log(`  SKIP  GET /api/audit/events/:runId  — redis not configured`);
     return;
@@ -170,7 +170,7 @@ async function step5() {
 // ---------------------------------------------------------------------------
 // Run all steps
 // ---------------------------------------------------------------------------
-console.log(`\nKali e2e smoke test  —  ${BASE_URL}\n`);
+console.log(`\nQuad e2e smoke test  —  ${BASE_URL}\n`);
 
 await step1();
 await step2();

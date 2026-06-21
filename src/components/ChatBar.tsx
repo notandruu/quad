@@ -38,7 +38,7 @@ export function ChatBar({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder="Ask Kali, or paste a URL and say 'start an audit'"
+          placeholder="Ask Quad, or paste a URL and say 'start an audit'"
           className="flex-1 bg-transparent px-2 text-sm text-neutral-100 outline-none placeholder:text-neutral-600"
         />
         <button

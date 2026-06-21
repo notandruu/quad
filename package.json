@@ -2,7 +2,7 @@
   "name": "quad",
   "version": "0.1.0",
   "private": true,
-  "description": "Kali Live Audit Employee: a company-aware AI employee that audits a website against its company brain, streams the work live, and turns gaps into approved fixes.",
+  "description": "Quad Live Audit Employee: a company-aware AI employee that audits a website against its company brain, streams the work live, and turns gaps into approved fixes.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

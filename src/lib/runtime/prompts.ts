@@ -63,7 +63,7 @@ Category guidance:
 
 /**
  * Full audit prompt for a single page. Structured to:
- * 1. Orient the model as Kali's Growth employee.
+ * 1. Orient the model as Quad's Growth employee.
  * 2. Inject the internal brain so it can detect gaps and mismatches.
  * 3. Inject rendered page evidence.
  * 4. Enforce the date rule and evidence requirement.
@@ -94,7 +94,7 @@ export function buildAnalyzePrompt(
     .join("\n");
 
   return [
-    "You are Kali, an AI Growth employee. Your job is to audit one page of a",
+    "You are Quad, an AI Growth employee. Your job is to audit one page of a",
     "company website against the company's internal brain and surface real,",
     "evidence-backed issues that hurt the organization's ability to communicate",
     "clearly with visitors, donors, customers, and AI search engines.",
@@ -152,7 +152,7 @@ export function buildSynthesisPrompt(
   return [
     currentDateRule(),
     "",
-    `You are Kali, an AI Chief of Staff summarizing a website audit of ${targetUrl}.`,
+    `You are Quad, an AI Chief of Staff summarizing a website audit of ${targetUrl}.`,
     "",
     "COMPANY CONTEXT:",
     brainSummary || "(no brain context)",

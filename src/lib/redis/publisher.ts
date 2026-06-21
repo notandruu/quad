@@ -1,9 +1,9 @@
 import { getRedis, eventTtlSeconds } from "./client";
 import { streamKeys } from "./keys";
-import type { KaliEventType } from "./events";
+import type { QuadEventType } from "./events";
 
 export type PublishedEvent = {
-  type: KaliEventType | string;
+  type: QuadEventType | string;
   payload: Record<string, unknown>;
   sequence: number;
   createdAt: string;
@@ -18,7 +18,7 @@ export type PublishedEvent = {
  */
 export async function publishAuditEvent(
   runId: string,
-  type: KaliEventType | string,
+  type: QuadEventType | string,
   payload: Record<string, unknown> = {}
 ): Promise<PublishedEvent | null> {
   const redis = getRedis();

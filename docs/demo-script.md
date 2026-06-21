@@ -1,4 +1,4 @@
-# Kali — 2-minute YC Demo Day Script
+# Quad — 2-minute YC Demo Day Script
 
 ## Setup (before the room)
 
@@ -15,7 +15,7 @@ Open `http://localhost:3000` in a browser. Keep `http://localhost:3000/demo` as 
 
 > "Companies spend weeks manually reviewing their websites against internal documents.
 > Marketing decks, board meeting notes, brand guides — none of it ever makes it onto the public site.
-> Kali is a company-aware AI employee that audits your website for you, in real time.
+> Quad is a company-aware AI employee that audits your website for you, in real time.
 > It knows what your company knows, and tells you what your public site is missing."
 
 ---
@@ -35,7 +35,7 @@ Switch to the `/demo` tab. Point out what is visible:
 
 Switch back to `http://localhost:3000`. Click **Load Demo**.
 
-> "Kali already knows their internal brain: board notes, brand guidelines, program details, impact reports."
+> "Quad already knows their internal brain: board notes, brand guidelines, program details, impact reports."
 
 The brain seeds instantly. The audit starts automatically.
 
@@ -43,9 +43,9 @@ The brain seeds instantly. The audit starts automatically.
 
 The right panel streams in real time:
 
-- `audit.started` — Kali begins crawling
+- `audit.started` — Quad begins crawling
 - `page.rendered` — Browserbase renders each page in a real cloud browser
-- `page.analyzed` — Kali compares each page against the brain
+- `page.analyzed` — Quad compares each page against the brain
 - `finding.created` — gaps surface one by one
 
 > "Every event is real. Browserbase renders a live browser session. Claude reads the actual page text
@@ -73,14 +73,14 @@ Point to the findings panel as they appear:
 
 Click **Approve** on a finding.
 
-> "Kali drafts the copy fix. One click sends it to Slack, Linear, or GitHub — your choice.
+> "Quad drafts the copy fix. One click sends it to Slack, Linear, or GitHub — your choice.
 > Nothing goes out without a human approving it first."
 
 ### Step 6 — Ask a follow-up (10 sec)
 
 Type in the chat: *"Which finding should we fix first?"*
 
-> "Kali is grounded in what it actually found. It can answer questions about the audit, rank priorities,
+> "Quad is grounded in what it actually found. It can answer questions about the audit, rank priorities,
 > and draft copy — all from the same session."
 
 ---
@@ -88,7 +88,7 @@ Type in the chat: *"Which finding should we fix first?"*
 ## Closing Line
 
 > "Every company has a gap between what they know and what they publish.
-> Kali closes that gap, automatically, in minutes.
+> Quad closes that gap, automatically, in minutes.
 > We're in beta with three nonprofits. Pricing starts at $200/month per domain."
 
 ---

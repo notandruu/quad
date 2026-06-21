@@ -8,7 +8,7 @@ export const metadata: Metadata = {
  * BrightPath Foundation public website — the audit target.
  *
  * Deliberately thin: vague stats, missing programs, no waitlist info,
- * no expansion news. This is what Kali audits against the internal brain.
+ * no expansion news. This is what Quad audits against the internal brain.
  */
 export default function BrightPathPublicSite() {
   return (

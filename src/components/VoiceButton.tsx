@@ -85,7 +85,7 @@ export function VoiceButton({
         stop();
       }}
       disabled={Boolean(disabledReason)}
-      title={disabledReason ?? "Hold to talk to Kali"}
+      title={disabledReason ?? "Hold to talk to Quad"}
       className={`rounded-lg border px-3 py-1.5 text-sm transition ${
         status === "recording"
           ? "border-accent bg-accent/15 text-accent"

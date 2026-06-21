@@ -1,4 +1,4 @@
-import type { Intent, KaliEmployee } from "@/lib/types";
+import type { Intent, QuadEmployee } from "@/lib/types";
 import { publishAuditEvent } from "@/lib/redis";
 import { retrieveMemories } from "@/lib/brain";
 import { complete, chatModel } from "@/lib/llm/anthropic";
@@ -7,7 +7,7 @@ import { checkPermission } from "./permissions";
 
 export type RuntimeInput = {
   orgId: string;
-  employee: KaliEmployee;
+  employee: QuadEmployee;
   runId: string;
   text: string;
   pinnedUrl?: string;
@@ -77,7 +77,7 @@ export async function runEmployee(input: RuntimeInput): Promise<RuntimeResult> {
  * tone. Returns null when no model is configured so the caller can fall back.
  */
 async function synthesizeReply(
-  employee: KaliEmployee,
+  employee: QuadEmployee,
   text: string,
   context: Awaited<ReturnType<typeof retrieveMemories>>
 ): Promise<string | null> {

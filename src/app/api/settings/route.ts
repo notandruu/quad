@@ -28,7 +28,7 @@ export async function GET() {
     voiceClientUrl: moshi.publicClientUrl,
     voiceDecision: moshi.decision,
     voiceNextAction: moshi.nextAction,
-    chatModel: process.env.KALI_CHAT_MODEL ?? "claude-opus-4-8",
-    auditModel: process.env.KALI_AUDIT_MODEL ?? "claude-opus-4-8",
+    chatModel: process.env.QUAD_CHAT_MODEL ?? "claude-opus-4-8",
+    auditModel: process.env.QUAD_AUDIT_MODEL ?? "claude-opus-4-8",
   });
 }

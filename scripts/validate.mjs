@@ -110,16 +110,16 @@ async function checkLlm() {
 // 4. redis (Upstash)
 // ---------------------------------------------------------------------------
 async function checkRedis() {
-  const url = process.env.KALI_REDIS_REST_URL;
-  const token = process.env.KALI_REDIS_REST_TOKEN;
+  const url = process.env.QUAD_REDIS_REST_URL;
+  const token = process.env.QUAD_REDIS_REST_TOKEN;
   if (!url || !token) { skip('redis'); return; }
   try {
     const { Redis } = await import('@upstash/redis');
     const redis = new Redis({ url, token });
     const t0 = Date.now();
     await redis.ping();
-    const id = await redis.xadd('kali:validate', '*', { data: 'test' });
-    await redis.del('kali:validate');
+    const id = await redis.xadd('quad:validate', '*', { data: 'test' });
+    await redis.del('quad:validate');
     const ms = Date.now() - t0;
     ok('redis', `xadd id=${id}`, ms);
   } catch (e) {
@@ -168,7 +168,7 @@ async function checkBrowserbase() {
 // ---------------------------------------------------------------------------
 // Run all checks
 // ---------------------------------------------------------------------------
-console.log('\nKali service validation\n');
+console.log('\nQuad service validation\n');
 
 await checkBrain();
 await checkEmbeddings();
