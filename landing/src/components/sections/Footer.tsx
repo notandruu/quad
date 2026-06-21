@@ -3,9 +3,17 @@
 import Reveal from "@/components/Reveal";
 import HoverText from "@/components/HoverText";
 import { MonoLabel, CountUp } from "@/components/ui";
+import { DASHBOARD_URL, NAV_LINKS } from "@/lib/links";
 
-const SITE = ["Platform", "Security", "Customers", "Docs", "Blog", "Changelog"];
-const SOCIAL = ["LinkedIn", "X", "GitHub", "YouTube", "Discord", "Email"];
+const SITE = [
+  ...NAV_LINKS,
+  { label: "Dashboard", href: DASHBOARD_URL },
+];
+
+const SOCIAL = [
+  { label: "GitHub", href: "https://github.com/notandruu/quad" },
+  { label: "Email", href: "mailto:hello@quad.dev" },
+];
 
 const CHAMFER =
   "polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)";
@@ -85,12 +93,13 @@ export default function Footer() {
                 Connect your stack, set the guardrails, and let Quad turn company
                 knowledge into verified, customer-ready work.
               </p>
-              <button
+              <a
+                href={DASHBOARD_URL}
                 className="mt-9 flex items-center justify-center bg-cream px-12 py-4 text-[12px] font-medium uppercase tracking-[0.1em] text-ink transition-colors hover:bg-paper-2"
                 style={{ clipPath: CHAMFER }}
               >
-                <HoverText text="Open Dashboard" />
-              </button>
+                <HoverText text="Open dashboard" />
+              </a>
             </div>
 
             <FooterCol title="Pages" links={SITE} />
@@ -185,17 +194,23 @@ export default function Footer() {
   );
 }
 
-function FooterCol({ title, links }: { title: string; links: string[] }) {
+function FooterCol({
+  title,
+  links,
+}: {
+  title: string;
+  links: { label: string; href: string }[];
+}) {
   return (
     <div className="flex min-w-[140px] flex-col">
       {title && <MonoLabel className="mb-4 text-tan/40">{title}</MonoLabel>}
       {links.map((l) => (
         <a
-          key={l}
-          href="#"
+          key={l.label}
+          href={l.href}
           className="border-b border-white/[0.08] py-3 text-[14px] text-tan/80 transition-colors hover:text-bone"
         >
-          {l}
+          {l.label}
         </a>
       ))}
     </div>
