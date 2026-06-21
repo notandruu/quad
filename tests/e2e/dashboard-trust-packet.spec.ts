@@ -122,6 +122,9 @@ test.describe("dashboard trust packet flow", () => {
     await operatorConsole.getByRole("button", { name: "Execute fix", exact: true }).click();
     await expect(operatorConsole.getByText("Fix executed")).toBeVisible();
     await expect(page.getByText("Execution: Cms proof block draft")).toBeVisible();
+    await expect(operatorConsole.getByRole("link", { name: /Browser field.*Browserbase filled.*browserbase\.write_browser/ })).toBeVisible();
+    await expect(operatorConsole.getByText("Browser screenshot")).toBeVisible();
+    await expect(operatorConsole.getByText("Browser pause")).toBeVisible();
     expect(executePublishBody).toMatchObject({
       runId: `trust_${runId}`,
       actor: "demo.operator",
@@ -316,6 +319,50 @@ async function mockDashboardBackends(
                       taskId: "task_ui_execute",
                       capabilityId: "cms.publisher",
                       status: "completed",
+                    },
+                    {
+                      id: "event_ui_browser_focus",
+                      sequence: 5,
+                      kind: "browser_action.field",
+                      actor: "connector",
+                      message: "Browserbase focused the questionnaire answer field.",
+                      createdAt: "2026-06-21T00:00:06.000Z",
+                      taskId: "task_ui_execute",
+                      capabilityId: "browserbase.write_browser",
+                      status: "completed",
+                    },
+                    {
+                      id: "event_ui_browser_fill",
+                      sequence: 6,
+                      kind: "browser_action.field",
+                      actor: "connector",
+                      message: "Browserbase filled the approved questionnaire answer.",
+                      createdAt: "2026-06-21T00:00:07.000Z",
+                      taskId: "task_ui_execute",
+                      capabilityId: "browserbase.write_browser",
+                      status: "completed",
+                    },
+                    {
+                      id: "event_ui_browser_screenshot",
+                      sequence: 7,
+                      kind: "browser_action.screenshot",
+                      actor: "connector",
+                      message: "Browserbase captured questionnaire screenshot evidence.",
+                      createdAt: "2026-06-21T00:00:08.000Z",
+                      taskId: "task_ui_execute",
+                      capabilityId: "browserbase.write_browser",
+                      status: "completed",
+                    },
+                    {
+                      id: "event_ui_browser_pause",
+                      sequence: 8,
+                      kind: "browser_action.paused",
+                      actor: "connector",
+                      message: "Browserbase paused before customer submission.",
+                      createdAt: "2026-06-21T00:00:09.000Z",
+                      taskId: "task_ui_execute",
+                      capabilityId: "browserbase.write_browser",
+                      status: "paused",
                     },
                   ]
                 : []),

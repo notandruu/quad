@@ -399,6 +399,12 @@ Shipped v6:
 - install previews force-install and allowlist the browser write capability alongside cms/task publishers when write tools are requested.
 - browser form fill remains deferred behind human approval and explicit org allowlisting even though final submit is paused.
 
+Shipped v7:
+
+- the operator task stream now renders Browserbase replay events as first-class browser session, field, screenshot, pause, and failure rows instead of generic task events.
+- the dashboard e2e proves an approved execute flow surfaces `browserbase.write_browser` field-fill, screenshot, and pause-before-submit evidence.
+- the visible demo now shows governed browser work happening in the same task stream as approvals, receipts, and connector execution.
+
 ## Gap 4: post-ship verification
 
 Status: shipped v2.

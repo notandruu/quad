@@ -1310,26 +1310,30 @@ function TaskStream({
       </div>
       <div className="mt-2 space-y-1.5">
         {events.length > 0 ? (
-          events.map((event) => (
-            <a
-              key={`${event.runId}:${event.id}`}
-              href={`/api/runs/${encodeURIComponent(event.runId)}/tasks`}
-              target="_blank"
-              rel="noreferrer"
-              className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2 rounded border border-edge bg-ink/45 px-2 py-1.5 hover:border-accent/35"
-              title={event.message}
-            >
-              <span className={taskEventTone(event.kind)}>{taskEventGlyph(event.kind)}</span>
-              <span className="min-w-0">
-                <span className="block truncate text-[10px] text-neutral-300">{formatStatus(event.kind)}</span>
-                <span className="block truncate text-[10px] leading-4 text-neutral-600">{event.message}</span>
-                {event.capabilityId && (
-                  <span className="mt-0.5 block truncate font-mono text-[9px] text-neutral-700">{event.capabilityId}</span>
-                )}
-              </span>
-              <span className="font-mono text-[9px] text-neutral-700">#{event.sequence}</span>
-            </a>
-          ))
+          events.map((event) => {
+            const presentation = taskEventPresentation(event.kind);
+
+            return (
+              <a
+                key={`${event.runId}:${event.id}`}
+                href={`/api/runs/${encodeURIComponent(event.runId)}/tasks`}
+                target="_blank"
+                rel="noreferrer"
+                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2 rounded border border-edge bg-ink/45 px-2 py-1.5 hover:border-accent/35"
+                title={event.message}
+              >
+                <span className={presentation.tone}>{presentation.glyph}</span>
+                <span className="min-w-0">
+                  <span className="block truncate text-[10px] text-neutral-300">{presentation.label}</span>
+                  <span className="block truncate text-[10px] leading-4 text-neutral-600">{event.message}</span>
+                  {event.capabilityId && (
+                    <span className="mt-0.5 block truncate font-mono text-[9px] text-neutral-700">{event.capabilityId}</span>
+                  )}
+                </span>
+                <span className="font-mono text-[9px] text-neutral-700">#{event.sequence}</span>
+              </a>
+            );
+          })
         ) : (
           <div className="rounded border border-dashed border-edge bg-ink/30 p-2 text-[10px] text-neutral-600">
             No task events yet.
@@ -1340,21 +1344,58 @@ function TaskStream({
   );
 }
 
-function taskEventGlyph(kind: string) {
-  if (kind.includes("blocked")) return "!";
-  if (kind.includes("approval")) return "?";
-  if (kind.includes("receipt")) return "#";
-  if (kind.includes("artifact")) return "+";
-  if (kind.includes("completed")) return "/";
-  return "*";
-}
-
-function taskEventTone(kind: string) {
-  if (kind.includes("blocked")) return "mt-0.5 font-mono text-[10px] text-red-200";
-  if (kind.includes("approval")) return "mt-0.5 font-mono text-[10px] text-accent";
-  if (kind.includes("receipt")) return "mt-0.5 font-mono text-[10px] text-pink-100";
-  if (kind.includes("completed")) return "mt-0.5 font-mono text-[10px] text-neutral-300";
-  return "mt-0.5 font-mono text-[10px] text-neutral-600";
+function taskEventPresentation(kind: string) {
+  if (kind === "browser_action.session") {
+    return {
+      label: "Browser session",
+      glyph: "@",
+      tone: "mt-0.5 font-mono text-[10px] text-sky-300",
+    };
+  }
+  if (kind === "browser_action.field") {
+    return {
+      label: "Browser field",
+      glyph: ">",
+      tone: "mt-0.5 font-mono text-[10px] text-accent",
+    };
+  }
+  if (kind === "browser_action.screenshot") {
+    return {
+      label: "Browser screenshot",
+      glyph: "+",
+      tone: "mt-0.5 font-mono text-[10px] text-pink-100",
+    };
+  }
+  if (kind === "browser_action.paused") {
+    return {
+      label: "Browser pause",
+      glyph: "||",
+      tone: "mt-0.5 font-mono text-[10px] text-amber-200",
+    };
+  }
+  if (kind === "browser_action.failed") {
+    return {
+      label: "Browser failed",
+      glyph: "!",
+      tone: "mt-0.5 font-mono text-[10px] text-red-200",
+    };
+  }
+  if (kind.includes("blocked")) {
+    return { label: formatStatus(kind), glyph: "!", tone: "mt-0.5 font-mono text-[10px] text-red-200" };
+  }
+  if (kind.includes("approval")) {
+    return { label: formatStatus(kind), glyph: "?", tone: "mt-0.5 font-mono text-[10px] text-accent" };
+  }
+  if (kind.includes("receipt")) {
+    return { label: formatStatus(kind), glyph: "#", tone: "mt-0.5 font-mono text-[10px] text-pink-100" };
+  }
+  if (kind.includes("artifact")) {
+    return { label: formatStatus(kind), glyph: "+", tone: "mt-0.5 font-mono text-[10px] text-neutral-600" };
+  }
+  if (kind.includes("completed")) {
+    return { label: formatStatus(kind), glyph: "/", tone: "mt-0.5 font-mono text-[10px] text-neutral-300" };
+  }
+  return { label: formatStatus(kind), glyph: "*", tone: "mt-0.5 font-mono text-[10px] text-neutral-600" };
 }
 
 function statusClass(status: string) {
