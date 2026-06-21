@@ -29,8 +29,8 @@ export default function Reveal({
   className,
   stagger = false,
   delay = 0,
-  y = 24,
-  blur = false,
+  y = 30,
+  blur = true,
   once = true,
 }: RevealProps) {
   const ref = useRef<HTMLElement>(null);
@@ -43,20 +43,21 @@ export default function Reveal({
     gsap.set(targets, {
       opacity: 0,
       y,
-      filter: blur ? "blur(6px)" : "none",
+      filter: blur ? "blur(8px)" : "none",
+      willChange: "transform, filter, opacity",
     });
 
     const tween = gsap.to(targets, {
       opacity: 1,
       y: 0,
       filter: "blur(0px)",
-      duration: 0.6,
+      duration: 0.9,
       delay,
-      ease: "power3.out",
-      stagger: stagger ? 0.08 : 0,
+      ease: "expo.out",
+      stagger: stagger ? 0.09 : 0,
       scrollTrigger: {
         trigger: el,
-        start: "top 90%",
+        start: "top 88%",
         toggleActions: once ? "play none none none" : "play none none reverse",
       },
     });

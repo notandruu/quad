@@ -1,18 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useState, useRef, useEffect, useLayoutEffect, Fragment } from "react";
+import { gsap } from "gsap";
 import IsoDiagram from "@/components/IsoDiagram";
 import HoverText from "@/components/HoverText";
 import { SPONSORS, SponsorMark } from "@/components/SponsorLogos";
 
-const EASE = [0.16, 1, 0.3, 1] as const;
-// staggered entrance — fast, flat opacity fade + small rise (matches original ~0.4s)
-const rise = (delay: number) => ({
-  initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.45, ease: EASE, delay: delay * 0.4 },
-});
+const useIso = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
+const TITLE = [
+  { w: "AI", dim: true },
+  { w: "employees", dim: true },
+  { w: "that", dim: true },
+  { w: "prove", dim: false },
+  { w: "their", dim: false },
+  { w: "work", dim: false },
+];
 
 const LAYERS = [
   {
@@ -54,14 +57,69 @@ const CHAMFER =
 
 export default function Hero() {
   const [open, setOpen] = useState(0);
+  const root = useRef<HTMLElement>(null);
+
+  // choreographed GSAP entrance — the dopamine moment
+  useIso(() => {
+    const el = root.current;
+    if (!el) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({ defaults: { ease: "expo.out" }, delay: 0.15 });
+      tl.from('[data-h="label"]', {
+        y: 18,
+        autoAlpha: 0,
+        filter: "blur(8px)",
+        duration: 0.7,
+        ease: "power3.out",
+      })
+        .from(
+          '[data-h="word"]',
+          {
+            yPercent: 60,
+            autoAlpha: 0,
+            filter: "blur(12px)",
+            rotateX: -38,
+            transformOrigin: "50% 100%",
+            transformPerspective: 700,
+            duration: 0.95,
+            stagger: 0.075,
+          },
+          "-=0.35",
+        )
+        .from(
+          '[data-h="sub"]',
+          { y: 22, autoAlpha: 0, filter: "blur(6px)", duration: 0.7, ease: "power3.out" },
+          "-=0.55",
+        )
+        .from(
+          '[data-h="cta"]',
+          { y: 16, autoAlpha: 0, scale: 0.96, duration: 0.6, ease: "back.out(1.7)" },
+          "-=0.4",
+        )
+        .from(
+          '[data-h="acc"]',
+          { x: -18, autoAlpha: 0, filter: "blur(4px)", duration: 0.6, stagger: 0.08, ease: "power3.out" },
+          "-=0.35",
+        )
+        .from(
+          '[data-h="rail"]',
+          { x: -12, autoAlpha: 0, duration: 0.5, stagger: 0.045, ease: "power3.out" },
+          "<",
+        );
+    }, el);
+    return () => ctx.revert();
+  }, []);
 
   const accordion = (
-    <motion.div {...rise(0.52)} className="mt-auto border-t border-white/[0.07]">
+    <div className="mt-auto border-t border-white/[0.07]">
       {LAYERS.map((layer, i) => {
         const isOpen = open === i;
         return (
           <div
             key={layer.title}
+            data-h="acc"
             className={i < LAYERS.length - 1 ? "border-b border-white/[0.07]" : ""}
           >
             <button
@@ -101,33 +159,37 @@ export default function Hero() {
           </div>
         );
       })}
-    </motion.div>
+    </div>
   );
 
   return (
-    <section className="relative min-h-screen overflow-x-clip bg-ink text-bone" data-section="hero">
+    <section
+      ref={root}
+      className="relative min-h-screen overflow-x-clip bg-ink text-bone"
+      data-section="hero"
+    >
       <div className="mx-auto flex min-h-screen max-w-[1512px] px-5 md:px-10">
         {/* LEFT RAIL — full-height bordered column */}
         <aside className="hidden w-[180px] shrink-0 flex-col self-start border-x border-white/[0.07] lg:flex lg:h-screen">
           <div className="h-[98px] shrink-0" />
           <div className="flex-1" />
-          <motion.p
-            {...rise(0.45)}
+          <p
+            data-h="rail"
             className="border-b border-white/[0.07] px-6 pb-4 pt-5 font-mono text-[12px] uppercase tracking-[0.14em] text-tan/55"
           >
             Runs on
-          </motion.p>
+          </p>
           {SPONSORS.map((s, i) => (
-            <motion.div
+            <div
               key={s.name}
-              {...rise(0.48 + i * 0.03)}
+              data-h="rail"
               className="flex items-center gap-3.5 border-b border-white/[0.07] px-6 py-[14px] text-tan/70 transition-colors hover:bg-white/[0.02] hover:text-bone"
             >
               <span className="flex h-6 w-6 shrink-0 items-center justify-center">
                 <SponsorMark i={i} size={22} />
               </span>
               <span className="text-[13px] font-medium tracking-[-0.01em]">{s.name}</span>
-            </motion.div>
+            </div>
           ))}
         </aside>
 
@@ -136,8 +198,8 @@ export default function Hero() {
           {/* CONTENT column — border-l runs full height (meets nav line at top); text padded down */}
           <div className="order-1 flex min-w-0 flex-col lg:border-l lg:border-white/[0.07] lg:pt-[64px]">
             {/* label row — centered in its cell; underline spans full column, connecting both verticals */}
-            <motion.div
-              {...rise(0.05)}
+            <div
+              data-h="label"
               className="flex items-center gap-3 overflow-hidden border-b border-white/[0.07] py-6 lg:pl-9"
             >
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-tan" />
@@ -151,31 +213,34 @@ export default function Hero() {
                     "repeating-linear-gradient(115deg, rgba(255,182,214,0.25) 0 1px, transparent 1px 6px)",
                 }}
               />
-            </motion.div>
+            </div>
 
-            <motion.h1
-              {...rise(0.15)}
-              className="mt-12 max-w-[460px] lg:pl-9 text-[56px] font-normal leading-[1.0] tracking-[-0.02em] text-paper-2 md:text-[68px] lg:text-[72px]"
-            >
-              <span className="text-tan">AI employees that </span>
-              <span className="whitespace-nowrap">prove their work</span>
-            </motion.h1>
-            <motion.p
-              {...rise(0.28)}
+            <h1 className="mt-12 max-w-[460px] lg:pl-9 text-[56px] font-normal leading-[1.0] tracking-[-0.02em] text-paper-2 md:text-[68px] lg:text-[72px]">
+              {TITLE.map((t, i) => (
+                <Fragment key={i}>
+                  <span data-h="word" className={`inline-block ${t.dim ? "text-tan" : ""}`}>
+                    {t.w}
+                  </span>
+                  {i < TITLE.length - 1 ? " " : ""}
+                </Fragment>
+              ))}
+            </h1>
+            <p
+              data-h="sub"
               className="mt-7 max-w-[516px] lg:pl-9 text-[16px] leading-[1.5] text-tan"
             >
               Quad turns scattered company knowledge into verified, customer-ready
               work. Every answer is grounded in evidence, gated by approval, and
               replayable end to end.
-            </motion.p>
+            </p>
 
-            <motion.button
-              {...rise(0.4)}
+            <button
+              data-h="cta"
               className="mt-9 flex w-full max-w-[514px] items-center justify-center bg-cream lg:ml-9 py-4 text-[12px] font-medium uppercase tracking-[0.1em] text-ink transition-colors hover:bg-paper-2"
               style={{ clipPath: CHAMFER }}
             >
               <HoverText text="Open Dashboard" />
-            </motion.button>
+            </button>
 
             {accordion}
 
@@ -198,15 +263,10 @@ export default function Hero() {
             </div>
           </div>
 
-          {/* DIAGRAM column — separated by its own left grid-line */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, ease: EASE, delay: 0.2 }}
-            className="order-2 flex items-center justify-center pt-12 lg:justify-end lg:border-l lg:border-white/[0.07] lg:pl-10 lg:pt-[64px]"
-          >
+          {/* DIAGRAM column — separated by its own left grid-line; draws itself in */}
+          <div className="order-2 flex items-center justify-center pt-12 lg:justify-end lg:border-l lg:border-white/[0.07] lg:pl-10 lg:pt-[64px]">
             <IsoDiagram className="h-auto w-full max-w-[560px]" />
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>
