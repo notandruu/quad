@@ -7,6 +7,7 @@ type OperatorRun = {
   status: string;
   title: string;
   targetUrl?: string;
+  artifacts: Array<{ id: string; kind: string; title: string; hash: string }>;
   approvals: Array<{ id: string; decision: string; reason: string; evidenceVisible: boolean }>;
   receipts: Array<{ id: string; status: string; summary: string; artifactHash: string }>;
   nextAction: string;
@@ -69,6 +70,7 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
   const [activeArtifactId, setActiveArtifactId] = useState<string | null>(null);
   const [artifactTab, setArtifactTab] = useState<"preview" | "data" | "proof">("preview");
   const [decisionState, setDecisionState] = useState<{ id: string; decision: "approved" | "rejected" } | null>(null);
+  const [publishingRunId, setPublishingRunId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const response = await fetch(`/api/operator?orgId=${encodeURIComponent(orgId)}&limit=8`, {
@@ -149,6 +151,27 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
     if (response?.ok) await load();
   }
 
+  async function stagePublish(run: OperatorRun) {
+    setPublishingRunId(run.runId);
+    const response = await fetch("/api/publish/dry-run", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        runId: run.runId,
+        orgId: data?.orgId,
+        actor: "demo.operator",
+      }),
+    }).catch(() => null);
+    setPublishingRunId(null);
+    if (response?.ok) {
+      const result = (await response.json().catch(() => null)) as { staged?: Array<{ artifact?: { id?: string } }> } | null;
+      const stagedArtifactId = result?.staged?.[0]?.artifact?.id;
+      if (stagedArtifactId) setActiveArtifactId(`artifact_${stagedArtifactId}`);
+      setArtifactTab("preview");
+      await load();
+    }
+  }
+
   return (
     <section className="rounded-lg border border-accent/25 bg-panel p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -182,6 +205,8 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
                 key={run.runId}
                 run={run}
                 active={activeArtifact?.runId === run.runId}
+                publishing={publishingRunId === run.runId}
+                onPublish={() => void stagePublish(run)}
                 onInspect={() => {
                   setActiveArtifactId(`artifact_${run.runId}`);
                   setArtifactTab("preview");
@@ -279,8 +304,24 @@ function OperatorStat({
   );
 }
 
-function RunCard({ run, active, onInspect }: { run: OperatorRun; active: boolean; onInspect: () => void }) {
+function RunCard({
+  run,
+  active,
+  publishing,
+  onInspect,
+  onPublish,
+}: {
+  run: OperatorRun;
+  active: boolean;
+  publishing: boolean;
+  onInspect: () => void;
+  onPublish: () => void;
+}) {
   const receipt = run.receipts[0];
+  const canStage = run.approvals.some((approval) => approval.decision === "approved");
+  const hasStaged = run.artifacts.some((artifact) =>
+    artifact.kind === "cms_draft" || artifact.kind === "task_draft" || artifact.kind === "trust_packet_export"
+  );
 
   return (
     <div className={active ? "rounded border border-accent/40 bg-accent/5 p-2" : "rounded border border-edge bg-ink/45 p-2"}>
@@ -310,6 +351,16 @@ function RunCard({ run, active, onInspect }: { run: OperatorRun; active: boolean
         >
           Open artifact
         </button>
+        {canStage && (
+          <button
+            type="button"
+            onClick={onPublish}
+            disabled={publishing || hasStaged}
+            className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] text-accent hover:border-accent/60 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {hasStaged ? "Fix staged" : publishing ? "Staging fix" : "Stage fix"}
+          </button>
+        )}
       </div>
       <p className="mt-2 line-clamp-2 text-[10px] leading-4 text-neutral-500">{run.nextAction}</p>
     </div>

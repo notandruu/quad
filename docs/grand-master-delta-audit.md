@@ -20,7 +20,7 @@ Quad is now more than a website audit demo. The codebase has the beginning of a 
 | --- | --- | --- | --- |
 | Hosted trust packet builder | Trust packet workflow exists in `src/lib/fde/workflows.ts`; agent bridge can emit packet summaries. | Dashboard users could not turn a completed audit into a customer-ready packet from the product surface. | Shipped `/api/trust-packet` and dashboard trust packet panel. |
 | Approval ledger | In-memory run ledger supports artifacts, approval requests, and receipts. | Not durable across deploys and not queryable as a first-class customer history. | Add Supabase-backed run ledger tables with memory fallback. |
-| Publisher connectors | Metaregistry declares CMS/task publishers and approval requirements. | No dry-run publisher route or staged write artifact yet. | Add `POST /api/publish/dry-run` that generates CMS/task drafts from approved trust packet artifacts. |
+| Publisher connectors | Dry-run publisher route stages CMS, task, and trust packet export artifacts from approved runs. | No external connector execution or post-ship verification yet. | Add targeted verification, then controlled connector execution. |
 | Post-ship verification | Audit engine can re-run and quadchain can receipt results. | No workflow that verifies a shipped fix and closes the loop. | Add `POST /api/verify-fix` to rerun targeted audit checks and emit `connector_action` plus `approval` packets. |
 | Enterprise proof questionnaire | Grand doc wants questionnaire answers to become memory and proof obligations. | Current main flow is audit-first; no questionnaire workflow. | Add focused trust questionnaire route that writes brain memory, emits `brain_memory_write`, and seeds the next audit. |
 | Operator console | Debug drawer shows backend status; dashboard shows trust trail. | No metaregistry install/update panel, no approval queue, no run history. | Add operator panel with active capabilities, blocked connectors, approvals, and latest packets. |
@@ -55,10 +55,10 @@ This turns the product narrative from "we found gaps" into "we generated a verif
 
 ### Plan b: dry-run publisher workbench
 
-- Add a publisher service that accepts an approved trust packet artifact.
-- Generate staged CMS copy and task drafts without writing to external systems.
-- Emit `connector_action` packets for every staged write.
-- Block actual writes until `assertCustomerWriteAllowed` passes.
+- Shipped `POST /api/publish/dry-run`.
+- Approved trust packet runs can stage CMS copy, task drafts, and trust packet exports.
+- Every staged artifact emits a `connector_action` packet.
+- Actual external writes remain blocked.
 
 ### Plan c: post-ship verification loop
 
@@ -90,8 +90,10 @@ This turns the product narrative from "we found gaps" into "we generated a verif
   - Real: yes.
 - Claim: quad turns gaps into an approval-ready trust packet.
   - Real: yes, shipped in this slice.
+- Claim: quad stages approved fixes.
+  - Real: yes. dry-run publisher artifacts are staged after approval.
 - Claim: quad writes fixes directly to a CMS.
-  - Real: not yet. current state is dry-run architecture and approval ledger primitives.
+  - Real: not yet. current state is approved dry-run staging with no external write execution.
 - Claim: quad has durable enterprise governance.
   - Real: partial. packet registry can persist, approval ledger still needs durable storage.
 - Claim: quad is a full agent platform.

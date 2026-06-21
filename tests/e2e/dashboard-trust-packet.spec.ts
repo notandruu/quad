@@ -51,10 +51,13 @@ test.describe("dashboard trust packet flow", () => {
   test("turns a completed audit into an approval-ready trust packet", async ({ page }) => {
     let trustPacketBody: Record<string, unknown> | null = null;
     let approvalDecisionBody: Record<string, unknown> | null = null;
+    let dryRunPublishBody: Record<string, unknown> | null = null;
     await mockDashboardBackends(page, async (body) => {
       trustPacketBody = body;
     }, async (body) => {
       approvalDecisionBody = body;
+    }, async (body) => {
+      dryRunPublishBody = body;
     });
 
     await page.goto("/");
@@ -81,6 +84,13 @@ test.describe("dashboard trust packet flow", () => {
       decision: "approved",
       approver: "demo.operator",
     });
+    await operatorConsole.getByRole("button", { name: "Stage fix", exact: true }).click();
+    await expect(operatorConsole.getByText("Fix staged")).toBeVisible();
+    await expect(page.getByText("Cms proof block draft")).toBeVisible();
+    expect(dryRunPublishBody).toMatchObject({
+      runId: `trust_${runId}`,
+      actor: "demo.operator",
+    });
 
     await page.getByRole("button", { name: "Build packet" }).click();
 
@@ -95,9 +105,11 @@ test.describe("dashboard trust packet flow", () => {
 async function mockDashboardBackends(
   page: Page,
   onTrustPacket: (body: Record<string, unknown>) => void | Promise<void>,
-  onApprovalDecision?: (body: Record<string, unknown>) => void | Promise<void>
+  onApprovalDecision?: (body: Record<string, unknown>) => void | Promise<void>,
+  onDryRunPublish?: (body: Record<string, unknown>) => void | Promise<void>
 ) {
   let approvalDecision: "pending" | "approved" = "pending";
+  let publishStaged = false;
   await page.route("**/api/settings", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -149,10 +161,19 @@ async function mockDashboardBackends(
         runs: [
           {
             runId: `trust_${runId}`,
-            status: "needs_approval",
+            status: approvalDecision === "approved" ? "completed" : "needs_approval",
             title: "Enterprise proof trust packet",
             targetUrl: "https://example.com",
-            artifacts: [],
+            artifacts: publishStaged
+              ? [
+                  {
+                    id: "artifact_publish_ui",
+                    kind: "cms_draft",
+                    title: "Cms proof block draft",
+                    hash: "fnv1a:stage1234",
+                  },
+                ]
+              : [],
             approvals: [
               {
                 id: "approval_ui_1",
@@ -163,41 +184,70 @@ async function mockDashboardBackends(
             ],
             receipts: [
               {
-                id: "receipt_ui_1",
+                id: publishStaged ? "receipt_ui_publish" : "receipt_ui_1",
                 status: "ready",
-                summary: "Trust packet is ready for approval with a verifiable quad chain certificate.",
-                artifactHash: "fnv1a:12345678",
+                summary: publishStaged
+                  ? "Cms proof block draft staged in dry-run mode."
+                  : "Trust packet is ready for approval with a verifiable quad chain certificate.",
+                artifactHash: publishStaged ? "fnv1a:stage1234" : "fnv1a:12345678",
               },
             ],
             nextAction: "Human approval required before customer-facing work can ship.",
           },
         ],
-        artifacts: [
-          {
-            id: `artifact_trust_${runId}`,
-            runId: `trust_${runId}`,
-            title: "Enterprise proof trust packet",
-            kind: "run_snapshot",
-            status: "needs_approval",
-            headline: "Human approval required before customer-facing work can ship.",
-            preview: {
-              label: "Run artifact",
-              primaryMetric: "1/1",
-              primaryLabel: "ready receipts",
-              secondaryMetric: "1",
-              secondaryLabel: "approvals",
-              risk: "human gate",
-            },
-            proof: [
+        artifacts: publishStaged
+          ? [
               {
-                id: "receipt_ui_1",
+                id: "artifact_publish_ui",
+                runId: `trust_${runId}`,
+                title: "Cms proof block draft",
+                kind: "cms_draft",
                 status: "ready",
-                summary: "Trust packet is ready for approval with a verifiable quad chain certificate.",
-                artifactHash: "fnv1a:12345678",
+                headline: "Dry-run publisher artifact staged. No customer-facing write was executed.",
+                preview: {
+                  label: "Publisher artifact",
+                  primaryMetric: "dry",
+                  primaryLabel: "run mode",
+                  secondaryMetric: "cms draft",
+                  secondaryLabel: "connector",
+                  risk: "staged only",
+                },
+                proof: [
+                  {
+                    id: "receipt_ui_publish",
+                    status: "ready",
+                    summary: "Cms proof block draft staged in dry-run mode.",
+                    artifactHash: "fnv1a:stage1234",
+                  },
+                ],
+              },
+            ]
+          : [
+              {
+                id: `artifact_trust_${runId}`,
+                runId: `trust_${runId}`,
+                title: "Enterprise proof trust packet",
+                kind: "run_snapshot",
+                status: "needs_approval",
+                headline: "Human approval required before customer-facing work can ship.",
+                preview: {
+                  label: "Run artifact",
+                  primaryMetric: "1/1",
+                  primaryLabel: "ready receipts",
+                  secondaryMetric: "1",
+                  secondaryLabel: "approvals",
+                  risk: "human gate",
+                },
+                proof: [
+                  {
+                    id: "receipt_ui_1",
+                    status: "ready",
+                    summary: "Trust packet is ready for approval with a verifiable quad chain certificate.",
+                    artifactHash: "fnv1a:12345678",
+                  },
+                ],
               },
             ],
-          },
-        ],
         pendingApprovals,
         capabilities: {
           active: [
@@ -261,6 +311,40 @@ async function mockDashboardBackends(
           evidenceRequired: 0,
           createdAt: "2026-06-21T00:00:03.000Z",
         },
+      }),
+    });
+  });
+
+  await page.route("**/api/publish/dry-run", async (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    await onDryRunPublish?.(body);
+    publishStaged = true;
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        staged: [
+          {
+            artifact: {
+              id: "artifact_publish_ui",
+              kind: "cms_draft",
+              title: "Cms proof block draft",
+              hash: "fnv1a:stage1234",
+            },
+            receiptId: "receipt_ui_publish",
+            packet: {
+              id: "packet_ui_publish",
+              type: "connector_action",
+              certificateId: "qchain_ui_publish",
+              accepted: true,
+              tokensSaved: 0,
+              evidencePreserved: 1,
+              evidenceRequired: 1,
+              createdAt: "2026-06-21T00:00:04.000Z",
+            },
+          },
+        ],
       }),
     });
   });

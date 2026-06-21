@@ -66,15 +66,21 @@ Acceptance:
 
 ## Gap 3: dry-run publisher workbench
 
-Status: planned.
+Status: shipped v1.
 
-Build:
+Shipped v1:
 
-- add publisher service that consumes an approved or approval-pending trust packet artifact.
-- generate staged CMS copy and task drafts.
+- `POST /api/publish/dry-run` consumes an approved trust packet run.
+- unapproved runs are blocked through `assertCustomerWriteAllowed`.
+- generates staged CMS copy, task draft, and trust packet export artifacts.
+- emits `connector_action` quadchain packets for every staged draft.
+- operator console can stage approved fixes and show dry-run artifacts in the sidecar.
+
+Next:
+
+- show richer diffs in the operator console.
+- add connector-specific fixture payloads for CMS, tasks, and browser write actions.
 - never perform customer-facing writes without `assertCustomerWriteAllowed`.
-- emit `connector_action` quadchain packets for staged drafts.
-- show diffs in the operator console.
 
 Acceptance:
 
@@ -162,8 +168,7 @@ Acceptance:
 
 ## Recommended next shipping order
 
-1. dry-run publisher workbench.
-2. post-ship verification.
-3. voice-led proof interview.
-4. sponsor proof fixtures and demo script.
-5. security retention/deletion controls.
+1. post-ship verification.
+2. voice-led proof interview.
+3. sponsor proof fixtures and demo script.
+4. security retention/deletion controls.

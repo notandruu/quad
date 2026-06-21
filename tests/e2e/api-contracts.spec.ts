@@ -28,6 +28,10 @@ test.describe("api contracts", () => {
     expect(approval.status()).toBe(400);
     await expect(approval.json()).resolves.toMatchObject({ ok: false });
 
+    const publish = await request.post("/api/publish/dry-run", { data: {} });
+    expect(publish.status()).toBe(400);
+    await expect(publish.json()).resolves.toMatchObject({ ok: false });
+
     const verify = await request.post("/api/quadchain/verify", { data: {} });
     expect(verify.status()).toBe(400);
     await expect(verify.json()).resolves.toMatchObject({ error: "packetId required" });
@@ -80,6 +84,18 @@ test.describe("api contracts", () => {
         runId: `missing_${Date.now()}`,
         decision: "approved",
         approver: "demo.operator",
+      },
+    });
+
+    expect(response.status()).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({ ok: false, code: "run_not_found" });
+  });
+
+  test("returns a 404 for unknown dry-run publish requests", async ({ request }) => {
+    const response = await request.post("/api/publish/dry-run", {
+      data: {
+        runId: `missing_${Date.now()}`,
+        actor: "demo.operator",
       },
     });
 

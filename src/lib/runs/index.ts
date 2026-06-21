@@ -18,7 +18,10 @@ export type ArtifactKind =
   | "trust_packet"
   | "quad_chain_certificate"
   | "approval_request"
-  | "receipt";
+  | "receipt"
+  | "cms_draft"
+  | "task_draft"
+  | "trust_packet_export";
 
 export type ApprovalDecision = "pending" | "approved" | "rejected";
 

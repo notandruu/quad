@@ -62,6 +62,40 @@ type OperatorApprovalSummary = {
 };
 
 function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorApprovalSummary[]) {
+  const stagedArtifacts = runs.flatMap((run) =>
+    run.artifacts
+      .filter((artifact) => artifact.kind === "cms_draft" || artifact.kind === "task_draft" || artifact.kind === "trust_packet_export")
+      .slice(0, 3)
+      .map((artifact) => {
+        const receipt = run.receipts.find((item) => item.artifactHash === artifact.hash);
+
+        return {
+          id: `artifact_${artifact.id}`,
+          runId: run.runId,
+          title: artifact.title,
+          kind: artifact.kind,
+          status: receipt?.status ?? "ready",
+          headline: "Dry-run publisher artifact staged. No customer-facing write was executed.",
+          preview: {
+            label: "Publisher artifact",
+            primaryMetric: "dry",
+            primaryLabel: "run mode",
+            secondaryMetric: artifact.kind.replace("_", " "),
+            secondaryLabel: "connector",
+            risk: "staged only",
+          },
+          proof: [
+            {
+              id: receipt?.id ?? artifact.id,
+              status: receipt?.status ?? "ready",
+              summary: receipt?.summary ?? "Staged dry-run artifact.",
+              artifactHash: artifact.hash,
+            },
+          ],
+        };
+      })
+  );
+
   const runArtifacts = runs.slice(0, 3).map((run) => {
     const readyReceipts = run.receipts.filter((receipt) => receipt.status === "ready").length;
     const blockedReceipts = run.receipts.filter((receipt) => receipt.status === "blocked").length;
@@ -115,5 +149,5 @@ function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorA
     ],
   }));
 
-  return [...approvalArtifacts, ...runArtifacts].slice(0, 5);
+  return [...stagedArtifacts, ...approvalArtifacts, ...runArtifacts].slice(0, 7);
 }
