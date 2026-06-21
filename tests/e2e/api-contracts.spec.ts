@@ -152,6 +152,13 @@ test.describe("api contracts", () => {
       redactions: expect.any(Number),
       latest: expect.any(Array),
     });
+    expect(json.runtimeTraces).toMatchObject({
+      total: expect.any(Number),
+      completed: expect.any(Number),
+      failed: expect.any(Number),
+      averageDurationMs: expect.any(Number),
+      latest: expect.any(Array),
+    });
     expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
     expect(JSON.stringify(json)).not.toMatch(/QUAD_REDIS_REST_TOKEN|SENTRY_DSN|PHOENIX_API_KEY/);
   });

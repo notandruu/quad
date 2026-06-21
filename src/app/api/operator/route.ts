@@ -6,6 +6,7 @@ import { listConnectorCredentials } from "@/lib/connectors";
 import { getWorkerCanaryHealth, getWorkerQueueHealth, getWorkerRuntimeHealth } from "@/lib/jobs/queue";
 import { getLatestModelCallReceipts, type ModelCallReceipt } from "@/lib/llm/gateway";
 import { summarizeCapabilities } from "@/lib/metaregistry";
+import { getLatestRuntimeTraceReceipts, summarizeRuntimeTraceReceipts } from "@/lib/observability";
 import { getQuadChainPackets, summarizeQuadChainPackets } from "@/lib/quad-chain/registry";
 import { buildShipTrail, listRunSnapshots, summarizeAgentTask } from "@/lib/runs";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
   // each source to a safe empty value instead.
   const snapshots = await listRunSnapshots({ orgId, limit }).catch(() => []);
   const capabilities = summarizeCapabilities(process.env, { orgId });
-  const [connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness, quadChainPackets, memoryTrail, modelReceipts, evidenceBundles] = await Promise.all([
+  const [connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness, quadChainPackets, memoryTrail, modelReceipts, runtimeTraces, evidenceBundles] = await Promise.all([
     listConnectorCredentials({ orgId }).catch(() => []),
     getWorkerQueueHealth().catch(() => null),
     getWorkerRuntimeHealth().catch(() => null),
@@ -42,6 +43,7 @@ export async function GET(request: Request) {
     getQuadChainPackets({ orgId, limit: 20 }).catch(() => []),
     listBrainMemoryTrail({ orgId, limit: 6 }).catch(() => null),
     getLatestModelCallReceipts({ orgId, limit: 8 }).catch(() => []),
+    getLatestRuntimeTraceReceipts({ orgId, limit: 12 }).catch(() => []),
     getEvidenceBundles({ orgId, limit: 20 }).catch(() => []),
   ]);
   const security = summarizeSecurityPacket(buildSecurityPacket({ orgId }));
@@ -102,6 +104,7 @@ export async function GET(request: Request) {
     quadChain: summarizeQuadChainPackets(quadChainPackets),
     evidence: summarizeEvidenceBundles(evidenceBundles),
     modelGateway: summarizeModelReceipts(modelReceipts),
+    runtimeTraces: summarizeRuntimeTraceReceipts(runtimeTraces),
     memory: memoryTrail,
     connectorCredentials,
     security,

@@ -5,6 +5,7 @@ import { ingestMemory, type IngestInput } from "@/lib/brain/ingest";
 import type { BrainMemoryVisibility } from "@/lib/brain/permissions";
 import { listConnectorDocuments, type ConnectorDocument } from "@/lib/connectors/documents";
 import { complete, auditModel, extractJsonObject } from "@/lib/llm/anthropic";
+import { withRuntimeTrace } from "@/lib/observability";
 import { publishAuditEvent } from "@/lib/redis/publisher";
 import { createQuadChainPacket, summarizeQuadChainPacket } from "@/lib/quad-chain";
 import type { QuadChainPacketSummary } from "@/lib/quad-chain";
@@ -85,6 +86,21 @@ export function computeQuestionSourceId(orgId: string, question: string): string
  * Every step emits a Redis event so the dashboard can stream progress.
  */
 export async function answerTrustQuestion(input: TrustQuestionInput): Promise<TrustQuestionResult> {
+  return withRuntimeTrace({
+    name: "enterprise_proof.answer_trust_question",
+    kind: "workflow",
+    orgId: input.orgId,
+    runId: input.runId,
+    attributes: {
+      questionLength: input.question.length,
+      targetVisibility: input.targetVisibility ?? "company",
+      hasJudgeOverride: Boolean(input._judgeOverride),
+      hasIngestOverride: Boolean(input._ingestOverride),
+    },
+  }, () => answerTrustQuestionInner(input));
+}
+
+async function answerTrustQuestionInner(input: TrustQuestionInput): Promise<TrustQuestionResult> {
   const { orgId, question, runId } = input;
   const judgeImpl = input._judgeOverride ?? defaultJudge;
   const ingestImpl = input._ingestOverride ?? ingestMemory;

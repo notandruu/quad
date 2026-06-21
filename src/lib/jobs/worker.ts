@@ -1,6 +1,7 @@
 import { buildQuadCoreContext, saveQuadCoreReceipt } from "@/lib/core";
 import { getEmployee } from "@/lib/employees";
 import { buildTrustPacketWorkflow } from "@/lib/fde/workflows";
+import { withRuntimeTrace } from "@/lib/observability";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 import {
   addArtifact,
@@ -71,6 +72,24 @@ export async function runWorkerCanary(input: { orgId?: string } = {}): Promise<W
 }
 
 export async function processJob(job: QuadJob): Promise<QuadJob> {
+  return withRuntimeTrace({
+    name: `worker.${job.type}`,
+    kind: "worker_job",
+    orgId: job.orgId,
+    runId: job.runId,
+    attributes: {
+      jobId: job.id,
+      jobType: job.type,
+      attempts: job.attempts,
+      maxAttempts: job.maxAttempts,
+    },
+    tags: {
+      eventBackend: "worker",
+    },
+  }, () => processJobInner(job));
+}
+
+async function processJobInner(job: QuadJob): Promise<QuadJob> {
   try {
     if (job.type === "canary") {
       await runCanaryJob(job.payload as CanaryJobPayload);

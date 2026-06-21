@@ -81,6 +81,7 @@ export const PLATFORM_REQUIRED_TABLES = [
   "workflow_run_snapshots",
   "workflow_runs",
   "workflow_tasks",
+  "workflow_task_events",
   "workflow_artifacts",
   "workflow_approvals",
   "workflow_receipts",

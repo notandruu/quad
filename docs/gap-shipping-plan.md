@@ -84,6 +84,17 @@ Next:
 - add packet visibility filtering to hosted drilldowns.
 - show sponsor badges only when the underlying capability is live.
 
+## Gap 2.1: runtime observability receipts
+
+Status: shipped v1.
+
+Shipped v1:
+
+- runtime operations now emit safe receipt summaries for workflow spans, worker jobs, tools, routes, models, connectors, and future surfaces.
+- enterprise-proof question answering and backend worker job processing create runtime trace receipts with duration, status, run id, org id, and error class, without raw prompts or outputs.
+- operator summary exposes runtime trace totals, failures, average duration, and latest receipts beside model gateway receipts.
+- backend readiness now treats `workflow_task_events` as a required production table so task-stream replay is not silently missing.
+
 ## Gap 2.5: post-audit chat grounding
 
 Status: shipped v1.
