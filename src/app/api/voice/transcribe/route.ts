@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { ingestMemoryWithReceipt } from "@/lib/brain";
+import { buildQuadCoreContext, saveQuadCoreReceipt } from "@/lib/core";
+import { getEmployee } from "@/lib/employees";
 import { getDeepgramSettings, transcribeWithDeepgram } from "@/lib/voice/deepgram";
 import { DEMO_ORG_ID } from "@/data/seed";
-import { createQuadChainPacket, summarizeQuadChainPacket, type QuadChainPacketSummary } from "@/lib/quad-chain";
-import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
+import type { QuadChainPacketSummary } from "@/lib/quad-chain";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
 import {
   buildRequestFingerprint,
@@ -71,10 +72,18 @@ export async function POST(request: Request) {
       model: settings.sttModel,
     });
 
-    const packet = createQuadChainPacket({
-      type: "voice_transcript",
+    const transcript = result.transcript.trim();
+    const coreContext = await buildQuadCoreContext({
       orgId: auth.orgId,
+      employee: getEmployee(),
+      text: transcript || "voice transcript",
+      surface: "voice",
       runId,
+    });
+    const transcriptPacket = await saveQuadCoreReceipt({
+      context: coreContext,
+      type: "voice_transcript",
+      output: `voice transcript: ${result.transcript}`,
       producer: "quad.voice.deepgram",
       consumer: "quad.chat",
       sources: [
@@ -88,28 +97,26 @@ export async function POST(request: Request) {
           },
         },
       ],
-      output: `voice transcript: ${result.transcript}`,
       answerConcepts: ["voice", "transcript"],
       visibility: "restricted",
     });
-    await saveQuadChainPacket(packet);
-    const quadChain: QuadChainPacketSummary[] = [summarizeQuadChainPacket(packet)];
+    const quadChain: QuadChainPacketSummary[] = [transcriptPacket];
     let memory: { id: string; title: string } | null = null;
 
-    if (shouldRememberTranscript(form) && result.transcript.trim()) {
+    if (shouldRememberTranscript(form) && transcript) {
       const memoryResult = await ingestMemoryWithReceipt({
         orgId: auth.orgId,
         sourceId: runId,
         sourceType: "meeting",
         title: "Voice-captured company context",
-        content: result.transcript.trim(),
-        summary: result.transcript.trim().slice(0, 240),
+        content: transcript,
+        summary: transcript.slice(0, 240),
         entities: ["voice", "company_context"],
         confidence: normalizeConfidence(result.confidence),
         permissions: ["internal"],
         evidence: [
           {
-            quote: result.transcript.trim(),
+            quote: transcript,
           },
         ],
       });

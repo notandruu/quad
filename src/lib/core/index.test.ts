@@ -101,6 +101,26 @@ describe("quad core", () => {
     expect(selected.map((tool) => tool.id)).toEqual(["task.publisher"]);
   });
 
+  it("degrades to empty context when retrieval fails", async () => {
+    const context = await buildQuadCoreContext({
+      orgId: DEMO_ORG_ID,
+      employee: chiefOfStaff,
+      text: "what changed in the last call?",
+      surface: "voice",
+      runId: "run_context_failure_test",
+      env: {},
+      retrieve: async () => {
+        throw new Error("embedding provider unavailable");
+      },
+      publish: async () => undefined,
+    });
+
+    expect(context.memories).toEqual([]);
+    expect(context.verifiedContext).toEqual([]);
+    expect(context.events.map((event) => event.type)).toContain("core.context_failed");
+    expect(context.events.map((event) => event.type)).toContain("core.context_loaded");
+  });
+
   it("creates accepted proof receipts for runtime answers without exposing raw reasoning", async () => {
     const context = await buildQuadCoreContext({
       orgId: DEMO_ORG_ID,
@@ -123,5 +143,44 @@ describe("quad core", () => {
     expect(packet.certificate.proofChain.requiredEvidencePreserved).toHaveLength(1);
     expect(packet.output).toContain("intent: company_question");
     expect(packet.output).not.toContain("chain-of-thought");
+  });
+
+  it("creates restricted voice transcript receipts through the same runtime substrate", async () => {
+    const context = await buildQuadCoreContext({
+      orgId: DEMO_ORG_ID,
+      employee: chiefOfStaff,
+      text: "our soc 2 audit is complete",
+      surface: "voice",
+      runId: "run_voice_receipt_test",
+      env: {},
+      retrieve: async () => [],
+      publish: async () => undefined,
+    });
+
+    const packet = createQuadCoreReceipt({
+      context,
+      type: "voice_transcript",
+      output: "voice transcript: our soc 2 audit is complete",
+      producer: "quad.voice.deepgram",
+      consumer: "quad.chat",
+      sources: [
+        {
+          id: "voice_audio",
+          kind: "transcript",
+          content: {
+            mimeType: "audio/webm",
+            size: 2048,
+            model: "nova-3",
+          },
+        },
+      ],
+      answerConcepts: ["voice", "transcript"],
+      visibility: "restricted",
+    });
+
+    expect(packet.type).toBe("voice_transcript");
+    expect(packet.visibility).toBe("restricted");
+    expect(packet.consumer).toBe("quad.chat");
+    expect(packet.verification.accepted).toBe(true);
   });
 });

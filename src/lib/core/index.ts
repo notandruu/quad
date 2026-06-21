@@ -7,7 +7,9 @@ import {
   type QuadChainOpenObligation,
   type QuadChainPacket,
   type QuadChainPacketSummary,
+  type QuadChainPacketType,
   type QuadChainSource,
+  type QuadChainVisibility,
 } from "@/lib/quad-chain";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 import { publishAuditEvent } from "@/lib/redis";
@@ -61,9 +63,12 @@ export type QuadCoreContext = {
 export type QuadCoreReceiptInput = {
   context: QuadCoreContext;
   output: string;
+  type?: QuadChainPacketType;
   producer?: string;
   consumer?: string;
   sources?: QuadChainSource[];
+  answerConcepts?: string[];
+  visibility?: QuadChainVisibility;
 };
 
 export async function buildQuadCoreContext(input: QuadCoreContextInput): Promise<QuadCoreContext> {
@@ -92,6 +97,11 @@ export async function buildQuadCoreContext(input: QuadCoreContextInput): Promise
     orgId: input.orgId,
     query: input.text,
     limit: 6,
+  }).catch(async (error) => {
+    await emit("core.context_failed", {
+      reason: error instanceof Error ? error.message : "Context retrieval failed.",
+    });
+    return [];
   });
   const memories = retrieved.map((item) => item.memory);
   const verifiedContext = retrieved
@@ -175,7 +185,7 @@ export function createQuadCoreReceipt(input: QuadCoreReceiptInput): QuadChainPac
   }
 
   return createQuadChainPacket({
-    type: "chat_answer",
+    type: input.type ?? "chat_answer",
     orgId: context.orgId,
     runId: context.runId,
     producer: input.producer ?? `quad.${context.employeeId}`,
@@ -183,9 +193,9 @@ export function createQuadCoreReceipt(input: QuadCoreReceiptInput): QuadChainPac
     sources,
     evidence,
     output: buildReceiptOutput(context, input.output),
-    answerConcepts: ["intent", "answer", ...context.selectedTools.map((tool) => tool.id)],
+    answerConcepts: input.answerConcepts ?? ["intent", "answer", ...context.selectedTools.map((tool) => tool.id)],
     openObligations,
-    visibility: "internal",
+    visibility: input.visibility ?? "internal",
   });
 }
 

@@ -222,6 +222,7 @@ hard constraints:
 - [x] centralize runtime context loading: intent, verified brain memories, active capability catalog, approval policy, and run ids
 - [x] centralize quadchain receipt creation for runtime outputs so surfaces do not hand-roll packet logic
 - [x] make `/api/chat` use the core runtime context and receipt helper as the first live surface on the new substrate
+- [x] make `/api/voice/transcribe` use the same core runtime context and restricted `voice_transcript` receipt helper
 - [ ] keep the route-specific audit/worker execution paths working while the rest of the app migrates onto core
 - [x] verify the slice with unit tests, typecheck, and no changes to frozen `src/lib/types`
 
