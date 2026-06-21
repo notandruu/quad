@@ -4,46 +4,51 @@ import Reveal from "@/components/Reveal";
 import HoverText from "@/components/HoverText";
 import { MonoLabel } from "@/components/ui";
 
-const SITE = ["Platform", "Security", "Customers", "Docs", "Blog", "Changelog"];
-const SOCIAL = ["LinkedIn", "X", "GitHub", "YouTube", "Discord", "Email"];
+const REPO = "https://github.com/notandruu/quad";
+const EXPLORE: [string, string][] = [
+  ["How it works", "#capabilities"],
+  ["Platform", "#features"],
+  ["Proof", "#numbers"],
+  ["Integrations", "#integrations"],
+];
+const MORE: [string, string][] = [
+  ["Trust gaps", "#trustgaps"],
+  ["Security", "#security"],
+  ["QuadChain", "#quadchain"],
+  ["GitHub", REPO],
+];
 
 const CHAMFER =
   "polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)";
 
 function Emblem({ label }: { label: string }) {
-  const c = "rgba(255,182,214,0.6)";
+  const c = "rgba(255,182,214,0.85)";
+  const shield = "M24 5 L39 11 V25 C39 33.5 32.4 39.2 24 43 C15.6 39.2 9 33.5 9 25 V11 Z";
   if (label === "GDPR") {
-    // EU circle of 12 stars
+    // privacy shield with a lock
     return (
-      <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-        <circle cx="24" cy="24" r="22" stroke={c} strokeWidth="1" opacity="0.5" />
-        {Array.from({ length: 12 }).map((_, i) => {
-          const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
-          const x = (24 + Math.cos(a) * 14).toFixed(2);
-          const y = (24 + Math.sin(a) * 14 - 2).toFixed(2);
-          return <path key={i} d={`M${x} ${y} l0.6 1.4 1.5 0 -1.2 1 0.5 1.5 -1.4 -0.9 -1.4 0.9 0.5 -1.5 -1.2 -1 1.5 0z`} fill={c} />;
-        })}
+      <svg width="46" height="46" viewBox="0 0 48 48" fill="none" stroke={c} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
+        <path d={shield} />
+        <rect x="18.5" y="23.5" width="11" height="9" rx="1.5" />
+        <path d="M21 23.5 V20.2 A3 3 0 0 1 27 20.2 V23.5" />
       </svg>
     );
   }
   if (label === "SOC 2") {
+    // audited shield with a check
     return (
-      <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-        <circle cx="24" cy="24" r="22" stroke={c} strokeWidth="1" opacity="0.5" />
-        <circle cx="24" cy="24" r="16" stroke={c} strokeWidth="0.8" opacity="0.35" />
-        <text x="24" y="21" textAnchor="middle" fill={c} fontSize="7" fontFamily="var(--font-mono),monospace" letterSpacing="0.5">AICPA</text>
-        <line x1="12" y1="24" x2="36" y2="24" stroke={c} strokeWidth="0.6" opacity="0.5" />
-        <text x="24" y="33" textAnchor="middle" fill={c} fontSize="8" fontFamily="var(--font-mono),monospace" letterSpacing="1">SOC</text>
+      <svg width="46" height="46" viewBox="0 0 48 48" fill="none" stroke={c} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
+        <path d={shield} />
+        <path d="M17.5 24.5 l4.4 4.4 8.8 -10.8" strokeWidth="1.9" />
       </svg>
     );
   }
+  // ISO — rosette seal with a check
   return (
-    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-      <circle cx="24" cy="24" r="22" stroke={c} strokeWidth="1" opacity="0.5" />
-      <circle cx="24" cy="24" r="17" stroke={c} strokeWidth="0.7" opacity="0.3" />
-      <circle cx="24" cy="24" r="11" stroke={c} strokeWidth="0.7" opacity="0.3" />
-      <text x="24" y="22" textAnchor="middle" fill={c} fontSize="8" fontFamily="var(--font-mono),monospace" letterSpacing="1">ISO</text>
-      <text x="24" y="31" textAnchor="middle" fill={c} fontSize="5.5" fontFamily="var(--font-mono),monospace">27001</text>
+    <svg width="46" height="46" viewBox="0 0 48 48" fill="none" stroke={c} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round">
+      <rect x="11.5" y="11.5" width="25" height="25" rx="3.5" />
+      <rect x="11.5" y="11.5" width="25" height="25" rx="3.5" transform="rotate(45 24 24)" strokeOpacity="0.4" />
+      <path d="M18.5 24 l3.9 3.9 7.4 -9" strokeWidth="1.7" />
     </svg>
   );
 }
@@ -93,8 +98,8 @@ export default function Footer() {
               </button>
             </div>
 
-            <FooterCol title="Pages" links={SITE} />
-            <FooterCol title="Social" links={SOCIAL} />
+            <FooterCol title="Explore" links={EXPLORE} />
+            <FooterCol title="More" links={MORE} />
           </div>
         </div>
         </div>
@@ -129,27 +134,11 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* logo lockup — four-shape mark + Didone wordmark with halftone dissolve */}
-          <Reveal
-            className="flex select-none items-center gap-[0.1em] py-10"
+          {/* wordmark — centered, no entrance animation */}
+          <div
+            className="flex select-none items-center justify-center py-10"
             style={{ fontSize: "clamp(96px, 23vw, 360px)" }}
           >
-            {/* four-shape Quad mark, scales with the wordmark */}
-            <svg
-              viewBox="0 0 40 40"
-              fill="none"
-              stroke="#161616"
-              strokeWidth="2.1"
-              strokeLinejoin="round"
-              aria-hidden
-              style={{ width: "0.86em", height: "0.86em", flexShrink: 0 }}
-            >
-              <rect x="3.5" y="3.5" width="14" height="14" rx="4.5" />
-              <path d="M29.5 3 L37 10.5 L29.5 18 L22 10.5 Z" />
-              <circle cx="10.5" cy="29.5" r="7.2" />
-              <path d="M37.2 29.5 L33.35 36.2 L25.65 36.2 L21.8 29.5 L25.65 22.8 L33.35 22.8 Z" />
-            </svg>
-
             <div className="relative leading-[0.78] tracking-[-0.03em]">
               <span
                 className="block text-ink"
@@ -176,16 +165,11 @@ export default function Footer() {
                 Quad
               </span>
             </div>
-          </Reveal>
+          </div>
 
           {/* legal bar */}
-          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-ink/20 py-6 text-[13px] text-ink/80">
+          <div className="flex flex-wrap items-center gap-4 border-t border-ink/20 py-6 text-[13px] text-ink/80">
             <span>© Quad, 2026</span>
-            <div className="flex flex-wrap gap-8">
-              <span>All rights reserved</span>
-              <a href="#" className="hover:text-ink">Terms of use</a>
-              <a href="#" className="hover:text-ink">Privacy Policy</a>
-            </div>
           </div>
         </div>
       </div>
@@ -193,19 +177,23 @@ export default function Footer() {
   );
 }
 
-function FooterCol({ title, links }: { title: string; links: string[] }) {
+function FooterCol({ title, links }: { title: string; links: [string, string][] }) {
   return (
     <div className="flex min-w-[140px] flex-col">
       {title && <MonoLabel className="mb-4 text-tan/40">{title}</MonoLabel>}
-      {links.map((l) => (
-        <a
-          key={l}
-          href="#"
-          className="border-b border-white/[0.08] py-3 text-[14px] text-tan/80 transition-colors hover:text-bone"
-        >
-          {l}
-        </a>
-      ))}
+      {links.map(([label, href]) => {
+        const ext = href.startsWith("http");
+        return (
+          <a
+            key={label}
+            href={href}
+            {...(ext ? { target: "_blank", rel: "noreferrer" } : {})}
+            className="border-b border-white/[0.08] py-3 text-[14px] text-tan/80 transition-colors hover:text-bone"
+          >
+            {label}
+          </a>
+        );
+      })}
     </div>
   );
 }

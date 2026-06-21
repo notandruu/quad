@@ -52,8 +52,17 @@ export default function SplitReveal({
         tl.set(ch, { opacity: 1 }, t);
         tl.add(() => moveCaret(ch), t);
       });
-      // caret keeps blinking (CSS) at the end, then fades after a beat
-      tl.to(caret, { opacity: 0, duration: 0.4, delay: 1.2 });
+      // once typing is done, stop the blink animation and remove the caret
+      tl.call(
+        () => {
+          if (caret) {
+            caret.style.animation = "none";
+            caret.style.opacity = "0";
+          }
+        },
+        undefined,
+        "+=0.6",
+      );
     }, el);
 
     return () => ctx.revert();
