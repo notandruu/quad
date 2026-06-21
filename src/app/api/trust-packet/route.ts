@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
       artifacts: result.workflow.artifacts,
       steps: result.workflow.steps,
       openObligations: result.workflow.openObligations,
+      proofSummary: buildProofSummary(result),
     },
   };
   await saveIdempotentResult({
@@ -71,4 +72,41 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json(responseBody);
+}
+
+type DashboardTrustPacketResult = Awaited<ReturnType<typeof buildDashboardTrustPacket>>;
+
+function buildProofSummary(result: DashboardTrustPacketResult) {
+  const certificate = result.workflow.certificate;
+  const evidenceRequired = result.packet.evidenceRequired;
+  const evidencePreserved = result.packet.evidencePreserved;
+
+  return {
+    accepted: result.packet.accepted,
+    failures: result.packet.failures,
+    visibility: result.packet.visibility,
+    certificateId: result.packet.certificateId,
+    handoffId: result.packet.handoffId,
+    validator: `${certificate.validator.name}@${certificate.validator.version}`,
+    readinessScore: certificate.proofChain.answerReadinessScore,
+    evidencePreserved,
+    evidenceRequired,
+    evidenceLabel: evidenceRequired > 0 ? `${evidencePreserved}/${evidenceRequired}` : "n/a",
+    tokensBefore: result.packet.tokensBefore,
+    tokensAfter: result.packet.tokensAfter,
+    tokensSaved: result.packet.tokensSaved,
+    compressionRatio: result.packet.compressionRatio,
+    omittedRangeCount: certificate.compressionChain.omittedRanges.length,
+    omittedRanges: certificate.compressionChain.omittedRanges.slice(0, 4).map((range) => ({
+      sourceId: range.sourceId,
+      rangeId: range.rangeId,
+      reason: range.reason,
+      rangeHash: range.rangeHash,
+    })),
+    openObligationCount: result.workflow.openObligations.length,
+    anchor: {
+      registryReceipt: certificate.anchorChain.registryReceipt,
+      merkleRoot: certificate.anchorChain.merkleRoot,
+    },
+  };
 }

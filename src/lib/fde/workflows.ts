@@ -4,6 +4,7 @@ import type { AuditFinding, AuditReport } from "@/lib/types";
 import {
   createQuadChainPacket,
   type QuadChainCertificate,
+  type QuadChainOmittedRange,
   type QuadChainOpenObligation,
   type QuadChainPacket,
   type QuadChainSource,
@@ -89,6 +90,7 @@ export function buildTrustPacketWorkflow(input: {
   ];
   const compressedContext = buildCompressedWorkflowContext(input.report, artifacts, steps);
   const sources = buildSources(input.report);
+  const omittedRanges = buildOmittedRanges(input.report);
   const requiredEvidence = input.report.topFindings
     .filter((finding) => Boolean(finding.evidence.quote))
     .map((finding) => ({
@@ -108,7 +110,7 @@ export function buildTrustPacketWorkflow(input: {
     evidence: requiredEvidence,
     output: compressedContext,
     answerConcepts,
-    omittedRanges: [],
+    omittedRanges,
     openObligations,
     visibility: "internal",
     createdAt: input.createdAt,
@@ -213,6 +215,46 @@ function buildSources(report: AuditReport): QuadChainSource[] {
       content: finding,
     })),
   ];
+}
+
+function buildOmittedRanges(report: AuditReport): QuadChainOmittedRange[] {
+  const ranges: QuadChainOmittedRange[] = [];
+  const topFindingIds = new Set(report.topFindings.map((finding) => finding.id));
+  const omittedFindings = report.allFindings.filter((finding) => !topFindingIds.has(finding.id));
+
+  if (omittedFindings.length > 0) {
+    ranges.push({
+      sourceId: `${report.runId}:all_findings`,
+      rangeId: "non_top_findings",
+      reason: "Lower-priority findings were omitted from the approval packet but remain in the audit report.",
+      content: {
+        count: omittedFindings.length,
+        ids: omittedFindings.slice(0, 8).map((finding) => finding.id),
+      },
+    });
+  } else if (report.metrics.findingsFiltered > 0) {
+    ranges.push({
+      sourceId: `${report.runId}:metrics`,
+      rangeId: "filtered_findings",
+      reason: "Filtered findings were omitted from the approval packet to keep the handoff focused.",
+      content: {
+        count: report.metrics.findingsFiltered,
+      },
+    });
+  }
+
+  if (report.recommendedActions.length > 0) {
+    ranges.push({
+      sourceId: `${report.runId}:recommended_actions`,
+      rangeId: "recommended_actions",
+      reason: "Recommended actions are carried by the workflow steps, not repeated inside the compressed packet body.",
+      content: {
+        count: report.recommendedActions.length,
+      },
+    });
+  }
+
+  return ranges;
 }
 
 function buildCompressedWorkflowContext(

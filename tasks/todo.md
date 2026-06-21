@@ -186,7 +186,7 @@ hard constraints:
 - [ ] require human approval before submit or publish
 - [x] show final outcome summary and save a fallback screen capture
 - [ ] build verified customer trust packet with preserved claims, source refs, omitted ranges, and open obligations
-- [ ] show quad chain verification status, tokens saved, preserved evidence, omitted ranges, and open obligations in the packet ui
+- [x] show quad chain verification status, tokens saved, preserved evidence, omitted ranges, and open obligations in the packet ui
 - [x] record every browser action with intent, selector, value summary, source answer id, approval state, and replay metadata
 - [x] register browser action capability as an allowlisted tool with health and permission metadata
 - [x] surface browser action replay events in the operator task stream

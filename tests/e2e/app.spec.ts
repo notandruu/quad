@@ -119,6 +119,19 @@ test.describe("quad production flows", () => {
     expect(trustPacketJson.packet.type).toBe("trust_packet");
     expect(trustPacketJson.task.approvals).toHaveLength(1);
     expect(trustPacketJson.workflow.receiptPreview.status).toMatch(/ready_for_approval|blocked/);
+    expect(trustPacketJson.workflow.proofSummary).toMatchObject({
+      certificateId: trustPacketJson.packet.certificateId,
+      handoffId: trustPacketJson.packet.handoffId,
+      evidencePreserved: expect.any(Number),
+      evidenceRequired: expect.any(Number),
+      tokensSaved: expect.any(Number),
+      omittedRangeCount: expect.any(Number),
+      openObligationCount: expect.any(Number),
+      anchor: {
+        registryReceipt: expect.any(String),
+        merkleRoot: expect.stringMatching(/^sha256:/),
+      },
+    });
 
     const trustPackets = await request.get(`/api/quadchain/packets?runId=${runId}&type=trust_packet`);
     expect(trustPackets.ok()).toBe(true);

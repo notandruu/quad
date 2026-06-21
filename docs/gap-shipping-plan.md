@@ -411,6 +411,12 @@ Shipped v8:
 - connector executions surface controlled Browserbase evidence, before/after screen-capture hashes, field value hashes, target selector, submit state, rollback step, verifier requirements, and open obligations without exposing raw customer answers.
 - the dashboard e2e proves an approved execute flow visibly shows the outcome summary, not-submitted pause state, before/after captures, verifier, and human-review obligation.
 
+Shipped v9:
+
+- trust packet workflows now declare omitted context ranges for filtered findings and recommended actions instead of silently dropping them.
+- `/api/trust-packet` returns a compact proof summary with certificate id, handoff id, validator, evidence preserved, tokens saved, compression ratio, omitted ranges, open obligations, and registry anchor.
+- the trust packet panel now renders quad chain verification status, evidence preservation, token savings, omitted ranges, open obligations, readiness score, and registry receipt directly in the approval flow.
+
 ## Gap 4: post-ship verification
 
 Status: shipped v2.

@@ -96,6 +96,36 @@ describe("fde workflows", () => {
     expect(plan.receiptPreview.status).toBe("ready_for_approval");
   });
 
+  it("declares omitted ranges for filtered findings and recommended actions", () => {
+    const plan = buildTrustPacketWorkflow({
+      report: {
+        ...report,
+        recommendedActions: [
+          {
+            id: "action_1",
+            type: "draft_page",
+            title: "Publish the mfa proof block",
+            description: "Create a public proof section for enterprise buyers.",
+            input: { targetUrl: "https://example.com/security" },
+            requiresApproval: true,
+          },
+        ],
+        metrics: {
+          ...report.metrics,
+          findingsFiltered: 2,
+        },
+      },
+      activeTools,
+      createdAt: "2026-06-20T00:00:00.000Z",
+    });
+
+    expect(plan.certificate.compressionChain.omittedRanges.map((range) => range.rangeId)).toEqual([
+      "filtered_findings",
+      "recommended_actions",
+    ]);
+    expect(plan.packet.omittedRanges).toHaveLength(2);
+  });
+
   it("blocks trust packets when the required exporter is missing", () => {
     const plan = buildTrustPacketWorkflow({
       report,

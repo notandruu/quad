@@ -33,6 +33,34 @@ type TrustPacketResponse = {
     };
     steps: TrustPacketStep[];
     openObligations: QuadChainOpenObligation[];
+    proofSummary?: {
+      accepted: boolean;
+      failures: string[];
+      visibility: "public" | "internal" | "restricted";
+      certificateId: string;
+      handoffId: string;
+      validator: string;
+      readinessScore: number;
+      evidencePreserved: number;
+      evidenceRequired: number;
+      evidenceLabel: string;
+      tokensBefore: number;
+      tokensAfter: number;
+      tokensSaved: number;
+      compressionRatio: number;
+      omittedRangeCount: number;
+      omittedRanges: Array<{
+        sourceId: string;
+        rangeId: string;
+        reason: string;
+        rangeHash: string;
+      }>;
+      openObligationCount: number;
+      anchor: {
+        registryReceipt: string;
+        merkleRoot: string;
+      };
+    };
   };
 };
 
@@ -94,7 +122,7 @@ export function TrustPacketPanel({ report }: { report: AuditReport | null }) {
         <div className="mt-3 space-y-3">
           <div className="grid grid-cols-3 gap-2 text-center">
             <TrustPacketStat label="status" value={ready ? "approval" : "blocked"} accent={ready} />
-            <TrustPacketStat label="steps" value={String(result.workflow.steps.length)} />
+            <TrustPacketStat label="tokens saved" value={String(result.workflow.proofSummary?.tokensSaved ?? result.packet.tokensSaved)} />
             <TrustPacketStat label="proof" value={result.packet.accepted ? "accepted" : "rejected"} accent={result.packet.accepted} />
           </div>
 
@@ -109,6 +137,8 @@ export function TrustPacketPanel({ report }: { report: AuditReport | null }) {
               {result.workflow.receiptPreview.summary}
             </p>
           </div>
+
+          <TrustPacketProofLedger result={result} />
 
           <div className="space-y-1.5">
             {result.workflow.steps.slice(0, 5).map((step) => (
@@ -139,6 +169,78 @@ export function TrustPacketPanel({ report }: { report: AuditReport | null }) {
         </div>
       )}
     </section>
+  );
+}
+
+function TrustPacketProofLedger({ result }: { result: TrustPacketResponse }) {
+  const proof = result.workflow.proofSummary;
+  const evidenceLabel = proof?.evidenceLabel ?? `${result.packet.evidencePreserved}/${result.packet.evidenceRequired}`;
+  const omittedRangeCount = proof?.omittedRangeCount ?? 0;
+  const openObligationCount = proof?.openObligationCount ?? result.workflow.openObligations.length;
+  const readinessScore = proof?.readinessScore ?? (result.packet.accepted ? 1 : 0);
+  const failures = proof?.failures ?? result.packet.failures;
+
+  return (
+    <div className="rounded border border-pink-300/25 bg-pink-950/10 p-2">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h3 className="text-[11px] font-medium text-neutral-200">Quad chain verification</h3>
+          <p className="mt-1 font-mono text-[9px] text-neutral-600">
+            {proof?.validator ?? "quad.chain.verifier"} · {proof?.visibility ?? result.packet.visibility}
+          </p>
+        </div>
+        <span className={result.packet.accepted ? "shrink-0 text-[10px] text-accent" : "shrink-0 text-[10px] text-red-200"}>
+          {result.packet.accepted ? "accepted" : "rejected"}
+        </span>
+      </div>
+
+      <div className="mt-2 grid grid-cols-4 gap-1.5 text-center">
+        <TrustPacketStat label="evidence" value={evidenceLabel} accent={result.packet.accepted} />
+        <TrustPacketStat label="omitted" value={String(omittedRangeCount)} />
+        <TrustPacketStat label="obligations" value={String(openObligationCount)} accent={openObligationCount === 0} />
+        <TrustPacketStat label="readiness" value={`${Math.round(readinessScore * 100)}%`} accent={readinessScore >= 1} />
+      </div>
+
+      <div className="mt-2 grid gap-1.5 md:grid-cols-2">
+        <TrustPacketProofRow label="certificate" value={proof?.certificateId ?? result.packet.certificateId} />
+        <TrustPacketProofRow label="handoff" value={proof?.handoffId ?? result.packet.handoffId} />
+        <TrustPacketProofRow label="token window" value={`${proof?.tokensBefore ?? result.packet.tokensBefore} -> ${proof?.tokensAfter ?? result.packet.tokensAfter}`} />
+        <TrustPacketProofRow label="registry" value={proof?.anchor.registryReceipt ?? "local receipt"} />
+      </div>
+
+      {proof && proof.omittedRanges.length > 0 ? (
+        <div className="mt-2 space-y-1">
+          {proof.omittedRanges.map((range) => (
+            <div key={`${range.sourceId}:${range.rangeId}`} className="rounded border border-edge bg-ink/70 px-2 py-1">
+              <div className="flex justify-between gap-2">
+                <span className="truncate text-[10px] text-neutral-300">{range.rangeId}</span>
+                <span className="shrink-0 font-mono text-[9px] text-neutral-700">{range.rangeHash.slice(0, 18)}</span>
+              </div>
+              <p className="mt-0.5 line-clamp-2 text-[10px] leading-4 text-neutral-500">{range.reason}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-2 rounded border border-edge bg-ink/60 px-2 py-1 text-[10px] text-neutral-500">
+          No omitted ranges declared for this packet.
+        </div>
+      )}
+
+      {failures.length > 0 && (
+        <div className="mt-2 rounded border border-red-300/25 bg-red-950/20 px-2 py-1 text-[10px] text-red-200">
+          {failures.slice(0, 2).join(", ")}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TrustPacketProofRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded border border-edge bg-panel/80 px-2 py-1">
+      <div className="text-[9px] text-neutral-600">{label}</div>
+      <div className="mt-0.5 truncate font-mono text-[9px] text-neutral-300">{value}</div>
+    </div>
   );
 }
 

@@ -146,7 +146,12 @@ test.describe("dashboard trust packet flow", () => {
     await page.getByRole("button", { name: "Build packet" }).click();
 
     await expect(page.getByText("Ready for approval", { exact: true })).toBeVisible();
-    await expect(page.getByText("qchain_ui_packet")).toBeVisible();
+    await expect(page.getByText("qchain_ui_packet").first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Quad chain verification" })).toBeVisible();
+    await expect(page.getByText("2/2").nth(1)).toBeVisible();
+    await expect(page.getByText("867").first()).toBeVisible();
+    await expect(page.getByText("filtered_findings")).toBeVisible();
+    await expect(page.getByText("receipt_ui_registry")).toBeVisible();
     await expect(page.getByText("Review finding evidence")).toBeVisible();
     await expect(page.getByRole("button", { name: "Rebuild" })).toBeVisible();
     expect(trustPacketBody).toMatchObject({ runId, orgId: "org_redcross" });
@@ -872,11 +877,19 @@ async function mockDashboardBackends(
         packet: {
           id: "packet_ui_trust",
           type: "trust_packet",
+          orgId: "org_redcross",
+          runId,
           certificateId: "qchain_ui_packet",
+          handoffId: "handoff_ui_packet",
           accepted: true,
+          failures: [],
+          tokensBefore: 1300,
+          tokensAfter: 433,
           tokensSaved: 867,
+          compressionRatio: 3,
           evidencePreserved: 2,
           evidenceRequired: 2,
+          visibility: "internal",
           createdAt: "2026-06-21T00:00:00.000Z",
         },
         task: {
@@ -925,6 +938,36 @@ async function mockDashboardBackends(
             },
           ],
           openObligations: [],
+          proofSummary: {
+            accepted: true,
+            failures: [],
+            visibility: "internal",
+            certificateId: "qchain_ui_packet",
+            handoffId: "handoff_ui_packet",
+            validator: "quad.chain.verifier@1",
+            readinessScore: 1,
+            evidencePreserved: 2,
+            evidenceRequired: 2,
+            evidenceLabel: "2/2",
+            tokensBefore: 1300,
+            tokensAfter: 433,
+            tokensSaved: 867,
+            compressionRatio: 3,
+            omittedRangeCount: 1,
+            omittedRanges: [
+              {
+                sourceId: `${runId}:metrics`,
+                rangeId: "filtered_findings",
+                reason: "Filtered findings were omitted from the approval packet to keep the handoff focused.",
+                rangeHash: "sha256:filtered",
+              },
+            ],
+            openObligationCount: 0,
+            anchor: {
+              registryReceipt: "receipt_ui_registry",
+              merkleRoot: "sha256:root",
+            },
+          },
         },
       }),
     });
