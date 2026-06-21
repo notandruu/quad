@@ -4,6 +4,7 @@ import {
   addTask,
   assertCustomerWriteAllowed,
   buildHostedRunDetail,
+  buildShipTrail,
   createReceipt,
   createWorkflowRun,
   decideApproval,
@@ -342,5 +343,122 @@ describe("run ledger", () => {
     });
     expect(getHostedArtifactDetail(snapshot, "artifact_missing")).toBeNull();
     expect(getHostedTaskDetail(snapshot, "task_missing")).toBeNull();
+  });
+
+  it("builds a complete ship trail from audit through verification", () => {
+    const run = createWorkflowRun({
+      id: "run_ship_trail",
+      orgId: "org_ship",
+      workflowKind: "enterprise_proof",
+      title: "Ship trail",
+      createdBy: "dashboard",
+      now: "2026-06-21T03:00:00.000Z",
+    });
+    const audit = addArtifact({
+      runId: run.id,
+      kind: "audit_report",
+      title: "Audit",
+      data: { findings: 2 },
+      now: "2026-06-21T03:00:01.000Z",
+    });
+    const packet = addArtifact({
+      runId: run.id,
+      kind: "trust_packet",
+      title: "Packet",
+      data: { claims: ["mfa"] },
+      now: "2026-06-21T03:00:02.000Z",
+    });
+    const approval = requestApproval({
+      runId: run.id,
+      artifactId: packet.id,
+      reason: "Approve packet.",
+      evidenceVisible: true,
+      now: "2026-06-21T03:00:03.000Z",
+    });
+    decideApproval({
+      runId: run.id,
+      approvalId: approval.id,
+      decision: "approved",
+      approver: "operator",
+      now: "2026-06-21T03:00:04.000Z",
+    });
+    const publish = addArtifact({
+      runId: run.id,
+      kind: "cms_draft",
+      title: "CMS draft",
+      data: { dryRun: true },
+      now: "2026-06-21T03:00:05.000Z",
+    });
+    createReceipt({
+      runId: run.id,
+      artifactId: publish.id,
+      approvalId: approval.id,
+      status: "ready",
+      summary: "Draft staged.",
+      now: "2026-06-21T03:00:06.000Z",
+    });
+    const verification = addArtifact({
+      runId: run.id,
+      kind: "verification_report",
+      title: "Verification",
+      data: { status: "passed" },
+      now: "2026-06-21T03:00:07.000Z",
+    });
+    const verificationReceipt = createReceipt({
+      runId: run.id,
+      artifactId: verification.id,
+      status: "executed",
+      summary: "Verification passed.",
+      now: "2026-06-21T03:00:08.000Z",
+    });
+    const trail = buildShipTrail(getRunSnapshot(run.id)!);
+
+    expect(trail.map((step) => [step.id, step.status])).toEqual([
+      ["audit", "complete"],
+      ["packet", "complete"],
+      ["approval", "complete"],
+      ["publish", "complete"],
+      ["verify", "complete"],
+    ]);
+    expect(trail[0].artifactId).toBe(audit.id);
+    expect(trail[3].receiptId).toBeTruthy();
+    expect(trail[4]).toMatchObject({
+      receiptId: verificationReceipt.id,
+      summary: "Verification passed.",
+      href: `/api/runs/${run.id}/artifacts/${verification.id}`,
+    });
+  });
+
+  it("marks rejected approvals as a blocked ship trail", () => {
+    const run = createWorkflowRun({
+      id: "run_ship_trail_blocked",
+      orgId: "org_ship",
+      workflowKind: "enterprise_proof",
+      title: "Blocked ship trail",
+      createdBy: "dashboard",
+    });
+    const packet = addArtifact({
+      runId: run.id,
+      kind: "trust_packet",
+      title: "Packet",
+      data: { claims: ["mfa"] },
+    });
+    const approval = requestApproval({
+      runId: run.id,
+      artifactId: packet.id,
+      reason: "Needs approval.",
+      evidenceVisible: true,
+    });
+    decideApproval({
+      runId: run.id,
+      approvalId: approval.id,
+      decision: "rejected",
+      approver: "operator",
+    });
+
+    const trail = buildShipTrail(getRunSnapshot(run.id)!);
+    expect(trail.find((step) => step.id === "approval")?.status).toBe("blocked");
+    expect(trail.find((step) => step.id === "publish")?.status).toBe("blocked");
+    expect(trail.find((step) => step.id === "verify")?.status).toBe("pending");
   });
 });

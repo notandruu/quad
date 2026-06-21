@@ -124,9 +124,23 @@ export type AgentTaskSummary = {
   nextAction: string;
 };
 
+export type ShipTrailStatus = "pending" | "active" | "blocked" | "complete";
+
+export type ShipTrailStep = {
+  id: "audit" | "packet" | "approval" | "publish" | "verify";
+  label: string;
+  status: ShipTrailStatus;
+  summary: string;
+  artifactId?: string;
+  receiptId?: string;
+  href: string;
+  createdAt: string;
+};
+
 export type HostedRunDetail = {
   run: WorkflowRunRecord;
   task: AgentTaskSummary;
+  shipTrail: ShipTrailStep[];
   tasks: WorkflowTaskRecord[];
   artifacts: Array<Omit<WorkflowArtifactRecord, "data"> & {
     href: string;
@@ -520,6 +534,7 @@ export function buildHostedRunDetail(snapshot: RunLedgerSnapshot): HostedRunDeta
   return {
     run: { ...snapshot.run },
     task: summarizeAgentTask(snapshot),
+    shipTrail: buildShipTrail(snapshot),
     tasks: snapshot.tasks.map((task) => ({ ...task, dependsOn: [...task.dependsOn] })),
     artifacts: snapshot.artifacts.map((artifact) => ({
       id: artifact.id,
@@ -539,6 +554,73 @@ export function buildHostedRunDetail(snapshot: RunLedgerSnapshot): HostedRunDeta
       tasks: `/api/runs/${snapshot.run.id}/tasks`,
     },
   };
+}
+
+export function buildShipTrail(snapshot: RunLedgerSnapshot): ShipTrailStep[] {
+  const audit = latestArtifact(snapshot, "audit_report");
+  const packet = latestArtifact(snapshot, "trust_packet");
+  const approval = latestApproval(snapshot);
+  const published =
+    latestArtifact(snapshot, "cms_draft") ??
+    latestArtifact(snapshot, "task_draft") ??
+    latestArtifact(snapshot, "trust_packet_export");
+  const verification = latestArtifact(snapshot, "verification_report");
+
+  return [
+    {
+      id: "audit",
+      label: "Audit",
+      status: audit ? "complete" : snapshot.run.status === "running" ? "active" : "pending",
+      summary: audit ? "Audit report captured and stored." : "Waiting for website audit evidence.",
+      artifactId: audit?.id,
+      href: artifactHref(snapshot.run.id, audit?.id),
+      createdAt: audit?.createdAt ?? snapshot.run.createdAt,
+    },
+    {
+      id: "packet",
+      label: "Packet",
+      status: packet ? "complete" : audit ? "active" : "pending",
+      summary: packet ? "Trust packet assembled from audit evidence." : "Waiting for trust packet assembly.",
+      artifactId: packet?.id,
+      href: artifactHref(snapshot.run.id, packet?.id),
+      createdAt: packet?.createdAt ?? audit?.createdAt ?? snapshot.run.createdAt,
+    },
+    {
+      id: "approval",
+      label: "Approval",
+      status: approvalStatus(approval),
+      summary: approval
+        ? approval.decision === "pending"
+          ? approval.reason
+          : `Approval ${approval.decision} by ${approval.approver ?? "operator"}.`
+        : "No approval request has been created yet.",
+      artifactId: approval?.artifactId,
+      href: `/api/runs/${snapshot.run.id}`,
+      createdAt: approval?.decidedAt ?? approval?.requestedAt ?? packet?.createdAt ?? snapshot.run.createdAt,
+    },
+    {
+      id: "publish",
+      label: "Publish",
+      status: published ? "complete" : approval?.decision === "approved" ? "active" : approval?.decision === "rejected" ? "blocked" : "pending",
+      summary: published ? "Dry-run publisher artifacts are staged." : "Waiting for approved publish staging.",
+      artifactId: published?.id,
+      receiptId: receiptForArtifact(snapshot, published?.id)?.id,
+      href: artifactHref(snapshot.run.id, published?.id),
+      createdAt: published?.createdAt ?? approval?.decidedAt ?? approval?.requestedAt ?? snapshot.run.createdAt,
+    },
+    {
+      id: "verify",
+      label: "Verify",
+      status: verification ? verificationStatus(snapshot, verification.id) : published ? "active" : "pending",
+      summary: verification
+        ? receiptForArtifact(snapshot, verification.id)?.summary ?? "Post-ship verification report created."
+        : "Waiting for staged fix verification.",
+      artifactId: verification?.id,
+      receiptId: receiptForArtifact(snapshot, verification?.id)?.id,
+      href: artifactHref(snapshot.run.id, verification?.id),
+      createdAt: verification?.createdAt ?? published?.createdAt ?? snapshot.run.updatedAt,
+    },
+  ];
 }
 
 export function getHostedArtifactDetail(
@@ -913,6 +995,41 @@ function runReference(run: WorkflowRunRecord): HostedArtifactDetail["run"] {
     status: run.status,
     targetUrl: run.targetUrl,
   };
+}
+
+function latestArtifact(snapshot: RunLedgerSnapshot, kind: ArtifactKind): WorkflowArtifactRecord | undefined {
+  return snapshot.artifacts
+    .filter((artifact) => artifact.kind === kind)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+}
+
+function latestApproval(snapshot: RunLedgerSnapshot): ApprovalRecord | undefined {
+  return snapshot.approvals
+    .slice()
+    .sort((a, b) => (b.decidedAt ?? b.requestedAt).localeCompare(a.decidedAt ?? a.requestedAt))[0];
+}
+
+function artifactHref(runId: string, artifactId: string | undefined): string {
+  return artifactId ? `/api/runs/${runId}/artifacts/${artifactId}` : `/api/runs/${runId}`;
+}
+
+function approvalStatus(approval: ApprovalRecord | undefined): ShipTrailStatus {
+  if (!approval) return "pending";
+  if (approval.decision === "approved") return "complete";
+  if (approval.decision === "rejected") return "blocked";
+  return "active";
+}
+
+function receiptForArtifact(snapshot: RunLedgerSnapshot, artifactId: string | undefined): ReceiptRecord | undefined {
+  if (!artifactId) return undefined;
+  return snapshot.receipts.find((receipt) => receipt.artifactId === artifactId);
+}
+
+function verificationStatus(snapshot: RunLedgerSnapshot, artifactId: string): ShipTrailStatus {
+  const receipt = receiptForArtifact(snapshot, artifactId);
+  if (receipt?.status === "blocked") return "blocked";
+  if (receipt?.status === "executed" || receipt?.status === "ready") return "complete";
+  return snapshot.run.status === "failed" ? "blocked" : "complete";
 }
 
 function previewArtifactData(data: unknown): unknown {

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { listConnectorCredentials } from "@/lib/connectors";
 import { summarizeCapabilities } from "@/lib/metaregistry";
-import { listRunSnapshots, summarizeAgentTask } from "@/lib/runs";
+import { buildShipTrail, listRunSnapshots, summarizeAgentTask } from "@/lib/runs";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
 import { buildSecurityPacket, summarizeSecurityPacket } from "@/lib/security/posture";
 
@@ -25,6 +25,9 @@ export async function GET(request: Request) {
   const connectorCredentials = await listConnectorCredentials({ orgId });
   const security = summarizeSecurityPacket(buildSecurityPacket({ orgId }));
   const runs = snapshots.map((snapshot) => summarizeAgentTask(snapshot));
+  const shipTrails = Object.fromEntries(
+    snapshots.map((snapshot) => [snapshot.run.id, buildShipTrail(snapshot)])
+  );
   const pendingApprovals = snapshots.flatMap((snapshot) =>
     snapshot.approvals
       .filter((approval) => approval.decision === "pending")
@@ -44,6 +47,7 @@ export async function GET(request: Request) {
     orgId,
     workline: ["audit", "packet", "approval", "publish"],
     runs,
+    shipTrails,
     pendingApprovals,
     artifacts: buildOperatorArtifacts(runs, pendingApprovals),
     capabilities: {

@@ -45,6 +45,17 @@ type OperatorArtifact = {
   proof: Array<{ id: string; status: string; summary: string; artifactHash: string }>;
 };
 
+type ShipTrailStep = {
+  id: "audit" | "packet" | "approval" | "publish" | "verify";
+  label: string;
+  status: "pending" | "active" | "blocked" | "complete";
+  summary: string;
+  artifactId?: string;
+  receiptId?: string;
+  href: string;
+  createdAt: string;
+};
+
 type HostedArtifactPayload = {
   ok: boolean;
   artifact?: {
@@ -79,6 +90,7 @@ type OperatorResponse = {
   orgId: string;
   workline: string[];
   runs: OperatorRun[];
+  shipTrails: Record<string, ShipTrailStep[]>;
   pendingApprovals: Array<{
     id: string;
     runId: string;
@@ -190,6 +202,7 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
   }
 
   const latestRuns = data.runs.slice(0, 3);
+  const activeTrail = activeArtifact ? data.shipTrails[activeArtifact.runId] ?? [] : [];
 
   async function decideApproval(approval: OperatorResponse["pendingApprovals"][number], decision: "approved" | "rejected") {
     setDecisionState({ id: approval.id, decision });
@@ -283,6 +296,7 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
         <ArtifactSidecar
           artifact={activeArtifact}
           artifacts={data.artifacts}
+          shipTrail={activeTrail}
           tab={artifactTab}
           detail={artifactDetail}
           detailStatus={artifactDetailStatus}
@@ -432,6 +446,7 @@ function RunCard({
 function ArtifactSidecar({
   artifact,
   artifacts,
+  shipTrail,
   tab,
   detail,
   detailStatus,
@@ -440,6 +455,7 @@ function ArtifactSidecar({
 }: {
   artifact: OperatorArtifact | null;
   artifacts: OperatorArtifact[];
+  shipTrail: ShipTrailStep[];
   tab: "preview" | "data" | "proof";
   detail: HostedArtifactPayload | null;
   detailStatus: "idle" | "loading" | "ready" | "error";
@@ -494,11 +510,50 @@ function ArtifactSidecar({
       </div>
 
       <div className="p-3">
+        {shipTrail.length > 0 && <ShipTrail steps={shipTrail} />}
         {tab === "preview" && <ArtifactPreview artifact={artifact} />}
         {tab === "data" && <ArtifactData artifact={artifact} detail={detail} detailStatus={detailStatus} />}
         {tab === "proof" && <ArtifactProof artifact={artifact} />}
       </div>
     </aside>
+  );
+}
+
+function ShipTrail({ steps }: { steps: ShipTrailStep[] }) {
+  return (
+    <div className="mb-3 rounded border border-edge bg-panel/70 p-2">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">Ship trail</span>
+        <span className="font-mono text-[9px] text-neutral-700">{steps.filter((step) => step.status === "complete").length}/{steps.length}</span>
+      </div>
+      <div className="grid grid-cols-5 gap-1">
+        {steps.map((step) => (
+          <a
+            key={step.id}
+            href={step.href}
+            target="_blank"
+            rel="noreferrer"
+            title={step.summary}
+            className={
+              step.status === "complete"
+                ? "rounded border border-accent/35 bg-accent/10 px-1.5 py-1 text-center text-[9px] text-accent"
+                : step.status === "active"
+                  ? "rounded border border-pink-300/40 bg-pink-950/20 px-1.5 py-1 text-center text-[9px] text-pink-100"
+                  : step.status === "blocked"
+                    ? "rounded border border-red-300/35 bg-red-950/20 px-1.5 py-1 text-center text-[9px] text-red-200"
+                    : "rounded border border-edge bg-ink px-1.5 py-1 text-center text-[9px] text-neutral-600"
+            }
+          >
+            {step.label}
+          </a>
+        ))}
+      </div>
+      <p className="mt-2 line-clamp-2 text-[10px] leading-4 text-neutral-500">
+        {steps.find((step) => step.status === "active")?.summary ??
+          steps.find((step) => step.status === "blocked")?.summary ??
+          steps[steps.length - 1]?.summary}
+      </p>
+    </div>
   );
 }
 
