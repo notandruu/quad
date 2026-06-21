@@ -87,6 +87,8 @@ High-risk mutation routes are protected by org-scoped rate limits and optional `
 
 `GET /api/metaregistry/install-plan` returns a dry-run capability install plan for the enterprise proof starter bundle. It reports allowlist changes, force-installed tools, missing env key names, blockers, and active-after-install tools without mutating connector state or exposing secret values.
 
+`GET /api/metaregistry/catalog` returns the safe product-facing capability catalog: connectors, publishers, agents, policies, surfaces, and verifiers, grouped by kind and sponsor with active, installed, blocked, missing-env, write-capable, and approval-gated counts. It powers the operator console capability registry and never returns secret env values.
+
 `POST /api/metaregistry/install-request` turns that dry-run plan into an approval-backed run ledger entry. It creates a capability-install workflow, an approval artifact, task stream events, and a receipt, but still does not install secrets or enable write tools without operator review.
 
 `GET /api/metaregistry/runtime-tools?intent=website_audit&surface=fetch_agent` returns the runtime tool routing plan for a specific intent and surface: required capability ids, eager hot tools, deferred cold or approval-gated tools, blocked capabilities, and the active org policy. The shared core runtime uses the same plan before building agent-loop traces, so dashboard, voice, fetch, worker, and future cli surfaces do not duplicate tool selection logic.

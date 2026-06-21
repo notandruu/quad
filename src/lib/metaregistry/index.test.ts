@@ -6,6 +6,7 @@ import {
   buildRuntimeToolRoutingPlan,
   getEnterpriseProofStarterBundle,
   resolveCapabilityPolicy,
+  summarizeCapabilityCatalog,
   summarizeCapabilities,
   validateCapabilityManifest,
   type CapabilityInstallState,
@@ -26,6 +27,45 @@ describe("metaregistry", () => {
     expect(activeIds).toContain("trust_packet.exporter");
     expect(activeIds).not.toContain("browserbase.read_browser");
     expect(activeIds).not.toContain("sentry.reliability");
+  });
+
+  it("summarizes the catalog as a safe product-facing capability layer", () => {
+    const summary = summarizeCapabilities({
+      QUAD_CAPABILITY_ALLOWLIST: "browserbase.write_browser,task.publisher",
+      QUAD_CAPABILITY_FORCE_INSTALLED: "browserbase.write_browser,task.publisher",
+      BROWSERBASE_API_KEY: "bb_secret",
+      BROWSERBASE_PROJECT_ID: "project_secret",
+    });
+    const catalog = summarizeCapabilityCatalog(summary);
+    const browserWrite = catalog.entries.find((entry) => entry.id === "browserbase.write_browser");
+    const taskPublisher = catalog.entries.find((entry) => entry.id === "task.publisher");
+
+    expect(catalog.total).toBe(CAPABILITY_CATALOG.length);
+    expect(catalog.writeCapable).toBeGreaterThanOrEqual(3);
+    expect(catalog.approvalGated).toBeGreaterThanOrEqual(catalog.writeCapable);
+    expect(catalog.kinds.find((kind) => kind.kind === "publisher")).toMatchObject({
+      total: 3,
+      writes: 2,
+    });
+    expect(catalog.sponsors.find((sponsor) => sponsor.sponsor === "Browserbase")).toMatchObject({
+      total: 2,
+      active: 1,
+      missingEnv: 0,
+    });
+    expect(browserWrite).toMatchObject({
+      active: true,
+      stateLabel: "active",
+      nextAction: "ready for routing.",
+      missingEnvCount: 0,
+    });
+    expect(taskPublisher).toMatchObject({
+      active: false,
+      stateLabel: "needs_env",
+      nextAction: "configure 1 required env key.",
+      missingEnvCount: 1,
+    });
+    expect(JSON.stringify(catalog)).not.toContain("bb_secret");
+    expect(JSON.stringify(catalog)).not.toContain("project_secret");
   });
 
   it("builds an enterprise proof starter bundle", () => {

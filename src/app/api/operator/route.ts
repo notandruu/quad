@@ -6,7 +6,7 @@ import { buildScopedContextGraph, listBrainMemoryTrail, summarizeScopedContextGr
 import { listConnectorCredentials } from "@/lib/connectors";
 import { getWorkerCanaryHealth, getWorkerQueueHealth, getWorkerRuntimeHealth } from "@/lib/jobs/queue";
 import { getLatestModelCallReceipts, type ModelCallReceipt } from "@/lib/llm/gateway";
-import { summarizeCapabilities } from "@/lib/metaregistry";
+import { summarizeCapabilities, summarizeCapabilityCatalog } from "@/lib/metaregistry";
 import { getLatestRuntimeTraceReceipts, summarizeRuntimeTraceReceipts } from "@/lib/observability";
 import { getOrgWorkspaceContext } from "@/lib/orgs";
 import { getQuadChainPackets, summarizeQuadChainPackets } from "@/lib/quad-chain/registry";
@@ -40,6 +40,7 @@ export async function GET(request: Request) {
   // each source to a safe empty value instead.
   const snapshots = await listRunSnapshots({ orgId, limit }).catch(() => []);
   const capabilities = summarizeCapabilities(process.env, { orgId });
+  const capabilityCatalog = summarizeCapabilityCatalog(capabilities, { entryLimit: 14 });
   const [workspaceContext, connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness, quadChainPackets, memoryTrail, contextGraph, modelReceipts, runtimeTraces, evidenceBundles] = await Promise.all([
     getOrgWorkspaceContext({ orgId }).catch(() => null),
     listConnectorCredentials({ orgId }).catch(() => []),
@@ -97,6 +98,7 @@ export async function GET(request: Request) {
           installSource: capability.installSource,
         })),
       starterBundle: capabilities.starterBundle,
+      catalog: capabilityCatalog,
       policy: {
         allowlistCount: capabilities.policy.allowlist.length,
         disabledCount: capabilities.policy.disabled.length,

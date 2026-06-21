@@ -57,6 +57,64 @@ export type CapabilitySummary = {
   policy: CapabilityPolicy;
 };
 
+export type CapabilityCatalogEntry = {
+  id: string;
+  name: string;
+  kind: CapabilityKind;
+  description: string;
+  owner: CapabilityManifest["owner"];
+  sponsor?: CapabilityManifest["sponsor"];
+  tags: string[];
+  scopes: string[];
+  writes: boolean;
+  approvalMode: ApprovalMode;
+  installed: boolean;
+  status: CapabilityStatus;
+  active: boolean;
+  allowlisted: boolean;
+  disabled: boolean;
+  installSource: CapabilityInstallState["installSource"];
+  missingEnvCount: number;
+  stateLabel: "active" | "needs_env" | "needs_install" | "blocked" | "disabled";
+  nextAction: string;
+};
+
+export type CapabilityKindSummary = {
+  kind: CapabilityKind;
+  total: number;
+  active: number;
+  installed: number;
+  blocked: number;
+  writes: number;
+};
+
+export type CapabilitySponsorSummary = {
+  sponsor: NonNullable<CapabilityManifest["sponsor"]> | "Quad";
+  total: number;
+  active: number;
+  blocked: number;
+  missingEnv: number;
+};
+
+export type CapabilityCatalogSummary = {
+  total: number;
+  active: number;
+  installed: number;
+  blocked: number;
+  writeCapable: number;
+  approvalGated: number;
+  missingEnv: number;
+  starterBundle: {
+    total: number;
+    active: number;
+    blocked: number;
+    ids: string[];
+  };
+  kinds: CapabilityKindSummary[];
+  sponsors: CapabilitySponsorSummary[];
+  entries: CapabilityCatalogEntry[];
+};
+
 export type RuntimeToolSurface = "dashboard" | "chat" | "voice" | "fetch_agent" | "worker";
 
 export type RuntimeToolLoadMode = "eager" | "deferred";
@@ -346,6 +404,38 @@ export function summarizeCapabilities(
   };
 }
 
+export function summarizeCapabilityCatalog(
+  capabilities: CapabilitySummary,
+  input: { includeEntries?: boolean; entryLimit?: number } = {}
+): CapabilityCatalogSummary {
+  const byState = new Map(capabilities.installed.map((state) => [state.id, state]));
+  const entries = CAPABILITY_CATALOG.map((manifest) => {
+    const state = byState.get(manifest.id) ?? buildInstallState(manifest, {}, capabilities.policy);
+    return buildCatalogEntry(manifest, state);
+  });
+  const starterEntries = entries.filter((entry) => capabilities.starterBundle.includes(entry.id));
+  const entryLimit = input.entryLimit ?? entries.length;
+
+  return {
+    total: entries.length,
+    active: entries.filter((entry) => entry.active).length,
+    installed: entries.filter((entry) => entry.installed).length,
+    blocked: entries.filter((entry) => entry.installed && !entry.active).length,
+    writeCapable: entries.filter((entry) => entry.writes).length,
+    approvalGated: entries.filter((entry) => entry.approvalMode !== "none").length,
+    missingEnv: entries.reduce((total, entry) => total + entry.missingEnvCount, 0),
+    starterBundle: {
+      total: starterEntries.length,
+      active: starterEntries.filter((entry) => entry.active).length,
+      blocked: starterEntries.filter((entry) => entry.installed && !entry.active).length,
+      ids: capabilities.starterBundle,
+    },
+    kinds: summarizeByKind(entries),
+    sponsors: summarizeBySponsor(entries),
+    entries: input.includeEntries === false ? [] : entries.slice(0, entryLimit),
+  };
+}
+
 export function buildActiveToolCatalog(states: CapabilityInstallState[]): ActiveTool[] {
   const byId = new Map(CAPABILITY_CATALOG.map((manifest) => [manifest.id, manifest]));
 
@@ -578,6 +668,81 @@ function buildInstallState(
     installSource,
     reason: "Ready.",
   };
+}
+
+function buildCatalogEntry(manifest: CapabilityManifest, state: CapabilityInstallState): CapabilityCatalogEntry {
+  return {
+    id: manifest.id,
+    name: manifest.name,
+    kind: manifest.kind,
+    description: manifest.description,
+    owner: manifest.owner,
+    sponsor: manifest.sponsor,
+    tags: manifest.tags,
+    scopes: manifest.scopes,
+    writes: manifest.writes,
+    approvalMode: manifest.approvalMode,
+    installed: state.installed,
+    status: state.status,
+    active: state.active,
+    allowlisted: state.allowlisted,
+    disabled: state.disabled,
+    installSource: state.installSource,
+    missingEnvCount: state.missingEnv.length,
+    stateLabel: catalogStateLabel(state),
+    nextAction: catalogNextAction(manifest, state),
+  };
+}
+
+function catalogStateLabel(state: CapabilityInstallState): CapabilityCatalogEntry["stateLabel"] {
+  if (state.active) return "active";
+  if (state.disabled) return "disabled";
+  if (!state.installed) return "needs_install";
+  if (!state.allowlisted) return "blocked";
+  if (state.missingEnv.length > 0) return "needs_env";
+  return "blocked";
+}
+
+function catalogNextAction(manifest: CapabilityManifest, state: CapabilityInstallState): string {
+  if (state.active) return "ready for routing.";
+  if (state.disabled) return "remove it from the disabled policy before use.";
+  if (!state.installed) return manifest.writes ? "request install and explicit write allowlist." : "request install.";
+  if (!state.allowlisted) return "allowlist this capability for the org.";
+  if (state.missingEnv.length > 0) return `configure ${state.missingEnv.length} required env key${state.missingEnv.length === 1 ? "" : "s"}.`;
+  if (manifest.writes) return "open a human approval gate before execution.";
+  return "review policy blocker.";
+}
+
+function summarizeByKind(entries: CapabilityCatalogEntry[]): CapabilityKindSummary[] {
+  return allKinds().map((kind) => {
+    const items = entries.filter((entry) => entry.kind === kind);
+    return {
+      kind,
+      total: items.length,
+      active: items.filter((entry) => entry.active).length,
+      installed: items.filter((entry) => entry.installed).length,
+      blocked: items.filter((entry) => entry.installed && !entry.active).length,
+      writes: items.filter((entry) => entry.writes).length,
+    };
+  });
+}
+
+function summarizeBySponsor(entries: CapabilityCatalogEntry[]): CapabilitySponsorSummary[] {
+  const sponsors = uniqueIds(entries.map((entry) => entry.sponsor ?? "Quad")).sort();
+  return sponsors.map((sponsor) => {
+    const items = entries.filter((entry) => (entry.sponsor ?? "Quad") === sponsor);
+    return {
+      sponsor: sponsor as CapabilitySponsorSummary["sponsor"],
+      total: items.length,
+      active: items.filter((entry) => entry.active).length,
+      blocked: items.filter((entry) => entry.installed && !entry.active).length,
+      missingEnv: items.reduce((total, entry) => total + entry.missingEnvCount, 0),
+    };
+  });
+}
+
+function allKinds(): CapabilityKind[] {
+  return ["connector", "publisher", "agent", "policy", "surface", "verifier"];
 }
 
 export function resolveCapabilityPolicy(

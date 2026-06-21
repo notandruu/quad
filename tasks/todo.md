@@ -11,7 +11,7 @@
 
 quad is not a throwaway hackathon build. quad should be designed as a production product that happens to have a hackathon launch/demo deadline.
 
-2026-06-21 update: shipped the next biggest backend gap as runtime tool routing from the metaregistry. quad can now build eager/deferred/blocked tool plans per intent and surface, expose `/api/metaregistry/runtime-tools`, make core agent loops consume the same routing plan instead of hard-coded tool selection, and show the live route plan in the debug drawer.
+2026-06-21 update: shipped the next biggest platform gap as a product-facing metaregistry catalog. quad now exposes `/api/metaregistry/catalog`, includes catalog readiness in `/api/operator`, and renders a capability registry panel with install state, starter-bundle readiness, kind breakdowns, sponsor alignment, approval gates, missing-env counts, and per-capability next actions.
 
 the core product is a company-aware ai employee platform: it understands a business goal, retrieves and collects missing context, uses tools, validates its own work, learns only verified knowledge, executes approved actions, and leaves a replayable evidence trail. website audits and security questionnaires are product workflows on top of that runtime, not the whole company.
 
@@ -86,7 +86,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [x] normalized task stream schema shared by dashboard, fetch agent, future cli, and replay
 - [ ] quad chain certificate schema for audit briefs, customer trust packets, learned memory receipts, and agent handoffs
 - [x] dynamic tool catalog with eager hot tools, deferred cold tools, health state, and allowlist filtering
-- [ ] metaregistry catalog for installable connectors, publishers, skills, agents, approval policies, eval policies, and surfaces
+- [x] metaregistry catalog for installable connectors, publishers, skills, agents, approval policies, eval policies, and surfaces
 - [ ] connector auth/security model with encrypted tokens, scopes, per-user oauth where possible, and service-account audit logs
 - [ ] skill/playbook layer so workflows wrap raw tools with guardrails and synthesis rules
 - [ ] connector registry for source systems, publishers, browser actions, and specialist agents
@@ -207,12 +207,12 @@ hard constraints:
 
 ### phase 4 metaregistry capability layer
 
-- [ ] define capability manifest types for connectors, publishers, skills, agents, policies, and surfaces
-- [ ] create static metaregistry catalog for existing services and dry-run publishers
-- [ ] derive debug/operator capability rows from the metaregistry instead of hard-coded backend lists
+- [x] define capability manifest types for connectors, publishers, skills, agents, policies, and surfaces
+- [x] create static metaregistry catalog for existing services and dry-run publishers
+- [x] derive debug/operator capability rows from the metaregistry instead of hard-coded backend lists
 - [ ] derive validation checks from capability manifests where practical
 - [ ] add install states: available, installing, installed, allowlisted, degraded, disabled, revoked
-- [ ] show one-click install mock for enterprise proof starter bundle
+- [x] show one-click install mock for enterprise proof starter bundle
 
 ### phase 5 security and data governance layer
 

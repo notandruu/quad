@@ -115,6 +115,30 @@ Next:
 - add packet visibility filtering to hosted drilldowns.
 - show sponsor badges only when the underlying capability is live.
 
+## Gap 2.0.1: platform capability catalog
+
+Status: shipped v1.
+
+What was missing:
+
+- the metaregistry had manifests and runtime routing, but the product did not expose a complete installable platform catalog.
+- operator surfaces only showed a few active or blocked pills, so judges could not see connectors, publishers, agents, policies, surfaces, write gates, and sponsor alignment as one system.
+- future surfaces had to choose between raw manifests and narrow install-plan responses.
+
+Shipped v1:
+
+- `summarizeCapabilityCatalog()` turns the metaregistry into a safe product-facing catalog with entries, kind summaries, sponsor summaries, starter-bundle readiness, write-capable counts, approval-gated counts, blocked counts, and missing-env counts.
+- `GET /api/metaregistry/catalog` exposes that catalog with summary-only mode for compact surfaces.
+- `/api/operator` now includes the same catalog beside active tools, blocked tools, install plan, worker state, usage, evidence, memory, and quadchain state.
+- the operator console renders a capability registry panel with installed/blocked/missing-env stats, starter-bundle readiness, kind breakdowns, sponsor breakdowns, and per-capability next actions.
+- catalog responses never include secret env values; they expose counts and next actions only.
+
+Acceptance:
+
+- demo viewers can see that quad is an extensible ai employee platform, not a one-off audit route.
+- write-capable tools are visibly approval-gated before execution.
+- sponsor alignment is grounded in live capability state instead of deck-only claims.
+
 ## Gap 2.1: runtime observability receipts
 
 Status: shipped v1.

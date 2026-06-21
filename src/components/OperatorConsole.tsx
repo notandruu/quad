@@ -35,9 +35,21 @@ type OperatorCapability = {
   kind?: string;
   approvalMode?: string;
   sponsor?: string;
+  description?: string;
+  tags?: string[];
+  scopes?: string[];
+  writes?: boolean;
+  installed?: boolean;
+  active?: boolean;
+  allowlisted?: boolean;
+  disabled?: boolean;
+  installSource?: string;
+  stateLabel?: "active" | "needs_env" | "needs_install" | "blocked" | "disabled";
+  nextAction?: string;
   status?: string;
   reason?: string;
   missingEnv?: string[];
+  missingEnvCount?: number;
 };
 
 type OperatorArtifact = {
@@ -209,6 +221,37 @@ type OperatorResponse = {
     active: OperatorCapability[];
     blocked: OperatorCapability[];
     starterBundle: string[];
+    catalog?: {
+      total: number;
+      active: number;
+      installed: number;
+      blocked: number;
+      writeCapable: number;
+      approvalGated: number;
+      missingEnv: number;
+      starterBundle: {
+        total: number;
+        active: number;
+        blocked: number;
+        ids: string[];
+      };
+      kinds: Array<{
+        kind: string;
+        total: number;
+        active: number;
+        installed: number;
+        blocked: number;
+        writes: number;
+      }>;
+      sponsors: Array<{
+        sponsor: string;
+        total: number;
+        active: number;
+        blocked: number;
+        missingEnv: number;
+      }>;
+      entries: OperatorCapability[];
+    };
   };
   worker?: {
     queue: {
@@ -678,17 +721,7 @@ export function OperatorConsole({ orgId = "org_redcross", watchRunId }: { orgId?
             </div>
           </div>
 
-          <div>
-            <h3 className="text-xs font-medium text-neutral-200">Capability registry</h3>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {data.capabilities.active.slice(0, 7).map((capability) => (
-                <CapabilityPill key={capability.id} capability={capability} active />
-              ))}
-              {data.capabilities.blocked.slice(0, 4).map((capability) => (
-                <CapabilityPill key={capability.id} capability={capability} />
-              ))}
-            </div>
-          </div>
+          <CapabilityCatalogPanel capabilities={data.capabilities} />
 
           <CapabilityInstallPlan
             plan={installPlan}
@@ -1448,7 +1481,82 @@ function ArtifactProof({ artifact }: { artifact: OperatorArtifact }) {
   );
 }
 
+function CapabilityCatalogPanel({ capabilities }: { capabilities: OperatorResponse["capabilities"] }) {
+  const catalog = capabilities.catalog;
+  const visibleEntries = catalog?.entries.slice(0, 8) ?? [
+    ...capabilities.active.slice(0, 5).map((capability) => ({ ...capability, active: true })),
+    ...capabilities.blocked.slice(0, 3),
+  ];
+  const topKinds = catalog?.kinds.filter((kind) => kind.total > 0).slice(0, 4) ?? [];
+  const topSponsors = catalog?.sponsors.slice(0, 4) ?? [];
+
+  return (
+    <div className="rounded border border-edge bg-ink/30 p-2">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h3 className="text-xs font-medium text-neutral-200">Capability registry</h3>
+          <p className="mt-1 text-[10px] leading-4 text-neutral-500">
+            {catalog
+              ? `${catalog.active}/${catalog.total} active · ${catalog.writeCapable} write tools gated`
+              : `${capabilities.active.length} active tools`}
+          </p>
+        </div>
+        {catalog && (
+          <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] text-accent">
+            starter {catalog.starterBundle.active}/{catalog.starterBundle.total}
+          </span>
+        )}
+      </div>
+
+      {catalog && (
+        <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
+          <OperatorStat label="installed" value={String(catalog.installed)} />
+          <OperatorStat label="blocked" value={String(catalog.blocked)} accent={catalog.blocked === 0} />
+          <OperatorStat label="missing env" value={String(catalog.missingEnv)} accent={catalog.missingEnv === 0} />
+        </div>
+      )}
+
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {visibleEntries.map((capability) => (
+          <CapabilityPill key={capability.id} capability={capability} active={Boolean(capability.active)} />
+        ))}
+      </div>
+
+      {topKinds.length > 0 && (
+        <div className="mt-2 grid grid-cols-2 gap-1.5">
+          {topKinds.map((kind) => (
+            <div key={kind.kind} className="rounded border border-edge bg-panel px-2 py-1">
+              <div className="text-[10px] font-medium text-neutral-200">{kind.kind}</div>
+              <div className="mt-0.5 text-[9px] text-neutral-600">
+                {kind.active}/{kind.total} active · {kind.writes} write
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {topSponsors.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {topSponsors.map((sponsor) => (
+            <span
+              key={sponsor.sponsor}
+              className="rounded border border-edge bg-panel px-1.5 py-0.5 text-[9px] text-neutral-500"
+              title={`${sponsor.active}/${sponsor.total} active, ${sponsor.blocked} blocked`}
+            >
+              {sponsor.sponsor} {sponsor.active}/{sponsor.total}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CapabilityPill({ capability, active = false }: { capability: OperatorCapability; active?: boolean }) {
+  const label = capability.sponsor ?? capability.name ?? capability.id;
+  const detail = capability.nextAction ?? capability.reason ?? capability.id;
+  const state = capability.stateLabel ?? (active ? "active" : "blocked");
+
   return (
     <span
       className={
@@ -1456,9 +1564,10 @@ function CapabilityPill({ capability, active = false }: { capability: OperatorCa
           ? "rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] text-accent"
           : "rounded-full border border-amber-300/30 bg-amber-950/20 px-2 py-0.5 text-[10px] text-amber-100"
       }
-      title={capability.reason ?? capability.id}
+      title={detail}
     >
-      {capability.sponsor ?? capability.name ?? capability.id}
+      {label}
+      {state !== "active" && <span className="ml-1 text-[9px] opacity-70">{state.replace("_", " ")}</span>}
     </span>
   );
 }

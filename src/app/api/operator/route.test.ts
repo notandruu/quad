@@ -78,6 +78,24 @@ describe("GET /api/operator", () => {
         estimatedCostUsd: expect.any(Number),
       },
     });
+    expect(body.capabilities.catalog).toMatchObject({
+      total: expect.any(Number),
+      active: expect.any(Number),
+      writeCapable: expect.any(Number),
+      starterBundle: {
+        total: expect.any(Number),
+        active: expect.any(Number),
+      },
+    });
+    expect(body.capabilities.catalog.entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "browserbase.write_browser",
+          active: true,
+          stateLabel: "active",
+        }),
+      ])
+    );
     expect(JSON.stringify(body)).not.toMatch(/cms_test|linear_test|section body value|sk-ant-|sk-proj-/);
   });
 });
@@ -102,6 +120,8 @@ function installPublisherEnv() {
   vi.stubEnv("QUAD_CAPABILITY_FORCE_INSTALLED", "cms.publisher,task.publisher,browserbase.write_browser");
   vi.stubEnv("CMS_API_KEY", "cms_test");
   vi.stubEnv("LINEAR_API_KEY", "linear_test");
+  vi.stubEnv("BROWSERBASE_API_KEY", "bb_test");
+  vi.stubEnv("BROWSERBASE_PROJECT_ID", "browserbase_project_test");
 }
 
 function publisherEnv() {
@@ -110,6 +130,8 @@ function publisherEnv() {
     QUAD_CAPABILITY_FORCE_INSTALLED: "cms.publisher,task.publisher,browserbase.write_browser",
     CMS_API_KEY: "cms_test",
     LINEAR_API_KEY: "linear_test",
+    BROWSERBASE_API_KEY: "bb_test",
+    BROWSERBASE_PROJECT_ID: "browserbase_project_test",
   };
 }
 
