@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { DEMO_ORG_ID } from "@/data/seed";
 import { getQuadChainPackets, summarizeQuadChainPackets } from "@/lib/quad-chain/registry";
 import { summarizeQuadChainPacket, type QuadChainPacketType } from "@/lib/quad-chain";
+import { authorizeRequest, requestAuthError } from "@/lib/security";
 
 export const runtime = "nodejs";
 
@@ -20,8 +22,17 @@ const PACKET_TYPES: QuadChainPacketType[] = [
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const type = url.searchParams.get("type");
+  const requestedOrgId = url.searchParams.get("orgId") ?? undefined;
+  const auth = authorizeRequest({
+    headers: request.headers,
+    requestedOrgId: requestedOrgId ?? DEMO_ORG_ID,
+  });
+  if (!auth.ok) {
+    return NextResponse.json(requestAuthError(auth), { status: auth.status });
+  }
+
   const packets = await getQuadChainPackets({
-    orgId: url.searchParams.get("orgId") ?? undefined,
+    orgId: requestedOrgId ?? auth.orgId,
     runId: url.searchParams.get("runId") ?? undefined,
     sourceId: url.searchParams.get("sourceId") ?? undefined,
     type: type && PACKET_TYPES.includes(type as QuadChainPacketType) ? (type as QuadChainPacketType) : undefined,

@@ -135,6 +135,40 @@ export type QuadChainPacketSummary = {
   createdAt: string;
 };
 
+export type QuadChainPacketDetail = {
+  id: string;
+  type: QuadChainPacketType;
+  orgId: string;
+  runId: string;
+  producer: string;
+  consumer: string;
+  visibility: QuadChainVisibility;
+  createdAt: string;
+  rawPacketIncluded: boolean;
+  sources: Array<Pick<QuadChainSource, "id" | "kind"> & { content: unknown }>;
+  evidence: Array<Omit<QuadChainEvidenceObligation, "quote"> & { quote?: string }>;
+  omittedRanges: Array<Omit<QuadChainOmittedRange, "content"> & { content?: unknown }>;
+  output: string;
+  certificate: QuadChainCertificate | {
+    certificateId: string;
+    handoffId: string;
+    runId: string;
+    producer: string;
+    consumer: string;
+    createdAt: string;
+    sourceChain: QuadChainCertificate["sourceChain"];
+    compressionChain: Omit<QuadChainCertificate["compressionChain"], "omittedRanges"> & {
+      omittedRangeCount: number;
+    };
+    proofChain: Pick<QuadChainCertificate["proofChain"], "answerReadinessScore" | "answerConceptsPreserved" | "openObligations" | "accepted"> & {
+      requiredEvidencePreserved: Array<Omit<QuadChainEvidenceObligation, "quote"> & { quote?: string }>;
+    };
+    anchorChain: QuadChainCertificate["anchorChain"];
+    validator: QuadChainCertificate["validator"];
+  };
+  verification: QuadChainVerification;
+};
+
 export type CreateQuadChainPacketInput = {
   type: QuadChainPacketType;
   orgId: string;
@@ -383,6 +417,70 @@ export function summarizeQuadChainPacket(packet: QuadChainPacket): QuadChainPack
   };
 }
 
+export function buildQuadChainPacketDetail(
+  packet: QuadChainPacket,
+  input: { includeRawPacket?: boolean } = {}
+): QuadChainPacketDetail {
+  if (input.includeRawPacket) {
+    return {
+      ...packet,
+      rawPacketIncluded: true,
+    };
+  }
+
+  return {
+    id: packet.id,
+    type: packet.type,
+    orgId: packet.orgId,
+    runId: packet.runId,
+    producer: packet.producer,
+    consumer: packet.consumer,
+    visibility: packet.visibility,
+    createdAt: packet.createdAt,
+    rawPacketIncluded: false,
+    sources: packet.sources.map((source) => ({
+      id: source.id,
+      kind: source.kind,
+      content: summarizePacketValue(source.content),
+    })),
+    evidence: packet.evidence.map(redactEvidence),
+    omittedRanges: packet.omittedRanges.map((range) => ({
+      sourceId: range.sourceId,
+      rangeId: range.rangeId,
+      reason: range.reason,
+      content: range.content === undefined ? undefined : summarizePacketValue(range.content),
+    })),
+    output: summarizePacketText(packet.output),
+    certificate: {
+      certificateId: packet.certificate.certificateId,
+      handoffId: packet.certificate.handoffId,
+      runId: packet.certificate.runId,
+      producer: packet.certificate.producer,
+      consumer: packet.certificate.consumer,
+      createdAt: packet.certificate.createdAt,
+      sourceChain: packet.certificate.sourceChain,
+      compressionChain: {
+        outputHash: packet.certificate.compressionChain.outputHash,
+        tokensBefore: packet.certificate.compressionChain.tokensBefore,
+        tokensAfter: packet.certificate.compressionChain.tokensAfter,
+        tokensSaved: packet.certificate.compressionChain.tokensSaved,
+        compressionRatio: packet.certificate.compressionChain.compressionRatio,
+        omittedRangeCount: packet.certificate.compressionChain.omittedRanges.length,
+      },
+      proofChain: {
+        answerReadinessScore: packet.certificate.proofChain.answerReadinessScore,
+        requiredEvidencePreserved: packet.certificate.proofChain.requiredEvidencePreserved.map(redactEvidence),
+        answerConceptsPreserved: packet.certificate.proofChain.answerConceptsPreserved,
+        openObligations: packet.certificate.proofChain.openObligations,
+        accepted: packet.certificate.proofChain.accepted,
+      },
+      anchorChain: packet.certificate.anchorChain,
+      validator: packet.certificate.validator,
+    },
+    verification: packet.verification,
+  };
+}
+
 export function estimateTokens(value: string): number {
   if (!value.trim()) return 0;
   return Math.ceil(value.trim().length / 4);
@@ -394,6 +492,30 @@ export function hashText(value: string): QuadChainHash {
 
 export function hashJson(value: unknown): QuadChainHash {
   return hashText(stableStringify(value));
+}
+
+function redactEvidence(
+  evidence: QuadChainEvidenceObligation & { quoteHash?: QuadChainHash }
+): Omit<QuadChainEvidenceObligation, "quote"> & { quote?: string; quoteHash?: QuadChainHash } {
+  return {
+    id: evidence.id,
+    sourceId: evidence.sourceId,
+    required: evidence.required,
+    quote: evidence.quote ? summarizePacketText(evidence.quote) : undefined,
+    quoteHash: evidence.quoteHash,
+  };
+}
+
+function summarizePacketValue(value: unknown): unknown {
+  if (value === null || typeof value !== "object") {
+    return typeof value === "string" ? summarizePacketText(value) : value;
+  }
+  if (Array.isArray(value)) return `[${value.length} items]`;
+  return "[object]";
+}
+
+function summarizePacketText(value: string): string {
+  return `[${value.length} chars redacted]`;
 }
 
 function computeAnswerReadiness(input: {

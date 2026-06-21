@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildQuadChainCertificate,
+  buildQuadChainPacketDetail,
   createQuadChainPacket,
   summarizeQuadChainPacket,
   verifyQuadChainCertificate,
@@ -181,5 +182,42 @@ describe("quad chain", () => {
       visibility: "restricted",
     });
     expect(JSON.stringify(summarizeQuadChainPacket(packet))).not.toContain("MFA is enforced");
+  });
+
+  it("redacts packet detail by default and only includes raw data when requested", () => {
+    const packet = createQuadChainPacket({
+      type: "agent_handoff",
+      orgId: "org_1",
+      runId: "run_1",
+      producer: "quad.research",
+      consumer: "quad.review",
+      sources,
+      evidence: requiredEvidence,
+      omittedRanges: [
+        {
+          sourceId: "finding_1",
+          rangeId: "debug_internal_context",
+          reason: "internal context omitted",
+          content: "private enterprise context",
+        },
+      ],
+      output: compressedContext,
+      answerConcepts: ["mfa"],
+      visibility: "restricted",
+      createdAt: "2026-06-20T00:00:00.000Z",
+    });
+
+    const safe = buildQuadChainPacketDetail(packet);
+    const raw = buildQuadChainPacketDetail(packet, { includeRawPacket: true });
+
+    expect(safe.rawPacketIncluded).toBe(false);
+    expect(JSON.stringify(safe)).not.toContain("MFA is enforced");
+    expect(JSON.stringify(safe)).not.toContain("private enterprise context");
+    expect(safe.output).toMatch(/chars redacted/);
+    expect(safe.sources[0].content).toBe("[object]");
+    expect(safe.omittedRanges[0].content).toMatch(/chars redacted/);
+    expect(raw.rawPacketIncluded).toBe(true);
+    expect(JSON.stringify(raw)).toContain("MFA is enforced");
+    expect(JSON.stringify(raw)).toContain("private enterprise context");
   });
 });

@@ -206,10 +206,16 @@ Shipped v1:
 - raw artifact detail access is opt-in with `?raw=1` and requires hosted secret auth.
 - unauthenticated or demo-fallback artifact links remain booth-safe and shareable.
 
+Shipped v2:
+
+- quadchain packet detail uses redacted packet views by default.
+- raw packet access is opt-in with `?raw=1` and requires hosted secret auth.
+- non-public packet detail and packet verification require org-scoped route auth.
+- packet lists are scoped to an authorized org instead of anonymously enumerating all org packet metadata.
+
 Build:
 
 - enforce org-scoped access on durable run reads.
-- add packet visibility filtering to `/api/runs` drilldowns.
 - add data retention settings per org.
 - add deletion route for demo/customer data.
 - document what stays off-chain/off-registry.
