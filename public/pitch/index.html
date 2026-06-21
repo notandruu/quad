@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quad — Pitch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..500&family=Montserrat:wght@400;500;600;700&family=Jacquard+12&display=swap" rel="stylesheet">
+<style>
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; background:#000; overflow:hidden; font-family:'Montserrat',sans-serif; }
+
+  /* ── Stage: the fixed 1920x1080 canvas is scaled to fit the window ── */
+  #stage{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
+  #canvas{ position:relative; width:1920px; height:1080px; transform-origin:center center; flex-shrink:0; background:#fff; }
+
+  /* ── Slides are stacked; only the active one is visible ── */
+  .slide{
+    position:absolute !important; inset:0 !important;
+    width:100% !important; height:100% !important;
+    overflow:hidden; opacity:0; visibility:hidden; pointer-events:none;
+  }
+  .slide[data-deck-active]{ opacity:1; visibility:visible; pointer-events:auto; }
+
+  /* ── Slide-counter pill ── */
+  #counter{
+    position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+    background:#000; color:#fff; font:500 13px/1 'Montserrat',sans-serif;
+    padding:7px 14px; border-radius:999px; opacity:.5; z-index:99;
+    letter-spacing:.02em; pointer-events:none; user-select:none;
+  }
+
+  /* ── Sparkle decorations (inline SVG instead of bitmap sprites) ── */
+  .spk{
+    display:inline-block; aspect-ratio:1;
+    background:center/contain no-repeat
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 0C13 7 17 11 24 12 17 13 13 17 12 24 11 17 7 13 0 12 7 11 11 7 12 0Z' fill='%23FD0E72'/%3E%3C/svg%3E");
+  }
+
+  /* ── Team photos: <img class="photo">; if the file is missing, deck.js
+       swaps in this branded initials tile (same inline size styles) ── */
+  .photo{ display:block; object-fit:cover; background:#f0ece4; }
+  .photo--ph{
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(150deg,#FD0E72,#9a0747);
+    color:#fff; font-weight:700; font-size:84px; letter-spacing:.04em;
+  }
+
+  /* ── Entrance animations (run only when a slide becomes active) ── */
+  @keyframes dkUp{ from{ opacity:0; transform:translateY(32px); } to{ opacity:1; transform:translateY(0); } }
+  @keyframes dkFade{ from{ opacity:0; } to{ opacity:1; } }
+  @keyframes twinkle{ 0%,100%{ transform:scale(1) rotate(0deg); opacity:.55; } 50%{ transform:scale(1.32) rotate(10deg); opacity:1; } }
+  @keyframes bob{ 0%,100%{ translate:0 0; } 50%{ translate:0 -12px; } }
+
+  @media (prefers-reduced-motion:no-preference){
+    .slide[data-deck-active] > *{ animation:dkUp .56s cubic-bezier(.34,1.34,.5,1) both; }
+    .slide[data-deck-active] > img{ animation:dkFade .85s ease both; }
+    .slide[data-deck-active] [data-spk]{ animation:dkFade .6s ease both, twinkle 3.2s ease-in-out 1.1s infinite; }
+    .slide[data-deck-active] img[src*="mascot"]{ animation:dkFade .9s ease both, bob 4.5s ease-in-out .4s infinite; }
+    .slide[data-deck-active] > *:nth-child(1){ animation-delay:0.040s; }
+    .slide[data-deck-active] > *:nth-child(2){ animation-delay:0.095s; }
+    .slide[data-deck-active] > *:nth-child(3){ animation-delay:0.150s; }
+    .slide[data-deck-active] > *:nth-child(4){ animation-delay:0.205s; }
+    .slide[data-deck-active] > *:nth-child(5){ animation-delay:0.260s; }
+    .slide[data-deck-active] > *:nth-child(6){ animation-delay:0.315s; }
+    .slide[data-deck-active] > *:nth-child(7){ animation-delay:0.370s; }
+    .slide[data-deck-active] > *:nth-child(8){ animation-delay:0.425s; }
+    .slide[data-deck-active] > *:nth-child(9){ animation-delay:0.480s; }
+    .slide[data-deck-active] > *:nth-child(10){ animation-delay:0.535s; }
+    .slide[data-deck-active] > *:nth-child(11){ animation-delay:0.590s; }
+    .slide[data-deck-active] > *:nth-child(12){ animation-delay:0.645s; }
+    .slide[data-deck-active] > *:nth-child(13){ animation-delay:0.700s; }
+    .slide[data-deck-active] > *:nth-child(14){ animation-delay:0.755s; }
+    .slide[data-deck-active] > *:nth-child(15){ animation-delay:0.810s; }
+    .slide[data-deck-active] > *:nth-child(16){ animation-delay:0.865s; }
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+<div id="canvas">
+
+  <!-- ============ SLIDE 1 — TITLE ============ -->
+  <section class="slide" style="position:relative; width:100%; height:100%; box-sizing:border-box; padding:96px 120px; display:flex; flex-direction:column; justify-content:center; font-family:'Montserrat',sans-serif; background:#FAFBF6; color:#111111; overflow:hidden; isolation:isolate;">
+    <div style="position:absolute; top:64px; left:120px; font-family:'Montserrat',sans-serif; font-size:24px; letter-spacing:0.04em; font-weight:600;"><span style="color:#FD0E72;">01 ✦</span><span style="color:#9a9a9a;"> Quad</span></div>
+
+    <div style="display:flex; align-items:baseline; line-height:0.9;">
+      <span style="font-family:'Jacquard 12',monospace; color:#FD0E72; font-size:300px; line-height:0.78;">Q</span>
+      <span style="font-family:'Newsreader',serif; font-weight:500; font-size:180px; color:#111111; letter-spacing:-0.02em;">uad</span>
+    </div>
+
+    <div style="font-family:'Montserrat',sans-serif; font-size:26px; letter-spacing:0.03em; color:#FD0E72; font-weight:600; margin-top:12px;">The AI employee for trust work</div>
+
+    <div style="font-family:'Newsreader',serif; font-weight:400; font-size:42px; line-height:1.28; color:#222; max-width:1100px; margin-top:40px; text-wrap:pretty;">The AI employee that turns company&nbsp;<div>evidence into customer‑ready trust work.</div></div>
+
+    <div style="display:flex; gap:48px; margin-top:48px; font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#333;">
+      <div style="display:flex; align-items:center; gap:12px; white-space:nowrap;"><span style="color:#FD0E72;">✦</span> Finds the gaps</div>
+      <div style="display:flex; align-items:center; gap:12px; white-space:nowrap;"><span style="color:#FD0E72;">✦</span> Proves the answer</div>
+      <div style="display:flex; align-items:center; gap:12px; white-space:nowrap;"><span style="color:#FD0E72;">✦</span> Ships the fix with approval</div>
+    </div>
+
+    <div style="position:absolute; left:120px; right:120px; bottom:50px; display:flex; justify-content:space-between; align-items:center; white-space:nowrap; font-family:'Montserrat',sans-serif; font-size:18px; font-weight:500; letter-spacing:0.08em; color:#B3B3B3;">
+      <span>Quad</span>
+      <span style="color:#FD0E72;">Audit everything. Trust what matters.</span>
+    </div>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:300px; left:48px; width:50px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; bottom:215px; left:545px; width:46px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:545px; right:300px; width:44px;"></span>
+    <img src="assets/mascot-hero.png" alt="Quad mascot" style="position:absolute; top:929px; left:1759px; transform:translate(-50%, -50%); height:159px; object-fit:scale-down; width:93px;">
+  </section>
+
+  <!-- ============ SLIDE 2 — TEAM ============ -->
+  <section class="slide" style="position:relative; width:100%; height:100%; box-sizing:border-box; padding:96px 120px 110px; display:flex; flex-direction:column; font-family:'Montserrat',sans-serif; background:#FAFBF6; color:#111111; overflow:hidden; isolation:isolate;">
+    <div style="font-family:'Montserrat',sans-serif; font-size:24px; letter-spacing:0.04em; font-weight:600; margin-bottom:34px;"><span style="color:#FD0E72;">02 ✦</span><span style="color:#9a9a9a;"> Team</span></div>
+
+    <div style="font-family:'Newsreader',serif; font-weight:500; font-size:50px; line-height:1.07; letter-spacing:-0.015em; max-width:none; white-space:nowrap;">Built by a team that understands agents, startups, and trust.</div>
+
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:28px; margin-top:54px;">
+      <div style="display:flex; flex-direction:column;">
+        <img class="photo" src="assets/team-stephen.png" data-initials="SH" alt="Stephen Hung" style="width:100%; height:380px; border-radius:18px;">
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:26px; margin-top:20px;">Stephen Hung</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:400; line-height:1.55; color:#555; margin-top:8px;">14× hackathon champion. AI/ML engineer at Walmart.</div>
+      </div>
+      <div style="display:flex; flex-direction:column;">
+        <img class="photo" src="assets/team-andrew.png" data-initials="AL" alt="Andrew Liu" style="width:100%; height:380px; border-radius:18px;">
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:26px; margin-top:20px;">Andrew Liu</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:400; line-height:1.55; color:#555; margin-top:8px;">Startup COO. Scaled operations at Wadhwani AI and Workday.</div>
+      </div>
+      <div style="display:flex; flex-direction:column;">
+        <img class="photo" src="assets/team-silas.png" data-initials="SW" alt="Silas Wu" style="width:100%; height:380px; border-radius:18px;">
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:26px; margin-top:20px;">Silas Wu</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:400; line-height:1.55; color:#555; margin-top:8px;">Information systems. Architects agentic business workflows.</div>
+      </div>
+      <div style="display:flex; flex-direction:column;">
+        <img class="photo" src="assets/team-madison.png" data-initials="MZ" alt="Madison Zhan" style="width:100%; height:380px; border-radius:18px;">
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:26px; margin-top:20px;">Madison Zhan</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:400; line-height:1.55; color:#555; margin-top:8px;">Venture scout at a $500M pre-seed fund. Ran operations and design across multiple startups. Leads Berkeley's startup club.</div>
+      </div>
+    </div>
+
+    <div style="margin-top:auto; font-family:'Newsreader',serif; font-style:italic; font-weight:400; font-size:34px; color:#111; position:relative;">Two deep builders plus<br><span style="color:#FD0E72; font-style:normal; font-weight:500;">business and capital instinct.</span></div>
+
+    <div style="position:absolute; left:120px; right:120px; bottom:50px; display:flex; justify-content:space-between; align-items:center; white-space:nowrap; font-family:'Montserrat',sans-serif; font-size:18px; font-weight:500; letter-spacing:0.08em; color:#B3B3B3;"><span>Quad</span><span style="color:#FD0E72;">Team</span></div>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:50px; width:68px; left:1521px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:191px; width:48px; left:1696px;"></span>
+  </section>
+
+  <!-- ============ SLIDE 3 — THE PROBLEM ============ -->
+  <section class="slide" style="position:relative; width:100%; height:100%; box-sizing:border-box; padding:96px 120px 110px; display:flex; flex-direction:column; font-family:'Montserrat',sans-serif; background:#FAFBF6; color:#111111; overflow:hidden; isolation:isolate;">
+    <div style="font-family:'Montserrat',sans-serif; font-size:24px; letter-spacing:0.04em; font-weight:600; margin-bottom:48px;"><span style="color:#FD0E72;">03 ✦</span><span style="color:#9a9a9a;"> The problem</span></div>
+
+    <div style="font-family:'Newsreader',serif; font-weight:500; font-size:68px; line-height:1.08; letter-spacing:-0.015em; max-width:1320px; text-wrap:balance; margin-top:auto;">Enterprise deals stall when companies have to prove they're trustworthy.</div>
+
+    <div style="display:flex; gap:14px; margin-top:56px; flex-wrap:wrap;">
+      <div style="font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#fff; background:#FD0E72; padding:14px 22px; border-radius:14px;">Security posture</div>
+      <div style="font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#fff; background:#FD0E72; padding:14px 22px; border-radius:14px;">Compliance</div>
+      <div style="font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#fff; background:#FD0E72; padding:14px 22px; border-radius:14px;">Privacy</div>
+      <div style="font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#fff; background:#FD0E72; padding:14px 22px; border-radius:14px;">Product claims</div>
+      <div style="font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#fff; background:#FD0E72; padding:14px 22px; border-radius:14px;">Customer diligence</div>
+    </div>
+
+    <div style="margin-top:auto; display:flex; gap:72px; align-items:flex-end;">
+      <div style="font-family:'Montserrat',sans-serif; font-size:24px; font-weight:400; line-height:1.6; color:#333; max-width:720px;">The answers exist, but they're scattered across<br><span style="color:#FD0E72; font-weight:600;">policies, repos, tickets, dashboards, and people's heads.</span></div>
+      <div style="font-family:'Newsreader',serif; font-style:italic; font-weight:400; font-size:36px; line-height:1.3; color:#111; max-width:560px; text-wrap:pretty; margin-left:auto; text-align:right;">So teams waste hours reconstructing proof instead of building.</div>
+    </div>
+
+    <img src="assets/mascot-hero.png" alt="Quad mascot" style="position:absolute; right:80px; top:140px; height:220px;">
+
+    <div style="position:absolute; left:120px; right:120px; bottom:50px; display:flex; justify-content:space-between; align-items:center; white-space:nowrap; font-family:'Montserrat',sans-serif; font-size:18px; font-weight:500; letter-spacing:0.08em; color:#B3B3B3;"><span>Quad</span><span style="color:#FD0E72;">The problem</span></div>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:165px; left:525px; width:56px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:560px; left:48px; width:44px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:400px; right:160px; width:50px;"></span>
+  </section>
+
+  <!-- ============ SLIDE 4 — THE INSIGHT (dark) ============ -->
+  <section class="slide" style="position:relative; width:100%; height:100%; box-sizing:border-box; padding:96px 120px 110px; display:flex; flex-direction:column; font-family:'Montserrat',sans-serif; background:#111111; color:#FAFBF6; overflow:hidden; isolation:isolate;">
+    <div style="position:absolute; top:-20px; right:-40px; width:520px; height:520px; pointer-events:none; opacity:0.75;">
+      <img src="assets/mascot-hero.png" alt="Quad mascot" style="position:absolute; top:108px; height:205px; left:173px;">
+    </div>
+
+    <div style="font-family:'Montserrat',sans-serif; font-size:24px; letter-spacing:0.04em; font-weight:600; margin-bottom:auto;"><span style="color:#FD0E72;">04 ✦</span><span style="color:#777;"> The insight</span></div>
+
+    <div style="font-family:'Newsreader',serif; font-weight:500; font-size:92px; line-height:1.05; letter-spacing:-0.02em; max-width:1280px;">Everyone has the model.<br><span style="color:#FD0E72;">Nobody has the trusted context.</span></div>
+
+    <div style="margin-top:56px; display:flex; justify-content:flex-end; gap:80px; align-items:flex-start;">
+      <div style="font-family:'Montserrat',sans-serif; font-size:23px; font-weight:400; line-height:1.35; color:#FD0E72; max-width:430px;">Generic AI can draft an answer.<br>But enterprise proof work requires:</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px 56px;">
+        <div style="display:flex; align-items:baseline; gap:14px; font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#FAFBF6;"><span style="color:#FD0E72;">✦</span> Trusted company context</div>
+        <div style="display:flex; align-items:baseline; gap:14px; font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#FAFBF6;"><span style="color:#FD0E72;">✦</span> Grounded evidence</div>
+        <div style="display:flex; align-items:baseline; gap:14px; font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#FAFBF6;"><span style="color:#FD0E72;">✦</span> Human approval</div>
+        <div style="display:flex; align-items:baseline; gap:14px; font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#FAFBF6;"><span style="color:#FD0E72;">✦</span> Replayable execution</div>
+      </div>
+    </div>
+
+    <div style="margin-top:52px; font-family:'Newsreader',serif; font-style:italic; font-weight:400; font-size:40px; color:#FD0E72;">Without that, AI stays a demo.</div>
+
+    <div style="position:absolute; left:120px; right:120px; bottom:50px; display:flex; justify-content:space-between; align-items:center; white-space:nowrap; font-family:'Montserrat',sans-serif; font-size:18px; font-weight:500; letter-spacing:0.08em; color:#777;"><span>Quad</span><span style="color:#FD0E72;">The insight</span></div>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; left:1385px; width:66px; top:451px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:560px; left:485px; width:48px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; width:56px; left:1445px; top:992px;"></span>
+  </section>
+
+  <!-- ============ SLIDE 5 — THE SOLUTION ============ -->
+  <section class="slide" style="position:relative; width:100%; height:100%; box-sizing:border-box; padding:96px 120px 110px; display:flex; flex-direction:column; font-family:'Montserrat',sans-serif; background:#FAFBF6; color:#111111; overflow:hidden; isolation:isolate;">
+    <div style="font-family:'Montserrat',sans-serif; font-size:24px; letter-spacing:0.04em; font-weight:600; margin-bottom:40px;"><span style="color:#FD0E72;">05 ✦</span><span style="color:#9a9a9a;"> The solution</span></div>
+
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:48px;">
+      <div style="font-family:'Newsreader',serif; font-weight:500; font-size:60px; line-height:1.08; letter-spacing:-0.015em; max-width:900px;">An AI employee for enterprise proof work.</div>
+    </div>
+
+    <!-- flow -->
+    <div style="display:flex; align-items:stretch; gap:0; margin-top:auto;">
+      <div style="flex:1; background:#FD0E72; border-radius:16px; padding:26px 22px;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:19px; font-weight:600; color:rgba(255,255,255,0.7); letter-spacing:0.04em;">01</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:21px; margin-top:14px; color:#fff;">Find evidence</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:400; color:rgba(255,255,255,0.85); line-height:1.5; margin-top:8px;">Pull from your company brain and systems.</div>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:center; width:48px; color:#FD0E72; font-size:22px;">✦</div>
+      <div style="flex:1; background:#FD0E72; border-radius:16px; padding:26px 22px;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:19px; font-weight:600; color:rgba(255,255,255,0.7); letter-spacing:0.04em;">02</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:21px; margin-top:14px; color:#fff;">Audit gaps</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:400; color:rgba(255,255,255,0.85); line-height:1.5; margin-top:8px;">Check against standards and claims.</div>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:center; width:48px; color:#FD0E72; font-size:22px;">✦</div>
+      <div style="flex:1; background:#FD0E72; border-radius:16px; padding:26px 22px;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:19px; font-weight:600; color:rgba(255,255,255,0.7); letter-spacing:0.04em;">03</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:21px; margin-top:14px; color:#fff;">Draft the fix</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:400; color:rgba(255,255,255,0.85); line-height:1.5; margin-top:8px;">Answer or remediation, with sources.</div>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:center; width:48px; color:#FD0E72; font-size:22px;">✦</div>
+      <div style="flex:1; background:#FD0E72; border-radius:16px; padding:26px 22px;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:19px; font-weight:600; color:rgba(255,255,255,0.7); letter-spacing:0.04em;">04</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:21px; margin-top:14px; color:#fff;">Human approval</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:400; color:rgba(255,255,255,0.85); line-height:1.5; margin-top:8px;">Nothing ships without a person.</div>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:center; width:48px; color:#FD0E72; font-size:22px;">✦</div>
+      <div style="flex:1; background:#FD0E72; border-radius:16px; padding:26px 22px;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:19px; font-weight:600; color:rgba(255,255,255,0.7); letter-spacing:0.04em;">05</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:21px; margin-top:14px; color:#fff;">Ship trust packet</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:400; color:rgba(255,255,255,0.85); line-height:1.5; margin-top:8px;">Customer-ready proof, packaged.</div>
+      </div>
+    </div>
+
+    <div style="font-family:'Montserrat',sans-serif; font-size:24px; font-weight:400; line-height:1.5; color:#333; max-width:480px; position:absolute; left:1322px; top:747px; text-align:justify; text-align-last:right; text-wrap:pretty;">It audits your company against your real evidence, finds gaps, drafts the fix, waits for approval, and packages the proof.</div>
+    <div style="margin-top:auto; display:flex; align-items:baseline; gap:20px; justify-content:flex-end;">
+      <div style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; color:#111;">Not advice.</div>
+      <div style="font-family:'Newsreader',serif; font-style:italic; font-weight:400; font-size:46px; color:#FD0E72;">Finished work, with receipts.</div>
+    </div>
+
+    <div style="position:absolute; left:120px; right:120px; bottom:50px; display:flex; justify-content:space-between; align-items:center; white-space:nowrap; font-family:'Montserrat',sans-serif; font-size:18px; font-weight:500; letter-spacing:0.08em; color:#B3B3B3;"><span>Quad</span><span style="color:#FD0E72;">The solution</span></div>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:200px; right:180px; width:74px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:402px; left:308px; width:50px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:817px; width:42px; left:825px;"></span>
+  </section>
+
+  <!-- ============ SLIDE 6 — THE DIFFERENTIATOR ============ -->
+  <section class="slide" style="position:relative; width:100%; height:100%; box-sizing:border-box; padding:96px 120px 110px; display:flex; flex-direction:column; font-family:'Montserrat',sans-serif; background:#FAFBF6; color:#111111; overflow:hidden; isolation:isolate;">
+    <div style="font-family:'Montserrat',sans-serif; font-size:24px; letter-spacing:0.04em; font-weight:600; margin-bottom:40px;"><span style="color:#FD0E72;">06 ✦</span><span style="color:#9a9a9a;"> The differentiator</span></div>
+
+    <div style="font-family:'Newsreader',serif; font-weight:500; font-size:62px; line-height:1.08; letter-spacing:-0.015em; max-width:1240px; margin-top:auto; margin-left:auto; text-align:right;">Other AI tools give you an answer.<br><span style="color:#FD0E72;">Quad shows its work.</span></div>
+
+    <div style="display:flex; gap:28px; margin-top:64px;">
+      <div style="flex:1; background:#FD0E72; border-radius:20px; padding:38px 34px;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:600; letter-spacing:0.05em; color:rgba(255,255,255,0.8);">01 ✦ Proof</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:30px; margin-top:20px; color:#fff;">Evidence-backed</div>
+        <div style="width:46px; height:3px; background:#fff; margin:20px 0;"></div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:400; line-height:1.6; color:rgba(255,255,255,0.9);">Every finding carries its source and a proof score.</div>
+      </div>
+      <div style="flex:1; background:#FD0E72; border-radius:20px; padding:38px 34px;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:600; letter-spacing:0.05em; color:rgba(255,255,255,0.8);">02 ✦ Control</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:30px; margin-top:20px; color:#fff;">Approval-gated</div>
+        <div style="width:46px; height:3px; background:#fff; margin:20px 0;"></div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:400; line-height:1.6; color:rgba(255,255,255,0.9);">Quad drafts. A human approves. Nothing acts on its own.</div>
+      </div>
+      <div style="flex:1; background:#FD0E72; border-radius:20px; padding:38px 34px;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:600; letter-spacing:0.05em; color:rgba(255,255,255,0.8);">03 ✦ Audit</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:30px; margin-top:20px; color:#fff;">Replayable</div>
+        <div style="width:46px; height:3px; background:#fff; margin:20px 0;"></div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:400; line-height:1.6; color:rgba(255,255,255,0.9);">Every run is event-sourced and can be replayed, step by step.</div>
+      </div>
+    </div>
+
+    <div style="margin-top:auto; text-align:right; font-family:'Newsreader',serif; font-style:italic; font-weight:400; font-size:42px; color:#111;">Quad only stands behind<br><span style="color:#FD0E72; font-style:normal; font-weight:500;">what it can prove.</span></div>
+
+    <div style="position:absolute; left:120px; right:120px; bottom:50px; display:flex; justify-content:space-between; align-items:center; white-space:nowrap; font-family:'Montserrat',sans-serif; font-size:18px; font-weight:500; letter-spacing:0.08em; color:#B3B3B3;"><span>Quad</span><span style="color:#FD0E72;">The differentiator</span></div>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:200px; left:160px; width:68px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:445px; left:60px; width:54px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; bottom:170px; left:300px; width:58px;"></span>
+  </section>
+
+  <!-- ============ SLIDE 7 — HOW IT WORKS ============ -->
+  <section class="slide" style="position:relative; width:100%; height:100%; box-sizing:border-box; padding:96px 120px 108px; display:flex; flex-direction:column; font-family:'Montserrat',sans-serif; background:#FAFBF6; color:#111111; overflow:hidden; isolation:isolate;">
+    <div style="font-family:'Montserrat',sans-serif; font-size:24px; letter-spacing:0.04em; font-weight:600; margin-bottom:30px;"><span style="color:#FD0E72;">07 ✦</span><span style="color:#9a9a9a;"> How it works</span></div>
+
+    <div style="font-family:'Newsreader',serif; font-weight:500; font-size:54px; line-height:1.06; letter-spacing:-0.015em; white-space:nowrap;">Built like production software, not a magic demo.</div>
+
+    <div style="position:relative; flex:1; margin-top:44px; margin-bottom:8px; display:flex; flex-direction:column; justify-content:center;">
+      <div style="position:relative;">
+      <div style="position:absolute; inset:0; pointer-events:none; z-index:0;">
+        <div style="position:absolute; left:calc((100% - 104px) / 3 + 26px); top:0; bottom:0; border-left:2.5px dotted #FD0E72; opacity:0.85;"></div>
+        <div style="position:absolute; left:calc((100% - 104px) / 3 * 2 + 78px); top:0; bottom:0; border-left:2.5px dotted #FD0E72; opacity:0.85;"></div>
+        <div style="position:absolute; left:0; right:0; top:50%; border-top:2.5px dotted #FD0E72; opacity:0.85;"></div>
+        <div style="position:absolute; left:calc((100% - 104px) / 3 + 26px); top:50%; transform:translate(-50%,-50%); color:#FD0E72; font-size:20px; line-height:1; background:#FAFBF6; padding:5px;">✦</div>
+        <div style="position:absolute; left:calc((100% - 104px) / 3 * 2 + 78px); top:50%; transform:translate(-50%,-50%); color:#FD0E72; font-size:20px; line-height:1; background:#FAFBF6; padding:5px;">✦</div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; column-gap:52px; row-gap:44px; position:relative; z-index:1;">
+      <div style="background:#FD0E72; border-radius:18px; padding:36px 32px; min-height:200px; display:flex; flex-direction:column; justify-content:center;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:17px; font-weight:600; letter-spacing:0.04em; color:rgba(255,255,255,0.8);">Reasoning layer</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:23px; margin-top:12px; color:#fff;">Claude</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:400; line-height:1.55; color:rgba(255,255,255,0.85); margin-top:10px;">Reasoning, synthesis, and structured judgment.</div>
+      </div>
+      <div style="background:#FD0E72; border-radius:18px; padding:36px 32px; min-height:200px; display:flex; flex-direction:column; justify-content:center;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:17px; font-weight:600; letter-spacing:0.04em; color:rgba(255,255,255,0.8);">Evidence layer</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:23px; margin-top:12px; color:#fff;">Browserbase</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:400; line-height:1.55; color:rgba(255,255,255,0.85); margin-top:10px;">Captures browser evidence behind every finding.</div>
+      </div>
+      <div style="background:#FD0E72; border-radius:18px; padding:36px 32px; min-height:200px; display:flex; flex-direction:column; justify-content:center;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:17px; font-weight:600; letter-spacing:0.04em; color:rgba(255,255,255,0.8);">Memory layer</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:23px; margin-top:12px; color:#fff;">Supabase + pgvector</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:400; line-height:1.55; color:rgba(255,255,255,0.85); margin-top:10px;">Durable company memory and retrieval.</div>
+      </div>
+      <div style="background:#FD0E72; border-radius:18px; padding:36px 32px; min-height:200px; display:flex; flex-direction:column; justify-content:center;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:17px; font-weight:600; letter-spacing:0.04em; color:rgba(255,255,255,0.8);">Replay layer</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:23px; margin-top:12px; color:#fff;">Redis streams</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:400; line-height:1.55; color:rgba(255,255,255,0.85); margin-top:10px;">Every event streamed, so runs are live and replayable.</div>
+      </div>
+      <div style="background:#FD0E72; border-radius:18px; padding:36px 32px; min-height:200px; display:flex; flex-direction:column; justify-content:center;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:17px; font-weight:600; letter-spacing:0.04em; color:rgba(255,255,255,0.8);">Reliability and eval</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:23px; margin-top:12px; color:#fff;">Sentry · Arize · Phoenix</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:400; line-height:1.55; color:rgba(255,255,255,0.85); margin-top:10px;">Failure recovery, reasoning traces, and evals.</div>
+      </div>
+      <div style="background:#FD0E72; border-radius:18px; padding:36px 32px; min-height:200px; display:flex; flex-direction:column; justify-content:center;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:17px; font-weight:600; letter-spacing:0.04em; color:rgba(255,255,255,0.8);">Agent interface</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:23px; margin-top:12px; color:#fff;">Fetch bridge</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:400; line-height:1.55; color:rgba(255,255,255,0.85); margin-top:10px;">Makes the same runtime callable as an agent.</div>
+      </div>
+    </div>
+    </div>
+    </div>
+
+    <div style="margin-top:40px; display:flex; justify-content:space-between; padding-top:26px; font-family:'Montserrat',sans-serif; font-size:20px; font-weight:500; color:#333;">
+      <span><span style="color:#FD0E72;">✦</span> Every claim is tied to evidence</span>
+      <span><span style="color:#FD0E72;">✦</span> Every action goes through approval</span>
+      <span><span style="color:#FD0E72;">✦</span> Every run can be replayed</span>
+    </div>
+
+    <div style="position:absolute; left:120px; right:120px; bottom:50px; display:flex; justify-content:space-between; align-items:center; white-space:nowrap; font-family:'Montserrat',sans-serif; font-size:18px; font-weight:500; letter-spacing:0.08em; color:#B3B3B3;"><span>Quad</span><span style="color:#FD0E72;">How it works</span></div>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:150px; left:1010px; width:44px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:215px; right:560px; width:36px;"></span>
+  </section>
+
+  <!-- ============ SLIDE 8 — TRUST BY DESIGN ============ -->
+  <section class="slide" style="position:relative; width:100%; height:100%; box-sizing:border-box; padding:96px 120px 110px; display:flex; flex-direction:column; font-family:'Montserrat',sans-serif; background:#FAFBF6; color:#111111; overflow:hidden; isolation:isolate;">
+    <div style="font-family:'Montserrat',sans-serif; font-size:24px; letter-spacing:0.04em; font-weight:600; margin-bottom:40px;"><span style="color:#FD0E72;">08 ✦</span><span style="color:#9a9a9a;"> Trust by design</span></div>
+
+    <div style="font-family:'Newsreader',serif; font-weight:500; font-size:54px; line-height:1.07; letter-spacing:-0.015em; max-width:none; white-space:nowrap;">Built for work companies actually need to trust.</div>
+
+    <div style="margin-top:auto; margin-bottom:auto; display:flex; flex-direction:column; gap:0;">
+      <div style="display:flex; gap:36px; align-items:baseline; padding:24px 0;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:600; color:#FD0E72; width:54px;">✦ 01</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:26px; width:340px;">Backed by evidence</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:400; color:#555; line-height:1.5;">No finding without proof</div>
+      </div>
+      <div style="display:flex; gap:36px; align-items:baseline; padding:24px 0;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:600; color:#FD0E72; width:54px;">✦ 02</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:26px; width:340px;">Approval-gated</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:400; color:#555; line-height:1.5;">Nothing ships without a human</div>
+      </div>
+      <div style="display:flex; gap:36px; align-items:baseline; padding:24px 0;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:600; color:#FD0E72; width:54px;">✦ 03</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:26px; width:340px;">Data-minimized</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:400; color:#555; line-height:1.5;">Retrieves the smallest relevant evidence packet, never dumping the whole company context into a prompt</div>
+      </div>
+      <div style="display:flex; gap:36px; align-items:baseline; padding:24px 0;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:600; color:#FD0E72; width:54px;">✦ 04</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:26px; width:340px;">Fully auditable</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:400; color:#555; line-height:1.5;">Every run is replayable</div>
+      </div>
+      <div style="display:flex; gap:36px; align-items:baseline; padding:24px 0;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:600; color:#FD0E72; width:54px;">✦ 05</div>
+        <div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:26px; width:340px;">Built deliberately</div>
+        <div style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:400; color:#555; line-height:1.5;">We wrote down what <span style="color:#FD0E72; font-weight:600;">not</span> to build before we built anything</div>
+      </div>
+    </div>
+
+    <div style="position:absolute; left:120px; right:120px; bottom:50px; display:flex; justify-content:space-between; align-items:center; white-space:nowrap; font-family:'Montserrat',sans-serif; font-size:18px; font-weight:500; letter-spacing:0.08em; color:#B3B3B3;"><span>Quad</span><span style="color:#FD0E72;">Trust by design</span></div>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:220px; right:300px; width:70px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:470px; right:560px; width:56px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; bottom:230px; right:200px; width:48px;"></span>
+  </section>
+
+  <!-- ============ SLIDE 9 — VISION (dark) ============ -->
+  <section class="slide" style="position:relative; width:100%; height:100%; box-sizing:border-box; padding:96px 120px 110px; display:flex; flex-direction:column; font-family:'Montserrat',sans-serif; background:#111111; color:#FAFBF6; overflow:hidden; isolation:isolate;">
+    <div style="font-family:'Montserrat',sans-serif; font-size:24px; letter-spacing:0.04em; font-weight:600; margin-bottom:36px;"><span style="color:#FD0E72;">09 ✦</span><span style="color:#777;"> Vision</span></div>
+
+    <div style="font-family:'Newsreader',serif; font-weight:500; font-size:74px; line-height:1.05; letter-spacing:-0.02em; max-width:1240px; margin-top:auto;">Trust packets are the first job.<br><span style="color:#FD0E72;">The runtime does the rest.</span></div>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:48px;">
+      <span style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:500; color:#FAFBF6; border:1.5px solid #3a3a3a; padding:12px 20px; border-radius:14px;">Security questionnaires</span>
+      <span style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:500; color:#FAFBF6; border:1.5px solid #3a3a3a; padding:12px 20px; border-radius:14px;">RFPs</span>
+      <span style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:500; color:#FAFBF6; border:1.5px solid #3a3a3a; padding:12px 20px; border-radius:14px;">Vendor diligence</span>
+      <span style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:500; color:#FAFBF6; border:1.5px solid #3a3a3a; padding:12px 20px; border-radius:14px;">Onboarding</span>
+      <span style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:500; color:#FAFBF6; border:1.5px solid #3a3a3a; padding:12px 20px; border-radius:14px;">Support ops</span>
+    </div>
+
+    <div style="margin-top:40px; font-family:'Montserrat',sans-serif; font-size:24px; font-weight:400; color:#B3B3B3;">Quad is the runtime for <span style="color:#FAFBF6; font-weight:600;">company-aware AI employees.</span></div>
+
+    <div style="margin-top:auto; margin-left:auto; max-width:780px; border-right:3px solid #FD0E72; padding-right:30px; text-align:right;">
+      <div style="font-family:'Newsreader',serif; font-weight:400; font-size:34px; line-height:1.32; color:#FAFBF6;">The moat is not the prompt. It is <span style="color:#FD0E72;">scoped company context, validated evidence, and trusted execution</span> that compounds with every run.</div>
+    </div>
+
+    <div style="position:absolute; left:120px; right:120px; bottom:50px; display:flex; justify-content:space-between; align-items:center; white-space:nowrap; font-family:'Montserrat',sans-serif; font-size:18px; font-weight:500; letter-spacing:0.08em; color:#777;"><span>Quad</span><span style="color:#FD0E72;">Vision</span></div>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:160px; right:200px; width:66px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:435px; left:160px; width:50px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; left:514px; width:54px; top:879px;"></span>
+  </section>
+
+  <!-- ============ SLIDE 10 — DEMO ============ -->
+  <section class="slide" style="position:relative; width:100%; height:100%; box-sizing:border-box; padding:96px 120px 110px; display:flex; flex-direction:column; font-family:'Montserrat',sans-serif; background:#111111; color:#FAFBF6; overflow:hidden; isolation:isolate;">
+    <div style="font-family:'Montserrat',sans-serif; font-size:24px; letter-spacing:0.04em; font-weight:600; margin-bottom:40px;"><span style="color:#FD0E72;">10 ✦</span><span style="color:#777;"> Demo</span></div>
+
+    <div style="display:flex; gap:80px; flex:1; min-height:0;">
+      <div style="display:flex; flex-direction:column;">
+        <div style="font-family:'Newsreader',serif; font-weight:500; font-size:120px; line-height:0.96;">Live<br>demo.</div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:auto;">
+          <span style="font-family:'Montserrat',sans-serif; font-size:19px; font-weight:500; color:#fff; background:#FD0E72; padding:10px 18px; border-radius:14px; white-space:nowrap;">Evidence-backed</span>
+          <span style="font-family:'Montserrat',sans-serif; font-size:19px; font-weight:500; color:#fff; background:#FD0E72; padding:10px 18px; border-radius:14px; white-space:nowrap;">Approval-gated</span>
+          <span style="font-family:'Montserrat',sans-serif; font-size:19px; font-weight:500; color:#fff; background:#FD0E72; padding:10px 18px; border-radius:14px; white-space:nowrap;">Replayable</span>
+        </div>
+      </div>
+      <div style="flex:1; border:1.5px solid #2a2a2a; border-radius:22px; background:#161616; padding:36px 40px; display:flex; flex-direction:column;">
+        <div style="font-family:'Montserrat',sans-serif; font-size:18px; font-weight:500; letter-spacing:0.04em; color:#777; padding-bottom:18px; border-bottom:1px solid #2a2a2a;">Run ✦ audit.acme.com</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px 56px; margin-top:26px;">
+          <div style="display:flex; gap:16px; font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#FAFBF6;"><span style="color:#FD0E72;">01</span> Start audit</div>
+          <div style="display:flex; gap:16px; font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#FAFBF6;"><span style="color:#FD0E72;">05</span> Check proof score</div>
+          <div style="display:flex; gap:16px; font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#FAFBF6;"><span style="color:#FD0E72;">02</span> Watch the run stream</div>
+          <div style="display:flex; gap:16px; font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#FAFBF6;"><span style="color:#FD0E72;">06</span> Review the fix</div>
+          <div style="display:flex; gap:16px; font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#FAFBF6;"><span style="color:#FD0E72;">03</span> Open a finding</div>
+          <div style="display:flex; gap:16px; font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#FD0E72;"><span style="color:#FD0E72;">07</span> Approve before ship</div>
+          <div style="display:flex; gap:16px; font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#FAFBF6;"><span style="color:#FD0E72;">04</span> Inspect the evidence</div>
+          <div style="display:flex; gap:16px; font-family:'Montserrat',sans-serif; font-size:24px; font-weight:500; color:#FAFBF6;"><span style="color:#FD0E72;">08</span> Generate trust packet</div>
+        </div>
+        <div style="margin-top:auto; display:flex; gap:32px; padding-top:26px; border-top:1px solid #2a2a2a;">
+          <div><div style="font-family:'Montserrat',sans-serif; font-size:17px; font-weight:500; color:#777; letter-spacing:0.04em;">Findings</div><div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:34px; color:#FD0E72; margin-top:4px;">24</div></div>
+          <div><div style="font-family:'Montserrat',sans-serif; font-size:17px; font-weight:500; color:#777; letter-spacing:0.04em;">Critical</div><div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:34px; color:#EF4444; margin-top:4px;">3</div></div>
+          <div><div style="font-family:'Montserrat',sans-serif; font-size:17px; font-weight:500; color:#777; letter-spacing:0.04em;">Proof score</div><div style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:34px; color:#22C55E; margin-top:4px;">83%</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="position:absolute; left:120px; right:120px; bottom:50px; display:flex; justify-content:space-between; align-items:center; white-space:nowrap; font-family:'Montserrat',sans-serif; font-size:18px; font-weight:500; letter-spacing:0.08em; color:#777;"><span>Quad</span><span style="color:#FD0E72;">Demo</span></div>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:455px; left:175px; width:52px;"></span>
+    <span class="spk" data-spk style="position:absolute; pointer-events:none; z-index:-1; opacity:0.88; top:650px; left:420px; width:40px;"></span>
+  </section>
+
+</div><!-- /#canvas -->
+</div><!-- /#stage -->
+
+<div id="counter">1 / 10</div>
+
+<script src="deck.js"></script>
+</body>
+</html>
