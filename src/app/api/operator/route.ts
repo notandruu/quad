@@ -3,7 +3,7 @@ import { DEMO_ORG_ID } from "@/data/seed";
 import { ENTERPRISE_PROOF_ORG_ID } from "@/data/demo/enterprise-proof";
 import { getBackendReadiness } from "@/lib/backend/readiness";
 import { buildScopedContextGraph, listBrainMemoryTrail, summarizeScopedContextGraph } from "@/lib/brain";
-import { buildConnectorRegistry, listConnectorCredentials } from "@/lib/connectors";
+import { buildConnectorRegistry, listConnectorCredentialAuditLogs, listConnectorCredentials } from "@/lib/connectors";
 import { getWorkerCanaryHealth, getWorkerQueueHealth, getWorkerRuntimeHealth } from "@/lib/jobs/queue";
 import { getLatestModelCallReceipts, type ModelCallReceipt } from "@/lib/llm/gateway";
 import { summarizeCapabilities, summarizeCapabilityCatalog } from "@/lib/metaregistry";
@@ -45,9 +45,10 @@ export async function GET(request: Request) {
   const playbooks = summarizePlaybookCatalog({
     activeCapabilityIds: capabilities.activeTools.map((tool) => tool.id),
   });
-  const [workspaceContext, connectorCredentials, connectorRegistry, workerQueue, workerRuntime, workerCanary, backendReadiness, quadChainPackets, memoryTrail, contextGraph, modelReceipts, runtimeTraces, evidenceBundles] = await Promise.all([
+  const [workspaceContext, connectorCredentials, connectorAuditLogs, connectorRegistry, workerQueue, workerRuntime, workerCanary, backendReadiness, quadChainPackets, memoryTrail, contextGraph, modelReceipts, runtimeTraces, evidenceBundles] = await Promise.all([
     getOrgWorkspaceContext({ orgId }).catch(() => null),
     listConnectorCredentials({ orgId }).catch(() => []),
+    listConnectorCredentialAuditLogs({ orgId, limit: 8 }).catch(() => []),
     buildConnectorRegistry({ orgId }).catch(() => null),
     getWorkerQueueHealth().catch(() => null),
     getWorkerRuntimeHealth().catch(() => null),
@@ -125,6 +126,7 @@ export async function GET(request: Request) {
     memory: memoryTrail,
     contextGraph: contextGraph ? summarizeScopedContextGraph(contextGraph) : null,
     connectorCredentials,
+    connectorAuditLogs,
     connectorRegistry,
     security,
     usage: summarizeUsageMetering({

@@ -11,7 +11,7 @@
 
 quad is not a throwaway hackathon build. quad should be designed as a production product that happens to have a hackathon launch/demo deadline.
 
-2026-06-21 update: shipped the next biggest platform gap as the connector registry. quad now has a safe inventory for source systems, publishers, browser actions, voice, observability, internal infrastructure, and agent surfaces with auth mode, scopes, credential state, write risk, approval mode, playbook bindings, `/api/connectors/registry`, and operator console posture.
+2026-06-21 update: shipped the next biggest platform gap as the connector registry plus service-account audit logs. quad now has a safe inventory for source systems, publishers, browser actions, voice, observability, internal infrastructure, and agent surfaces with auth mode, scopes, credential state, write risk, approval mode, playbook bindings, `/api/connectors/registry`, `/api/connectors/audit-log`, and operator console posture.
 
 the core product is a company-aware ai employee platform: it understands a business goal, retrieves and collects missing context, uses tools, validates its own work, learns only verified knowledge, executes approved actions, and leaves a replayable evidence trail. website audits and security questionnaires are product workflows on top of that runtime, not the whole company.
 
@@ -87,7 +87,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [ ] quad chain certificate schema for audit briefs, customer trust packets, learned memory receipts, and agent handoffs
 - [x] dynamic tool catalog with eager hot tools, deferred cold tools, health state, and allowlist filtering
 - [x] metaregistry catalog for installable connectors, publishers, skills, agents, approval policies, eval policies, and surfaces
-- [ ] connector auth/security model with encrypted tokens, scopes, per-user oauth where possible, and service-account audit logs
+- [ ] connector auth/security model with encrypted tokens, scopes, service-account audit logs, and per-user oauth where possible
 - [x] skill/playbook layer so workflows wrap raw tools with guardrails and synthesis rules
 - [x] connector registry for source systems, publishers, browser actions, and specialist agents
 - [x] autonomy tier policy for read, draft, confirm, explicit approve, and irreversible actions

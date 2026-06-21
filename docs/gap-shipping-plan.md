@@ -173,7 +173,7 @@ Acceptance:
 
 ## Gap 2.0.3: connector registry
 
-Status: shipped v1.
+Status: shipped v2.
 
 What was missing:
 
@@ -189,11 +189,19 @@ Shipped v1:
 - `GET /api/connectors/registry` exposes the registry without secret env values or credential payloads.
 - `/api/operator` and the operator console show connector posture beside capabilities and playbooks.
 
+Shipped v2:
+
+- connector credential install and revoke mutations now append service-account audit logs.
+- audit logs include action, actor, capability id, install id, scopes, credential hash, receipt id, packet id, certificate id, and timestamp.
+- `GET /api/connectors/audit-log` exposes scoped audit logs without credential payloads.
+- `/api/operator` returns recent connector audit logs and the operator console shows the latest safe install/revoke events beside the registry.
+
 Acceptance:
 
 - operators can answer which external systems the AI employee can read or write.
 - customer-mutating connectors are visibly high-risk and approval-gated.
 - credentials are summarized as installed/missing/revoked without exposing secret payloads.
+- service-account credential changes are auditable without leaking tokens.
 
 ## Gap 2.1: runtime observability receipts
 

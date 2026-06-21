@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEMO_ORG_ID } from "@/data/seed";
+import { installConnectorCredential } from "@/lib/connectors";
 import { executeApprovedPublish } from "@/lib/fde/execution";
 import { dryRunPublish } from "@/lib/fde/publisher";
 import {
@@ -37,6 +38,14 @@ describe("GET /api/operator", () => {
       actor: "operator.test",
       env: publisherEnv(),
       now: "2026-06-21T00:00:04.000Z",
+    });
+    const installedCredential = await installConnectorCredential({
+      orgId: DEMO_ORG_ID,
+      capabilityId: "cms.publisher",
+      credential: { token: "operator_connector_secret" },
+      scopes: ["cms:draft"],
+      actor: "operator.test",
+      now: "2026-06-21T00:00:05.000Z",
     });
 
     const response = await GET(new Request(`http://localhost/api/operator?orgId=${DEMO_ORG_ID}&limit=5`));
@@ -129,7 +138,19 @@ describe("GET /api/operator", () => {
         }),
       ])
     );
+    expect(body.connectorAuditLogs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action: "installed",
+          capabilityId: "cms.publisher",
+          installId: installedCredential.summary.id,
+          actor: "operator.test",
+          packetId: installedCredential.packet.id,
+        }),
+      ])
+    );
     expect(JSON.stringify(body)).not.toMatch(/cms_test|linear_test|section body value|sk-ant-|sk-proj-/);
+    expect(JSON.stringify(body)).not.toContain("operator_connector_secret");
   });
 });
 

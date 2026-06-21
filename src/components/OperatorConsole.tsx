@@ -319,6 +319,20 @@ type OperatorResponse = {
       nextAction: string;
     }>;
   } | null;
+  connectorAuditLogs?: Array<{
+    id: string;
+    orgId: string;
+    action: "installed" | "revoked";
+    capabilityId: string;
+    installId: string;
+    actor: string;
+    scopes: string[];
+    credentialHash: string;
+    receiptId: string;
+    packetId: string;
+    certificateId: string;
+    createdAt: string;
+  }>;
   worker?: {
     queue: {
       queueDepth: number;
@@ -788,7 +802,12 @@ export function OperatorConsole({ orgId = "org_redcross", watchRunId }: { orgId?
           </div>
 
           <CapabilityCatalogPanel capabilities={data.capabilities} />
-          {data.connectorRegistry && <ConnectorRegistryPanel registry={data.connectorRegistry} />}
+          {data.connectorRegistry && (
+            <ConnectorRegistryPanel
+              registry={data.connectorRegistry}
+              auditLogs={data.connectorAuditLogs ?? []}
+            />
+          )}
           {data.playbooks && <PlaybookPanel playbooks={data.playbooks} />}
 
           <CapabilityInstallPlan
@@ -1673,7 +1692,13 @@ function PlaybookPanel({ playbooks }: { playbooks: NonNullable<OperatorResponse[
   );
 }
 
-function ConnectorRegistryPanel({ registry }: { registry: NonNullable<OperatorResponse["connectorRegistry"]> }) {
+function ConnectorRegistryPanel({
+  registry,
+  auditLogs,
+}: {
+  registry: NonNullable<OperatorResponse["connectorRegistry"]>;
+  auditLogs: NonNullable<OperatorResponse["connectorAuditLogs"]>;
+}) {
   const topEntries = registry.entries
     .slice()
     .sort((a, b) => connectorRiskWeight(b.risk) - connectorRiskWeight(a.risk))
@@ -1713,6 +1738,15 @@ function ConnectorRegistryPanel({ registry }: { registry: NonNullable<OperatorRe
           </div>
         ))}
       </div>
+      {auditLogs.length > 0 && (
+        <div className="mt-2 rounded border border-edge bg-panel px-2 py-1 text-[9px] leading-4 text-neutral-600">
+          {auditLogs.slice(0, 2).map((entry) => (
+            <div key={entry.id} className="truncate">
+              {entry.action} {entry.capabilityId} · {entry.actor}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

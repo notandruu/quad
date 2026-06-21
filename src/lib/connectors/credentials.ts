@@ -53,11 +53,29 @@ export type ConnectorCredentialReceipt = {
   credentialHash: string;
 };
 
+export type ConnectorCredentialAuditAction = "installed" | "revoked";
+
+export type ConnectorCredentialAuditLog = {
+  id: string;
+  orgId: string;
+  action: ConnectorCredentialAuditAction;
+  capabilityId: string;
+  installId: string;
+  actor: string;
+  scopes: string[];
+  credentialHash: string;
+  receiptId: string;
+  packetId: string;
+  certificateId: string;
+  createdAt: string;
+};
+
 export type ConnectorCredentialMutationResult = {
   summary: ConnectorCredentialSummary;
   receipt: ConnectorCredentialReceipt;
   durable: boolean;
   packet: QuadChainPacketSummary;
+  auditLog: ConnectorCredentialAuditLog;
 };
 
 export class ConnectorCredentialError extends Error {
@@ -77,9 +95,12 @@ export class ConnectorCredentialError extends Error {
 
 const g = globalThis as typeof globalThis & {
   __quadConnectorCredentials?: Map<string, ConnectorCredentialRecord>;
+  __quadConnectorCredentialAuditLogs?: Map<string, ConnectorCredentialAuditLog>;
 };
 if (!g.__quadConnectorCredentials) g.__quadConnectorCredentials = new Map();
+if (!g.__quadConnectorCredentialAuditLogs) g.__quadConnectorCredentialAuditLogs = new Map();
 const memoryCredentials = g.__quadConnectorCredentials;
+const memoryAuditLogs = g.__quadConnectorCredentialAuditLogs;
 
 export async function installConnectorCredential(
   input: InstallConnectorCredentialInput
@@ -127,11 +148,13 @@ export async function installConnectorCredential(
     receipt,
     action: "installed",
   });
+  const auditLog = appendConnectorCredentialAuditLog({ record, receipt, packet, action: "installed" });
   return {
     summary,
     receipt,
     durable,
     packet,
+    auditLog,
   };
 }
 
@@ -164,6 +187,20 @@ export async function listConnectorCredentials(input: {
     .map(summarizeConnectorCredential);
 }
 
+export async function listConnectorCredentialAuditLogs(input: {
+  orgId: string;
+  capabilityId?: string;
+  limit?: number;
+}): Promise<ConnectorCredentialAuditLog[]> {
+  const limit = Math.max(1, Math.min(input.limit ?? 20, 100));
+
+  return [...memoryAuditLogs.values()]
+    .filter((entry) => entry.orgId === input.orgId)
+    .filter((entry) => !input.capabilityId || entry.capabilityId === input.capabilityId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, limit);
+}
+
 export async function revokeConnectorCredential(
   input: RevokeConnectorCredentialInput
 ): Promise<ConnectorCredentialMutationResult> {
@@ -190,12 +227,14 @@ export async function revokeConnectorCredential(
     receipt,
     action: "revoked",
   });
+  const auditLog = appendConnectorCredentialAuditLog({ record: updated, receipt, packet, action: "revoked" });
 
   return {
     summary,
     receipt,
     durable,
     packet,
+    auditLog,
   };
 }
 
@@ -292,6 +331,30 @@ async function createCredentialPacket(input: {
   });
   const saved = await saveQuadChainPacket(packet);
   return saved.summary;
+}
+
+function appendConnectorCredentialAuditLog(input: {
+  record: ConnectorCredentialRecord;
+  receipt: ConnectorCredentialReceipt;
+  packet: QuadChainPacketSummary;
+  action: ConnectorCredentialAuditAction;
+}): ConnectorCredentialAuditLog {
+  const auditLog: ConnectorCredentialAuditLog = {
+    id: `connector_audit_${hashParts(input.receipt.id, input.action, input.packet.id)}`,
+    orgId: input.record.orgId,
+    action: input.action,
+    capabilityId: input.record.capabilityId,
+    installId: input.record.id,
+    actor: input.record.actor,
+    scopes: input.record.scopes,
+    credentialHash: input.record.credentialHash,
+    receiptId: input.receipt.id,
+    packetId: input.packet.id,
+    certificateId: input.packet.certificateId,
+    createdAt: input.record.updatedAt,
+  };
+  memoryAuditLogs.set(auditLog.id, auditLog);
+  return auditLog;
 }
 
 async function findCredential(input: RevokeConnectorCredentialInput): Promise<ConnectorCredentialRecord | null> {

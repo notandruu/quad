@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { getQuadChainPackets } from "@/lib/quad-chain/registry";
 import {
   installConnectorCredential,
+  listConnectorCredentialAuditLogs,
   listConnectorCredentials,
   revokeConnectorCredential,
 } from "./credentials";
@@ -43,6 +44,14 @@ describe("connector credential vault", () => {
       visibility: "restricted",
     });
     expect(serialized).not.toContain("secret-token-value");
+    expect(result.auditLog).toMatchObject({
+      orgId: "org_connector_secret",
+      action: "installed",
+      capabilityId: "cms.publisher",
+      actor: "admin@example.com",
+      packetId: result.packet.id,
+      certificateId: result.packet.certificateId,
+    });
 
     const packets = await getQuadChainPackets({
       orgId: "org_connector_secret",
@@ -51,6 +60,16 @@ describe("connector credential vault", () => {
     });
     expect(packets).toHaveLength(1);
     expect(JSON.stringify(packets[0])).not.toContain("secret-token-value");
+
+    const auditLogs = await listConnectorCredentialAuditLogs({ orgId: "org_connector_secret" });
+    expect(auditLogs).toEqual([
+      expect.objectContaining({
+        action: "installed",
+        capabilityId: "cms.publisher",
+        packetId: result.packet.id,
+      }),
+    ]);
+    expect(JSON.stringify(auditLogs)).not.toContain("secret-token-value");
   });
 
   it("rejects scopes outside the manifest", async () => {
@@ -94,5 +113,13 @@ describe("connector credential vault", () => {
       accepted: true,
       visibility: "restricted",
     });
+    expect(revoked.auditLog).toMatchObject({
+      action: "revoked",
+      installId: installed.summary.id,
+      actor: "security@example.com",
+      packetId: revoked.packet.id,
+    });
+    const auditLogs = await listConnectorCredentialAuditLogs({ orgId: "org_connector_revoke" });
+    expect(auditLogs.map((entry) => entry.action)).toEqual(["revoked", "installed"]);
   });
 });
