@@ -164,6 +164,7 @@ Backend readiness and security packets only expose token labels, scopes, counts,
 
    Backend routes may stage draft artifacts, but customer-facing mutation paths must keep using approval checks and quadchain receipts. Real connector writes should stay blocked until a run has an approved trust packet and a verification receipt.
    Dry-run publishing also respects metaregistry policy: write-capable connector capabilities such as `cms.publisher` and `task.publisher` must be configured and explicitly allowlisted before staging artifacts.
+   Route-level tests assert that `/api/publish/dry-run` returns `capability_blocked` and records blocked task events when those connector capabilities are not active.
 
 5. Upgrade auth before enterprise use.
 
