@@ -9,6 +9,7 @@ import {
   type FindingAction,
 } from "@/lib/debug/actionDrafts";
 import { buildEvidenceView } from "@/lib/debug/findingEvidence";
+import type { QuadChainPacketSummary } from "@/lib/quad-chain";
 import { ApprovalButtons } from "./ApprovalButtons";
 
 const severityColor: Record<AuditFinding["severity"], string> = {
@@ -21,6 +22,8 @@ const severityColor: Record<AuditFinding["severity"], string> = {
 export function FindingCard({ finding }: { finding: AuditFinding }) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [draft, setDraft] = useState<ActionDraft | null>(null);
+  const [proof, setProof] = useState<QuadChainPacketSummary | null>(null);
+  const [proofOpen, setProofOpen] = useState(false);
   const evidence = buildEvidenceView(finding);
 
   useEffect(() => {
@@ -53,6 +56,19 @@ export function FindingCard({ finding }: { finding: AuditFinding }) {
     }
 
     setDraft(draftFindingAction(action, finding));
+  }
+
+  async function toggleProof() {
+    const nextOpen = !proofOpen;
+    setProofOpen(nextOpen);
+    if (!nextOpen || proof) return;
+    const response = await fetch(
+      `/api/quadchain/packets?runId=${encodeURIComponent(finding.runId)}&sourceId=${encodeURIComponent(finding.id)}&limit=1`,
+      { cache: "no-store" }
+    ).catch(() => null);
+    if (!response?.ok) return;
+    const json = (await response.json()) as { packets?: QuadChainPacketSummary[] };
+    setProof(json.packets?.[0] ?? null);
   }
 
   return (
@@ -94,7 +110,41 @@ export function FindingCard({ finding }: { finding: AuditFinding }) {
             No screenshot
           </span>
         )}
+        <button
+          type="button"
+          onClick={toggleProof}
+          className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-accent transition hover:border-accent/60 hover:bg-accent/15"
+        >
+          {proofOpen ? "Hide proof" : "Show proof"}
+        </button>
       </div>
+
+      {proofOpen && (
+        <div className="rounded-md border border-accent/20 bg-accent/5 p-3">
+          {proof ? (
+            <div className="grid gap-2 text-[11px] text-neutral-400 sm:grid-cols-3">
+              <div>
+                <div className="text-neutral-600">Packet</div>
+                <div className="mt-1 truncate font-mono text-neutral-300">{proof.certificateId}</div>
+              </div>
+              <div>
+                <div className="text-neutral-600">Verifier</div>
+                <div className={proof.accepted ? "mt-1 text-accent" : "mt-1 text-red-300"}>
+                  {proof.accepted ? "accepted" : "rejected"}
+                </div>
+              </div>
+              <div>
+                <div className="text-neutral-600">Evidence</div>
+                <div className="mt-1 text-neutral-300">
+                  {proof.evidencePreserved}/{proof.evidenceRequired}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-[11px] text-neutral-500">No quadchain packet found yet.</div>
+          )}
+        </div>
+      )}
 
       <div className="rounded-md border border-edge bg-ink/60 p-3">
         <div className="flex items-center justify-between gap-3">

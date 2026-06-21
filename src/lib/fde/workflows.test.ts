@@ -91,6 +91,8 @@ describe("fde workflows", () => {
     expect(plan.artifacts).toHaveLength(1);
     expect(plan.openObligations).toEqual([]);
     expect(plan.certificate.proofChain.accepted).toBe(true);
+    expect(plan.packet.type).toBe("trust_packet");
+    expect(plan.packet.verification.accepted).toBe(true);
     expect(plan.receiptPreview.status).toBe("ready_for_approval");
   });
 

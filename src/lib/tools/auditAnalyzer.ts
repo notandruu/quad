@@ -12,6 +12,8 @@ import { retrieveMemories } from "@/lib/brain";
 import { partitionFindings } from "@/lib/runtime/quality";
 import { buildAnalyzePrompt, buildSynthesisPrompt } from "@/lib/runtime/prompts";
 import { complete, auditModel, extractJsonArray } from "@/lib/llm/anthropic";
+import { createQuadChainPacket, summarizeQuadChainPacket, type QuadChainPacketSummary } from "@/lib/quad-chain";
+import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 import { discoverPages } from "./discover";
 import { renderPage } from "./browserbase";
 
@@ -77,6 +79,29 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
           // emit a stable URL instead.
           hasScreenshot: Boolean(evidence.screenshotUrl),
         });
+        await saveAuditPacket({
+          orgId,
+          runId,
+          type: "audit_event",
+          producer: "quad.audit_worker",
+          consumer: "quad.audit_analyzer",
+          sourceId: `page:${url}`,
+          sourceKind: "tool_result",
+          sourceContent: {
+            url,
+            status: evidence.status,
+            title: evidence.title,
+            headings: evidence.headings.slice(0, 8),
+            hasScreenshot: Boolean(evidence.screenshotUrl),
+          },
+          output: [
+            `rendered ${url}`,
+            `status ${evidence.status}`,
+            `title ${evidence.title || "untitled page"}`,
+          ].join("\n"),
+          evidenceQuote: evidence.title || url,
+          answerConcepts: ["rendered", "status"],
+        });
 
         await emit("page.analyzing", { url });
         const brain = await retrieveMemories({ orgId, query: evidence.text.slice(0, 500), scope: "internal" });
@@ -89,6 +114,7 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
           await bumpCounter(runId, "findingsCreated");
           await emit("finding.created", { id: f.id, title: f.title });
           await emit("finding.evaluated", { id: f.id, eval: f.eval });
+          await saveFindingPacket(orgId, f);
         }
 
         await bumpCounter(runId, "pagesAnalyzed");
@@ -280,7 +306,7 @@ async function synthesize(
     // unique category so the list stays actionable, not overwhelming.
     const actions = deriveActions(top);
 
-    const report: AuditReport = {
+    const report: AuditReport & { quadChain?: QuadChainPacketSummary } = {
       runId,
       orgId,
       targetUrl,
@@ -295,6 +321,29 @@ async function synthesize(
         averageConfidence: Number(avg.toFixed(2)),
       },
     };
+    const reportPacket = await saveAuditPacket({
+      orgId,
+      runId,
+      type: "audit_report",
+      producer: "quad.audit_worker",
+      consumer: "quad.dashboard",
+      sourceId: `${runId}:audit_report`,
+      sourceKind: "artifact",
+      sourceContent: {
+        summary: summaryText,
+        metrics: report.metrics,
+        findingIds: top.map((finding) => finding.id),
+      },
+      output: [
+        `audit report for ${targetUrl}`,
+        summaryText,
+        `findings shown ${shown.length}`,
+        `findings filtered ${filtered.length}`,
+      ].join("\n"),
+      evidenceQuote: summaryText,
+      answerConcepts: ["audit", "report"],
+    });
+    if (reportPacket) report.quadChain = reportPacket;
 
     // Persist the full report in Redis so post-audit chat can load it by runId.
     const redis = getRedis();
@@ -308,6 +357,62 @@ async function synthesize(
 
     return report;
   });
+}
+
+async function saveFindingPacket(orgId: string, finding: AuditFinding): Promise<QuadChainPacketSummary | null> {
+  return saveAuditPacket({
+    orgId,
+    runId: finding.runId,
+    type: "finding",
+    producer: "quad.audit_analyzer",
+    consumer: "quad.findings_panel",
+    sourceId: finding.id,
+    sourceKind: "finding",
+    sourceContent: finding,
+    output: [
+      `finding: ${finding.title}`,
+      `fix: ${finding.recommendedFix}`,
+      finding.evidence.quote ? `evidence: ${finding.evidence.quote}` : "evidence: needs human review",
+    ].join("\n"),
+    evidenceQuote: finding.evidence.quote,
+    answerConcepts: ["finding", "fix"],
+  });
+}
+
+async function saveAuditPacket(input: {
+  orgId: string;
+  runId: string;
+  type: "audit_event" | "audit_report" | "finding";
+  producer: string;
+  consumer: string;
+  sourceId: string;
+  sourceKind: "event" | "artifact" | "finding" | "tool_result";
+  sourceContent: unknown;
+  output: string;
+  evidenceQuote?: string;
+  answerConcepts: string[];
+}): Promise<QuadChainPacketSummary | null> {
+  try {
+    const packet = createQuadChainPacket({
+      type: input.type,
+      orgId: input.orgId,
+      runId: input.runId,
+      producer: input.producer,
+      consumer: input.consumer,
+      sources: [{ id: input.sourceId, kind: input.sourceKind, content: input.sourceContent }],
+      evidence: input.evidenceQuote
+        ? [{ id: `${input.sourceId}:quote`, sourceId: input.sourceId, quote: input.evidenceQuote, required: true }]
+        : [],
+      output: input.output,
+      answerConcepts: input.answerConcepts,
+      visibility: "internal",
+    });
+    const result = await saveQuadChainPacket(packet);
+    return result.summary;
+  } catch (err) {
+    captureHandled(err, { runId: input.runId, orgId: input.orgId, toolName: "quadchain.audit_packet" });
+    return null;
+  }
 }
 
 /** Derive one RecommendedAction per unique finding category (max 5). */

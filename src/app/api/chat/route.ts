@@ -9,6 +9,8 @@ import { complete, chatModel } from "@/lib/llm/anthropic";
 import { buildAuditChatSystemPrompt } from "@/lib/runtime/prompts";
 import type { AuditReport } from "@/lib/types";
 import { getCachedReport } from "@/lib/runtime/reportCache";
+import { createQuadChainPacket, summarizeQuadChainPacket, type QuadChainPacketSummary } from "@/lib/quad-chain";
+import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 
 export const runtime = "nodejs";
 
@@ -35,21 +37,94 @@ export async function POST(req: NextRequest) {
       const report = await loadReport(runId);
       if (report) {
         const reply = await auditGroundedChat(text, orgId, employee, report);
-        return NextResponse.json({ message: reply, intent: "audit_follow_up" });
+        const quadChain = await saveChatPacket({
+          orgId,
+          runId,
+          text,
+          reply,
+          producer: "quad.chat",
+          consumer: "quad.dashboard",
+          sources: [
+            { id: `${runId}:audit_report`, kind: "artifact", content: { summary: report.summary, metrics: report.metrics } },
+            ...report.topFindings.slice(0, 5).map((finding) => ({
+              id: finding.id,
+              kind: "finding" as const,
+              content: {
+                title: finding.title,
+                quote: finding.evidence.quote,
+                fix: finding.recommendedFix,
+              },
+            })),
+          ],
+        });
+        return NextResponse.json({ message: reply, intent: "audit_follow_up", quadChain });
       }
     }
 
     // Normal employee runtime path.
+    const effectiveRunId = runId || crypto.randomUUID();
     const result = await runEmployee({
       orgId,
       employee,
-      runId: runId || crypto.randomUUID(),
+      runId: effectiveRunId,
       text,
       pinnedUrl: body.pinnedUrl,
       hasActiveAudit: body.hasActiveAudit,
     });
-    return NextResponse.json(result);
+    const quadChain = await saveChatPacket({
+      orgId,
+      runId: effectiveRunId,
+      text,
+      reply: result.message,
+      producer: `quad.${employee.id}`,
+      consumer: "quad.dashboard",
+      sources: [
+        { id: "chat_input", kind: "event", content: { text } },
+        ...result.context.slice(0, 6).map((memory) => ({
+          id: memory.id,
+          kind: "memory" as const,
+          content: {
+            title: memory.title,
+            sourceType: memory.sourceType,
+            summary: memory.summary,
+            evidence: memory.evidence,
+          },
+        })),
+      ],
+    });
+    return NextResponse.json({ ...result, quadChain });
   });
+}
+
+async function saveChatPacket(input: {
+  orgId: string;
+  runId: string;
+  text: string;
+  reply: string;
+  producer: string;
+  consumer: string;
+  sources: Array<{ id: string; kind: "event" | "artifact" | "finding" | "memory"; content: unknown }>;
+}): Promise<QuadChainPacketSummary | null> {
+  try {
+    const packet = createQuadChainPacket({
+      type: "chat_answer",
+      orgId: input.orgId,
+      runId: input.runId,
+      producer: input.producer,
+      consumer: input.consumer,
+      sources: input.sources,
+      output: [
+        `user: ${input.text}`,
+        `answer: ${input.reply}`,
+      ].join("\n"),
+      answerConcepts: ["answer"],
+      visibility: "internal",
+    });
+    const result = await saveQuadChainPacket(packet);
+    return summarizeQuadChainPacket(packet) ?? result.summary;
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -2,9 +2,23 @@ import { createHash } from "crypto";
 
 export type QuadChainHash = `sha256:${string}`;
 
+export type QuadChainPacketType =
+  | "audit_event"
+  | "audit_report"
+  | "finding"
+  | "brain_memory_write"
+  | "chat_answer"
+  | "voice_transcript"
+  | "agent_handoff"
+  | "trust_packet"
+  | "approval"
+  | "connector_action";
+
+export type QuadChainVisibility = "public" | "internal" | "restricted";
+
 export type QuadChainSource = {
   id: string;
-  kind: "event" | "artifact" | "finding" | "memory" | "approval" | "tool_result";
+  kind: "event" | "artifact" | "finding" | "memory" | "approval" | "tool_result" | "transcript";
   content: unknown;
 };
 
@@ -84,6 +98,59 @@ export type BuildQuadChainCertificateInput = {
 export type QuadChainVerification =
   | { accepted: true; failures: [] }
   | { accepted: false; failures: string[] };
+
+export type QuadChainPacket = {
+  id: string;
+  type: QuadChainPacketType;
+  orgId: string;
+  runId: string;
+  producer: string;
+  consumer: string;
+  sources: QuadChainSource[];
+  evidence: QuadChainEvidenceObligation[];
+  omittedRanges: QuadChainOmittedRange[];
+  output: string;
+  certificate: QuadChainCertificate;
+  verification: QuadChainVerification;
+  visibility: QuadChainVisibility;
+  createdAt: string;
+};
+
+export type QuadChainPacketSummary = {
+  id: string;
+  type: QuadChainPacketType;
+  orgId: string;
+  runId: string;
+  certificateId: string;
+  handoffId: string;
+  accepted: boolean;
+  failures: string[];
+  evidencePreserved: number;
+  evidenceRequired: number;
+  tokensBefore: number;
+  tokensAfter: number;
+  tokensSaved: number;
+  compressionRatio: number;
+  visibility: QuadChainVisibility;
+  createdAt: string;
+};
+
+export type CreateQuadChainPacketInput = {
+  type: QuadChainPacketType;
+  orgId: string;
+  runId: string;
+  producer: string;
+  consumer: string;
+  sources: QuadChainSource[];
+  evidence?: QuadChainEvidenceObligation[];
+  omittedRanges?: QuadChainOmittedRange[];
+  output: string;
+  answerConcepts?: string[];
+  openObligations?: QuadChainOpenObligation[];
+  visibility?: QuadChainVisibility;
+  verifierVersion?: string;
+  createdAt?: string;
+};
 
 const DEFAULT_VERIFIER_VERSION = "0.1.0";
 
@@ -236,6 +303,86 @@ export function verifyQuadChainCertificate(
   return failures.length === 0 ? { accepted: true, failures: [] } : { accepted: false, failures };
 }
 
+export function createQuadChainPacket(input: CreateQuadChainPacketInput): QuadChainPacket {
+  const createdAt = input.createdAt ?? new Date().toISOString();
+  const evidence = input.evidence ?? [];
+  const omittedRanges = input.omittedRanges ?? [];
+  const certificate = buildQuadChainCertificate({
+    runId: input.runId,
+    producer: input.producer,
+    consumer: input.consumer,
+    compressedContext: input.output,
+    sources: input.sources,
+    requiredEvidence: evidence,
+    answerConcepts: input.answerConcepts ?? inferAnswerConcepts(input.output),
+    omittedRanges,
+    openObligations: input.openObligations,
+    verifierVersion: input.verifierVersion,
+    createdAt,
+  });
+  const verification = verifyQuadChainCertificate(certificate, {
+    compressedContext: input.output,
+    sources: input.sources,
+    requiredEvidence: evidence,
+    verifierVersion: input.verifierVersion,
+  });
+  const id = `qpacket_${shortHash(hashJson({
+    orgId: input.orgId,
+    runId: input.runId,
+    type: input.type,
+    certificateId: certificate.certificateId,
+  }))}`;
+
+  return {
+    id,
+    type: input.type,
+    orgId: input.orgId,
+    runId: input.runId,
+    producer: input.producer,
+    consumer: input.consumer,
+    sources: input.sources,
+    evidence,
+    omittedRanges,
+    output: input.output,
+    certificate,
+    verification,
+    visibility: input.visibility ?? "internal",
+    createdAt,
+  };
+}
+
+export function verifyQuadChainPacket(packet: QuadChainPacket): QuadChainVerification {
+  return verifyQuadChainCertificate(packet.certificate, {
+    compressedContext: packet.output,
+    sources: packet.sources,
+    requiredEvidence: packet.evidence,
+    verifierVersion: packet.certificate.validator.version,
+  });
+}
+
+export function summarizeQuadChainPacket(packet: QuadChainPacket): QuadChainPacketSummary {
+  const required = packet.evidence.filter((item) => item.required).length;
+  const preserved = packet.certificate.proofChain.requiredEvidencePreserved.filter((item) => item.required).length;
+  return {
+    id: packet.id,
+    type: packet.type,
+    orgId: packet.orgId,
+    runId: packet.runId,
+    certificateId: packet.certificate.certificateId,
+    handoffId: packet.certificate.handoffId,
+    accepted: packet.verification.accepted,
+    failures: packet.verification.accepted ? [] : packet.verification.failures,
+    evidencePreserved: preserved,
+    evidenceRequired: required,
+    tokensBefore: packet.certificate.compressionChain.tokensBefore,
+    tokensAfter: packet.certificate.compressionChain.tokensAfter,
+    tokensSaved: packet.certificate.compressionChain.tokensSaved,
+    compressionRatio: packet.certificate.compressionChain.compressionRatio,
+    visibility: packet.visibility,
+    createdAt: packet.createdAt,
+  };
+}
+
 export function estimateTokens(value: string): number {
   if (!value.trim()) return 0;
   return Math.ceil(value.trim().length / 4);
@@ -261,6 +408,14 @@ function computeAnswerReadiness(input: {
   const conceptsReady = input.answerConcepts.every((concept) => lower.includes(concept.toLowerCase()));
   const obligationsReady = input.openObligations.length === 0;
   return evidenceReady && conceptsReady && obligationsReady ? 1 : 0;
+}
+
+function inferAnswerConcepts(output: string): string[] {
+  const words = output
+    .toLowerCase()
+    .match(/[a-z][a-z0-9_-]{3,}/g);
+  if (!words) return [];
+  return [...new Set(words)].slice(0, 4);
 }
 
 function stableStringify(value: unknown): string {

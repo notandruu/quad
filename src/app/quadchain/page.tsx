@@ -14,6 +14,7 @@ import {
   totalRouteSavings,
 } from "@/lib/quad-chain/metrics";
 import { buildQuadChainComparison } from "@/lib/quad-chain/workbench";
+import { getQuadChainPackets, summarizeQuadChainPackets } from "@/lib/quad-chain/registry";
 
 const sources: QuadChainSource[] = [
   {
@@ -64,7 +65,11 @@ const compressedContext = [
   "Do not disable csrf checks.",
 ].join("\n");
 
-export default function QuadChainPage() {
+export default async function QuadChainPage({
+  searchParams,
+}: {
+  searchParams?: { runId?: string };
+}) {
   const certificate = buildQuadChainCertificate({
     runId: "quadchain_demo",
     producer: "quad.researcher",
@@ -93,6 +98,10 @@ export default function QuadChainPage() {
     prompt: "Audit the oauth signup trace and produce the smallest safe fix.",
     createdAt: "2026-06-20T00:00:00.000Z",
   });
+  const runPackets = searchParams?.runId
+    ? await getQuadChainPackets({ runId: searchParams.runId, limit: 25 })
+    : [];
+  const packetSummary = summarizeQuadChainPackets(runPackets);
 
   return (
     <main className="min-h-screen px-4 py-6 text-[var(--ink)] sm:px-6 lg:px-8">
@@ -110,6 +119,31 @@ export default function QuadChainPage() {
         </header>
 
         <QuadChainWorkbench initial={initialComparison} />
+
+        {searchParams?.runId && (
+          <section className="rounded-lg border border-edge bg-panel/80 p-4 shadow-sm">
+            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Run trust trail</h2>
+                <p className="mt-1 text-sm text-muted">
+                  Real quadchain packets emitted by run {searchParams.runId}.
+                </p>
+              </div>
+              <div className="font-mono text-sm text-accent-dark">
+                {packetSummary.accepted}/{packetSummary.total} accepted
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
+              <ReceiptMetric label="Packets" value={String(packetSummary.total)} />
+              <ReceiptMetric label="Rejected" value={String(packetSummary.rejected)} />
+              <ReceiptMetric label="Tokens saved" value={String(packetSummary.tokensSaved)} />
+              <ReceiptMetric
+                label="Evidence"
+                value={`${packetSummary.evidencePreserved}/${packetSummary.evidenceRequired}`}
+              />
+            </div>
+          </section>
+        )}
 
         <section className="grid gap-3 md:grid-cols-3">
           {quadChainHeadlineMetrics.map((metric) => (
@@ -227,6 +261,15 @@ export default function QuadChainPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+function ReceiptMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-edge bg-paper/70 p-3">
+      <div className="text-xs text-muted">{label}</div>
+      <div className="mt-1 font-mono text-lg text-[var(--ink)]">{value}</div>
+    </div>
   );
 }
 

@@ -75,12 +75,13 @@ test.describe("quad production flows", () => {
     ]);
   });
 
-  test("streams an audit report over sse", async ({ request }) => {
+  test("streams an audit report over sse and surfaces the trust trail", async ({ page, request }) => {
+    const runId = `pw_${Date.now()}`;
     const response = await request.post("/api/audit/stream", {
       timeout: 60_000,
       data: {
         orgId: "org_brightpath",
-        runId: `pw_${Date.now()}`,
+        runId,
         targetUrl: "https://example.com",
         limit: 1,
       },
@@ -95,5 +96,15 @@ test.describe("quad production flows", () => {
 
     expect(events.some((event) => event.type === "run.created")).toBe(true);
     expect(events.some((event) => event.type === "audit.report")).toBe(true);
+
+    const packets = await request.get(`/api/quadchain/packets?runId=${runId}`);
+    expect(packets.ok()).toBe(true);
+    const packetJson = await packets.json();
+    expect(packetJson.summary.total).toBeGreaterThan(0);
+    expect(packetJson.packets.some((packet: { type: string }) => packet.type === "audit_report")).toBe(true);
+
+    await page.goto(`/quadchain?runId=${runId}`);
+    await expect(page.getByRole("heading", { name: "Run trust trail" })).toBeVisible();
+    await expect(page.getByText(new RegExp(`run ${runId}`))).toBeVisible();
   });
 });

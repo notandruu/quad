@@ -6,11 +6,13 @@ import { LiveLogs } from "@/components/LiveLogs";
 import { FindingsPanel } from "@/components/FindingsPanel";
 import { DebugDrawer } from "@/components/DebugDrawer";
 import { AsciiBlossoms } from "@/components/AsciiBlossoms";
+import { TrustTrail } from "@/components/TrustTrail";
 import type { AuditReport } from "@/lib/types";
 import type { PublishedEvent } from "@/lib/redis/publisher";
 import type { BackendSettings } from "@/lib/debug/status";
+import type { QuadChainPacketSummary } from "@/lib/quad-chain";
 
-type Message = { role: "user" | "quad"; text: string };
+type Message = { role: "user" | "quad"; text: string; quadChain?: QuadChainPacketSummary | null };
 type DemoState = "idle" | "loading" | "done";
 
 export default function Home() {
@@ -83,7 +85,7 @@ export default function Home() {
       }),
     });
     const data = await res.json();
-    setMessages((m) => [...m, { role: "quad", text: data.message }]);
+    setMessages((m) => [...m, { role: "quad", text: data.message, quadChain: data.quadChain ?? null }]);
   }
 
   async function startAudit(targetUrl: string, orgId?: string) {
@@ -154,8 +156,16 @@ export default function Home() {
               <span className="inline-block rounded-lg bg-panel px-3 py-2 text-sm text-neutral-200">
                 {m.text}
               </span>
+              {m.quadChain && (
+                <div className={m.role === "user" ? "mt-1 text-right" : "mt-1"}>
+                  <span className="inline-block rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 font-mono text-[10px] text-accent">
+                    verified by quadchain · {m.quadChain.certificateId}
+                  </span>
+                </div>
+              )}
             </div>
           ))}
+          <TrustTrail runId={report?.runId ?? null} />
           <FindingsPanel report={report} />
         </div>
 

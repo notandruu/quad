@@ -3,6 +3,8 @@ import { DEMO_ORG_ID } from "@/data/seed";
 import { validateAgentRunRequest, type AgentRunRequestBody } from "@/lib/agent/runRequest";
 import { buildTrustPacketWorkflow } from "@/lib/fde/workflows";
 import { summarizeCapabilities } from "@/lib/metaregistry";
+import type { QuadChainPacketSummary } from "@/lib/quad-chain";
+import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 import {
   addArtifact,
   addTask,
@@ -36,6 +38,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: validation.error }, { status: validation.status });
   }
   const { orgId, targetUrl, workflow, limit } = validation;
+  const quadChain: QuadChainPacketSummary[] = [];
 
   const run = createWorkflowRun({
     orgId,
@@ -91,6 +94,8 @@ export async function POST(req: NextRequest) {
         title: "Quad chain certificate",
         data: plan.certificate,
       });
+      const savedPacket = await saveQuadChainPacket(plan.packet);
+      quadChain.push(savedPacket.summary);
       const approval = requestApproval({
         runId: run.id,
         artifactId: packetArtifact.id,
@@ -117,6 +122,12 @@ export async function POST(req: NextRequest) {
       transitionRun(run.id, plan.receiptPreview.status === "blocked" ? "failed" : "needs_approval", {
         failureReason: plan.receiptPreview.status === "blocked" ? plan.receiptPreview.summary : undefined,
       });
+      addArtifact({
+        runId: run.id,
+        kind: "receipt",
+        title: "Quadchain packet summary",
+        data: savedPacket.summary,
+      });
     } else {
       transitionRun(run.id, "completed");
     }
@@ -126,6 +137,7 @@ export async function POST(req: NextRequest) {
       agent: "quad",
       workflow,
       summary: snapshot ? summarizeAgentTask(snapshot) : null,
+      quadChain,
     });
   } catch (err) {
     transitionRun(run.id, "failed", {
@@ -137,6 +149,7 @@ export async function POST(req: NextRequest) {
         agent: "quad",
         workflow,
         summary: snapshot ? summarizeAgentTask(snapshot) : null,
+        quadChain,
         error: err instanceof Error ? err.message : String(err),
       },
       { status: 500 }

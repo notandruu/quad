@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildQuadChainCertificate,
+  createQuadChainPacket,
+  summarizeQuadChainPacket,
   verifyQuadChainCertificate,
+  verifyQuadChainPacket,
   type QuadChainCertificate,
   type QuadChainEvidenceObligation,
   type QuadChainSource,
@@ -150,5 +153,33 @@ describe("quad chain", () => {
     const result = verifyQuadChainCertificate(tampered, { compressedContext, sources, requiredEvidence });
     expect(result.accepted).toBe(false);
     expect(result.failures).toContain("merkle_root_mismatch");
+  });
+
+  it("creates an accepted platform packet and compact summary", () => {
+    const packet = createQuadChainPacket({
+      type: "chat_answer",
+      orgId: "org_1",
+      runId: "run_1",
+      producer: "quad.chat",
+      consumer: "quad.dashboard",
+      sources,
+      evidence: requiredEvidence,
+      output: compressedContext,
+      answerConcepts: ["mfa"],
+      visibility: "restricted",
+      createdAt: "2026-06-20T00:00:00.000Z",
+    });
+
+    expect(packet.id).toMatch(/^qpacket_/);
+    expect(verifyQuadChainPacket(packet)).toEqual({ accepted: true, failures: [] });
+    expect(summarizeQuadChainPacket(packet)).toMatchObject({
+      id: packet.id,
+      type: "chat_answer",
+      accepted: true,
+      evidencePreserved: 1,
+      evidenceRequired: 1,
+      visibility: "restricted",
+    });
+    expect(JSON.stringify(summarizeQuadChainPacket(packet))).not.toContain("MFA is enforced");
   });
 });

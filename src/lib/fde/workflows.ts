@@ -2,9 +2,10 @@ import { buildEvidenceView } from "@/lib/debug/findingEvidence";
 import { getCapability, type ActiveTool } from "@/lib/metaregistry";
 import type { AuditFinding, AuditReport } from "@/lib/types";
 import {
-  buildQuadChainCertificate,
+  createQuadChainPacket,
   type QuadChainCertificate,
   type QuadChainOpenObligation,
+  type QuadChainPacket,
   type QuadChainSource,
 } from "@/lib/quad-chain";
 
@@ -38,6 +39,7 @@ export type FdeWorkflowPlan = {
   steps: FdeWorkflowStep[];
   openObligations: QuadChainOpenObligation[];
   certificate: QuadChainCertificate;
+  packet: QuadChainPacket;
   receiptPreview: {
     id: string;
     status: "ready_for_approval" | "blocked";
@@ -96,17 +98,22 @@ export function buildTrustPacketWorkflow(input: {
       required: true,
     }));
   const answerConcepts = ["trust packet", "approval", "evidence"];
-  const certificate = buildQuadChainCertificate({
+  const packet = createQuadChainPacket({
+    type: "trust_packet",
+    orgId: input.report.orgId,
     runId: input.report.runId,
     producer: "quad.enterprise_proof_agent",
     consumer: "quad.publisher_agent",
-    compressedContext,
     sources,
-    requiredEvidence,
+    evidence: requiredEvidence,
+    output: compressedContext,
     answerConcepts,
+    omittedRanges: [],
     openObligations,
+    visibility: "internal",
     createdAt: input.createdAt,
   });
+  const certificate = packet.certificate;
   const coreBlocked = steps.some(
     (step) => step.status === "blocked" && (!step.capabilityId || REQUIRED_CAPABILITIES.has(step.capabilityId))
   ) || !certificate.proofChain.accepted;
@@ -122,6 +129,7 @@ export function buildTrustPacketWorkflow(input: {
     steps,
     openObligations,
     certificate,
+    packet,
     receiptPreview: {
       id: `receipt_${input.report.runId}`,
       status: coreBlocked ? "blocked" : "ready_for_approval",

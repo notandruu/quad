@@ -3,6 +3,8 @@ import { traced, SPAN } from "@/lib/observability/phoenix";
 import { getClient, ensureSchema } from "./db";
 import { embed } from "./embeddings";
 import { addMemory } from "./store";
+import { createQuadChainPacket } from "@/lib/quad-chain";
+import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 
 export type IngestInput = {
   orgId: string;
@@ -64,6 +66,48 @@ export async function ingestMemory(input: IngestInput): Promise<BrainMemory> {
     } else {
       addMemory(memory);
     }
+
+    const evidenceQuotes = memory.evidence
+      .filter((item) => Boolean(item.quote))
+      .slice(0, 6)
+      .map((item) => item.quote as string);
+    const output = [
+      `brain memory write: ${memory.title}`,
+      `source type: ${memory.sourceType}`,
+      `summary: ${memory.summary ?? memory.content.slice(0, 240)}`,
+      ...evidenceQuotes.map((quote) => `evidence: ${quote}`),
+    ].join("\n");
+    await saveQuadChainPacket(createQuadChainPacket({
+      type: "brain_memory_write",
+      orgId: memory.orgId,
+      runId: input.sourceId,
+      producer: "quad.company_brain",
+      consumer: "quad.retrieval",
+      sources: [
+        {
+          id: memory.id,
+          kind: "memory",
+          content: {
+            sourceId: memory.sourceId,
+            sourceType: memory.sourceType,
+            title: memory.title,
+            summary: memory.summary,
+            evidence: memory.evidence,
+            permissions: memory.permissions,
+          },
+        },
+      ],
+      evidence: evidenceQuotes
+        .map((quote, index) => ({
+          id: `${memory.id}:evidence_${index + 1}`,
+          sourceId: memory.id,
+          quote,
+          required: true,
+        })),
+      output,
+      answerConcepts: ["memory", "write"],
+      visibility: "restricted",
+    }));
 
     return memory;
   });
