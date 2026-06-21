@@ -9,9 +9,9 @@ import { SPONSORS, SponsorMark } from "@/components/SponsorLogos";
 
 const useIso = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-const TITLE: { w: string; dim?: boolean; serif?: boolean }[] = [
+const TITLE: { w: string; dim?: boolean; serif?: boolean; br?: boolean }[] = [
   { w: "Quad.", serif: true },
-  { w: "Leading", dim: true },
+  { w: "Leading", dim: true, br: true },
   { w: "agentic", dim: true },
   { w: "trust", dim: false },
   { w: "work.", dim: false },
@@ -215,7 +215,7 @@ export default function Hero() {
               />
             </div>
 
-            <h1 className="mt-12 max-w-[480px] lg:pl-9 text-[56px] font-normal leading-[1.0] tracking-[-0.02em] text-paper-2 md:text-[70px] lg:text-[76px]">
+            <h1 className="mt-12 max-w-[640px] lg:pl-9 text-[42px] font-normal leading-[1.04] tracking-[-0.02em] text-paper-2 md:text-[54px] lg:text-[62px]">
               {TITLE.map((t, i) => (
                 <Fragment key={i}>
                   <span
@@ -225,7 +225,7 @@ export default function Hero() {
                   >
                     {t.w}
                   </span>
-                  {i < TITLE.length - 1 ? " " : ""}
+                  {t.br ? <br /> : i < TITLE.length - 1 ? " " : ""}
                 </Fragment>
               ))}
             </h1>
@@ -240,7 +240,7 @@ export default function Hero() {
 
             <button
               data-h="cta"
-              className="dashboard-cta mt-9 flex w-full max-w-[514px] items-center justify-center lg:ml-9 py-4 text-[12px] font-medium tracking-[0.01em] transition-colors"
+              className="mt-9 flex w-full max-w-[514px] items-center justify-center bg-cream lg:ml-9 py-4 text-[12px] font-medium tracking-[0.01em] text-ink transition-colors hover:bg-paper-2"
               style={{ clipPath: CHAMFER }}
             >
               <HoverText text="Open Dashboard" />

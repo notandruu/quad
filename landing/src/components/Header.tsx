@@ -98,7 +98,7 @@ export default function Header() {
           {/* GET STARTED orange block — flush right */}
           <a
             href="#"
-            className="dashboard-cta relative -mr-5 hidden h-[64px] items-center justify-center px-10 text-[13px] font-semibold tracking-[0.01em] transition-colors md:-mr-10 md:flex"
+            className="relative -mr-5 hidden h-[64px] items-center justify-center bg-flame px-10 text-[13px] font-semibold tracking-[0.01em] text-ink transition-colors hover:bg-flame-2 md:-mr-10 md:flex"
           >
             <HoverText text="Open Dashboard" />
           </a>
@@ -114,7 +114,7 @@ export default function Header() {
           ))}
           <a
             href="#"
-            className="dashboard-cta mt-2 rounded-full px-5 py-2.5 text-center text-[12px] font-medium tracking-[0.01em]"
+            className="mt-2 rounded-full bg-flame px-5 py-2.5 text-center text-[12px] font-medium tracking-[0.01em] text-ink"
           >
             Open Dashboard
           </a>
