@@ -17,7 +17,27 @@ export type ObservabilityReadiness = {
     apiKey: boolean;
   };
   sinks: ObservabilitySink[];
+  telemetrySafety: TelemetrySafetyReport;
   detail: string;
+};
+
+export type TelemetrySafetyIssue = {
+  id:
+    | "public_sentry_without_server"
+    | "phoenix_key_without_endpoint"
+    | "insecure_phoenix_endpoint"
+    | "raw_payload_logging_enabled"
+    | "raw_prompt_logging_enabled"
+    | "raw_response_logging_enabled";
+  severity: "warning" | "blocker";
+  detail: string;
+};
+
+export type TelemetrySafetyReport = {
+  ok: boolean;
+  status: "pass" | "warning" | "blocker";
+  issues: TelemetrySafetyIssue[];
+  guarantees: string[];
 };
 
 export type ObservabilityProbeResult = {
@@ -46,9 +66,16 @@ export function getObservabilityReadiness(
   const sinks: ObservabilitySink[] = [];
   if (sentryConfigured) sinks.push("sentry");
   if (phoenixEndpoint) sinks.push("phoenix");
+  const telemetrySafety = validateTelemetryConfig(env);
 
   const status =
-    sentryConfigured && phoenixEndpoint ? "ready" : sentryConfigured || phoenixEndpoint ? "degraded" : "missing";
+    telemetrySafety.status === "blocker"
+      ? "degraded"
+      : sentryConfigured && phoenixEndpoint
+        ? "ready"
+        : sentryConfigured || phoenixEndpoint
+          ? "degraded"
+          : "missing";
 
   return {
     status,
@@ -64,12 +91,84 @@ export function getObservabilityReadiness(
       apiKey: phoenixApiKey,
     },
     sinks,
+    telemetrySafety,
     detail:
-      status === "ready"
+      telemetrySafety.status === "blocker"
+        ? "Observability has unsafe telemetry configuration."
+        : status === "ready"
         ? "Sentry and Phoenix are configured."
         : status === "degraded"
           ? "Only one observability sink is configured."
           : "Sentry and Phoenix are missing.",
+  };
+}
+
+export function validateTelemetryConfig(
+  env: Record<string, string | undefined> = process.env
+): TelemetrySafetyReport {
+  const issues: TelemetrySafetyIssue[] = [];
+  const rawPayloadLogging = truthy(env.QUAD_TELEMETRY_LOG_RAW_PAYLOADS);
+  const rawPromptLogging = truthy(env.QUAD_TELEMETRY_LOG_RAW_PROMPTS);
+  const rawResponseLogging = truthy(env.QUAD_TELEMETRY_LOG_RAW_RESPONSES);
+
+  if (env.NEXT_PUBLIC_SENTRY_DSN && !env.SENTRY_DSN) {
+    issues.push({
+      id: "public_sentry_without_server",
+      severity: "warning",
+      detail: "Public Sentry DSN is configured without a server DSN, so backend errors will not be captured.",
+    });
+  }
+  if (env.PHOENIX_API_KEY && !env.PHOENIX_COLLECTOR_ENDPOINT) {
+    issues.push({
+      id: "phoenix_key_without_endpoint",
+      severity: "warning",
+      detail: "Phoenix API key is configured without a collector endpoint.",
+    });
+  }
+  if (env.PHOENIX_COLLECTOR_ENDPOINT && !isHttpsUrl(env.PHOENIX_COLLECTOR_ENDPOINT)) {
+    issues.push({
+      id: "insecure_phoenix_endpoint",
+      severity: "blocker",
+      detail: "Phoenix collector endpoint must use HTTPS before telemetry leaves the runtime.",
+    });
+  }
+  if (rawPayloadLogging) {
+    issues.push({
+      id: "raw_payload_logging_enabled",
+      severity: "blocker",
+      detail: "Raw payload telemetry logging is enabled.",
+    });
+  }
+  if (rawPromptLogging) {
+    issues.push({
+      id: "raw_prompt_logging_enabled",
+      severity: "blocker",
+      detail: "Raw prompt telemetry logging is enabled.",
+    });
+  }
+  if (rawResponseLogging) {
+    issues.push({
+      id: "raw_response_logging_enabled",
+      severity: "blocker",
+      detail: "Raw response telemetry logging is enabled.",
+    });
+  }
+
+  const status = issues.some((issue) => issue.severity === "blocker")
+    ? "blocker"
+    : issues.length > 0
+      ? "warning"
+      : "pass";
+
+  return {
+    ok: status !== "blocker",
+    status,
+    issues,
+    guarantees: [
+      "Telemetry readiness reports booleans and issue ids, not secret values.",
+      "Observability probes hash org ids before emitting spans or events.",
+      "Raw prompt, response, and payload logging flags are treated as blockers.",
+    ],
   };
 }
 
@@ -154,4 +253,16 @@ function hashForTelemetry(value: string): string {
     hash = Math.imul(hash, 16777619);
   }
   return `fnv1a:${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+function truthy(value: string | undefined): boolean {
+  return /^(1|true|yes|on)$/i.test(value?.trim() ?? "");
+}
+
+function isHttpsUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
 }

@@ -17,6 +17,7 @@ Quad can run with zero keys for demos, but the production backend is only green 
 - Backend readiness route: `GET /api/health/backend`.
 - Retention and deletion policy route: `GET /api/security/data`.
 - Retention sweep route: `POST /api/security/retention/sweep`. Dry-run returns expired run candidates and deletion receipts; execute requires a sweep confirmation string.
+- Observability readiness validates telemetry safety: raw prompt, response, or payload logging flags are blockers, and Phoenix collector endpoints must use HTTPS.
 - Supabase-backed workflow ledger and quadchain packet registry, with Redis/memory fallback.
 - Normalized task stream events in run snapshots for run lifecycle changes, tasks, artifacts, approvals, decisions, and receipts. The hosted run detail and task endpoints expose the same stream for dashboard, external agents, workers, and future CLI or Slack surfaces.
 - Hosted run, task, and artifact reads are org-scoped. Tokens scoped to another org receive `404` for run detail routes so run ids do not become an existence oracle.
@@ -172,7 +173,17 @@ Backend readiness and security packets only expose token labels, scopes, counts,
    Dry-run publishing also respects metaregistry policy: write-capable connector capabilities such as `cms.publisher` and `task.publisher` must be configured and explicitly allowlisted before staging artifacts.
    Route-level tests assert that `/api/publish/dry-run` returns `capability_blocked` and records blocked task events when those connector capabilities are not active.
 
-5. Upgrade auth before enterprise use.
+5. Keep unsafe telemetry disabled.
+
+   Backend readiness and the security packet treat these flags as blockers:
+
+   - `QUAD_TELEMETRY_LOG_RAW_PAYLOADS`
+   - `QUAD_TELEMETRY_LOG_RAW_PROMPTS`
+   - `QUAD_TELEMETRY_LOG_RAW_RESPONSES`
+
+   Phoenix collector endpoints must use HTTPS before traces leave the runtime.
+
+6. Upgrade auth before enterprise use.
 
    `QUAD_API_SECRET` plus `QUAD_SERVICE_TOKENS` is enough for hackathon-hosted protected routes and service-to-service separation. Enterprise use still needs real org membership, rbac, audit logs for access, token rotation, and scoped user sessions.
 

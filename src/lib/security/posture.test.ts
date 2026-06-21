@@ -86,6 +86,40 @@ describe("security posture packet", () => {
     expect(packet.deletion.policy.stores.some((store) => store.store === "external_providers")).toBe(true);
   });
 
+  it("marks unsafe telemetry config as a security blocker without leaking values", () => {
+    const packet = buildSecurityPacket({
+      orgId: "org_telemetry",
+      env: {
+        QUAD_API_SECRET: "secret",
+        QUAD_ALLOWED_ORGS: "org_telemetry",
+        QUAD_RETENTION_DAYS: "30",
+        DATABASE_URL: "postgresql://user:pass@example.com/db",
+        SENTRY_DSN: "https://sentry.example",
+        PHOENIX_COLLECTOR_ENDPOINT: "http://phoenix.internal/v1/traces",
+        PHOENIX_API_KEY: "phoenix-secret",
+        QUAD_TELEMETRY_LOG_RAW_PAYLOADS: "true",
+        QUAD_SERVICE_TOKENS: JSON.stringify([
+          {
+            label: "railway-worker",
+            token: "worker-token",
+            orgs: ["org_telemetry"],
+            scopes: ["worker", "jobs:read", "jobs:write"],
+          },
+        ]),
+      },
+    });
+    const control = packet.controls.find((item) => item.id === "telemetry_redaction");
+    const serialized = JSON.stringify(packet);
+
+    expect(control).toMatchObject({
+      status: "missing",
+      detail: "Unsafe telemetry configuration is enabled.",
+    });
+    expect(packet.posture).not.toBe("production_ready");
+    expect(serialized).not.toContain("phoenix-secret");
+    expect(serialized).not.toContain("phoenix.internal");
+  });
+
   it("summarizes controls without raw evidence lists", () => {
     const packet = buildSecurityPacket({ orgId: "org_summary", env: {} });
     const summary = summarizeSecurityPacket(packet);

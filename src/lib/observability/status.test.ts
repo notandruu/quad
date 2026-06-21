@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getObservabilityReadiness, runObservabilityProbe } from "./status";
+import { getObservabilityReadiness, runObservabilityProbe, validateTelemetryConfig } from "./status";
 
 describe("observability status", () => {
   it("reports missing when no observability sinks are configured", () => {
@@ -56,8 +56,38 @@ describe("observability status", () => {
         apiKey: true,
       },
     });
+    expect(readiness.telemetrySafety.status).toBe("pass");
     expect(JSON.stringify(readiness)).not.toContain("phoenix-secret");
     expect(JSON.stringify(readiness)).not.toContain("phoenix.example");
+  });
+
+  it("validates unsafe telemetry configuration without exposing values", () => {
+    const report = validateTelemetryConfig({
+      NEXT_PUBLIC_SENTRY_DSN: "https://public-sentry.example",
+      PHOENIX_COLLECTOR_ENDPOINT: "http://phoenix.internal/v1/traces",
+      PHOENIX_API_KEY: "phoenix-secret",
+      QUAD_TELEMETRY_LOG_RAW_PAYLOADS: "true",
+      QUAD_TELEMETRY_LOG_RAW_PROMPTS: "1",
+    });
+    const readiness = getObservabilityReadiness({
+      PHOENIX_COLLECTOR_ENDPOINT: "http://phoenix.internal/v1/traces",
+      QUAD_TELEMETRY_LOG_RAW_RESPONSES: "yes",
+    });
+
+    expect(report).toMatchObject({
+      ok: false,
+      status: "blocker",
+    });
+    expect(report.issues.map((issue) => issue.id)).toEqual(expect.arrayContaining([
+      "public_sentry_without_server",
+      "insecure_phoenix_endpoint",
+      "raw_payload_logging_enabled",
+      "raw_prompt_logging_enabled",
+    ]));
+    expect(readiness.status).toBe("degraded");
+    expect(readiness.telemetrySafety.issues.map((issue) => issue.id)).toContain("raw_response_logging_enabled");
+    expect(JSON.stringify(report)).not.toContain("phoenix-secret");
+    expect(JSON.stringify(report)).not.toContain("phoenix.internal");
   });
 
   it("returns a safe no-op probe when sinks are missing", async () => {

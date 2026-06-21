@@ -273,6 +273,13 @@ Shipped v4:
 - dry-run sweep returns candidate runs plus the deletion receipts that would execute.
 - execute sweep requires a deterministic confirmation string and then reuses the protected run deletion path.
 
+Shipped v5:
+
+- observability readiness includes a telemetry safety validator.
+- raw prompt, response, and payload telemetry logging flags are security blockers.
+- Phoenix collector endpoints must use HTTPS before traces leave the runtime.
+- production-ready security posture now requires every control to pass, not only a high aggregate score.
+
 Build:
 
 - document what stays off-chain/off-registry.

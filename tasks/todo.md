@@ -93,7 +93,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [ ] post-audit chat that can cite audit evidence and company memory
 - [ ] arize tracing/evals for retrieval, page analysis, and final findings
 - [ ] sentry monitoring for api routes, workers, browser sessions, redis calls, and model calls
-- [ ] telemetry redaction policy for sentry, arize, replay events, and logs
+- [x] telemetry redaction policy for sentry, arize, replay events, and logs
 - [ ] retention/deletion controls for runs, artifacts, learned memories, connector tokens, and personal context
 - [ ] billing/usage posture, even if only internal metering at first
 - [ ] seed demo org that feels like a real b2b startup customer, not fake hackathon filler
@@ -211,7 +211,7 @@ hard constraints:
 - [x] add hosted request auth guard for org-owned api routes with zero-key demo fallback
 - [x] add mutation rate limits and idempotency-key replay for high-risk hosted routes
 - [x] add security rows to operator panel for tenant isolation, telemetry redaction, connector scopes, and model routing
-- [ ] add validation checks for unsafe telemetry env/config where practical
+- [x] add validation checks for unsafe telemetry env/config where practical
 - [x] add security packet for quad itself: what data is sent to models, what is stored, what is redacted, what can be deleted
 - [x] add protected deletion dry-run and execution receipts for org/run data
 - [x] add retention sweep planning/execution route for expired run cleanup

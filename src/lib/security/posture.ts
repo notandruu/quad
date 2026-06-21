@@ -1,4 +1,5 @@
 import { CAPABILITY_CATALOG, summarizeCapabilities } from "@/lib/metaregistry";
+import { getObservabilityReadiness } from "@/lib/observability";
 import { getServiceTokenReadiness, securityReadiness, type ServiceTokenReadiness } from ".";
 import { buildRetentionPolicy, type RetentionPolicy } from "./retention";
 
@@ -85,6 +86,7 @@ export function buildSecurityPacket(input: {
   const redisConfigured = Boolean(env.QUAD_REDIS_REST_URL && env.QUAD_REDIS_REST_TOKEN);
   const sentryConfigured = Boolean(env.SENTRY_DSN || env.NEXT_PUBLIC_SENTRY_DSN);
   const phoenixConfigured = Boolean(env.PHOENIX_COLLECTOR_ENDPOINT);
+  const telemetrySafety = getObservabilityReadiness(env).telemetrySafety;
   const unsafeWriteCapabilities = CAPABILITY_CATALOG.filter(
     (capability) => capability.writes && capability.approvalMode === "none"
   );
@@ -132,12 +134,20 @@ export function buildSecurityPacket(input: {
     control({
       id: "telemetry_redaction",
       label: "Telemetry redaction",
-      ok: readiness.telemetryRedactionSubstrate,
-      warning: !sentryConfigured && !phoenixConfigured,
+      ok: readiness.telemetryRedactionSubstrate && telemetrySafety.ok,
+      warning: telemetrySafety.status === "warning" || (!sentryConfigured && !phoenixConfigured),
       passDetail: "Telemetry attributes avoid raw org ids and raw payloads.",
-      warningDetail: "Redaction helpers exist, but Sentry and Phoenix are not both configured.",
-      missingDetail: "Telemetry redaction substrate is missing.",
-      evidence: ["telemetryAttributes() emits org hash and payload lengths"],
+      warningDetail: telemetrySafety.status === "warning"
+        ? "Telemetry redaction is active, but observability configuration has warnings."
+        : "Redaction helpers exist, but Sentry and Phoenix are not both configured.",
+      missingDetail: telemetrySafety.status === "blocker"
+        ? "Unsafe telemetry configuration is enabled."
+        : "Telemetry redaction substrate is missing.",
+      evidence: [
+        "telemetryAttributes() emits org hash and payload lengths",
+        "validateTelemetryConfig() blocks raw prompt, response, and payload logging flags",
+        ...telemetrySafety.issues.map((issue) => issue.id),
+      ],
     }),
     control({
       id: "durable_memory",
@@ -204,6 +214,7 @@ export function buildSecurityPacket(input: {
   ];
 
   const score = scoreControls(controls);
+  const productionReady = score >= 90 && controls.every((item) => item.status === "pass");
   const warnings = controls
     .filter((item) => item.status !== "pass")
     .map((item) => `${item.label}: ${item.detail}`);
@@ -211,7 +222,7 @@ export function buildSecurityPacket(input: {
   return {
     orgId: input.orgId,
     generatedAt: input.now ?? new Date().toISOString(),
-    posture: score >= 90 ? "production_ready" : apiSecretConfigured ? "demo_guarded" : "needs_hardening",
+    posture: productionReady ? "production_ready" : apiSecretConfigured ? "demo_guarded" : "needs_hardening",
     score,
     controls,
     dataFlows: [
@@ -303,6 +314,7 @@ export function buildSecurityPacket(input: {
       "restricted payloads are blocked from model calls unless explicitly overridden",
       "non-public payloads are redacted before provider calls",
       "telemetry emits hashed org ids and payload lengths, not raw org ids or source text",
+      "unsafe telemetry flags are surfaced as security posture blockers",
       "security packet summaries never include env secret values",
     ],
     warnings,
