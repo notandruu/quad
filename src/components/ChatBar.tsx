@@ -15,11 +15,13 @@ export function ChatBar({
   disabled,
   voiceEnabled = false,
   voiceClientUrl = null,
+  deepgramEnabled = false,
 }: {
   onSend: (text: string, url: string | null) => void;
   disabled?: boolean;
   voiceEnabled?: boolean;
   voiceClientUrl?: string | null;
+  deepgramEnabled?: boolean;
 }) {
   const [value, setValue] = useState("");
   const detectedUrl = value.match(URL_RE)?.[0] ?? null;
@@ -28,6 +30,11 @@ export function ChatBar({
     if (!value.trim()) return;
     onSend(value.trim(), detectedUrl);
     setValue("");
+  }
+
+  function submitVoice(text: string) {
+    const url = text.match(URL_RE)?.[0] ?? detectedUrl;
+    onSend(text, url);
   }
 
   return (
@@ -48,7 +55,12 @@ export function ChatBar({
         >
           Send
         </button>
-        <VoiceButton enabled={voiceEnabled} clientUrl={voiceClientUrl} />
+        <VoiceButton
+          enabled={voiceEnabled}
+          clientUrl={voiceClientUrl}
+          deepgramEnabled={deepgramEnabled}
+          onTranscript={submitVoice}
+        />
       </div>
     </div>
   );

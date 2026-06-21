@@ -10,6 +10,7 @@ export type BackendSettings = {
   browserbase: boolean;
   phoenix: boolean;
   sentry: boolean;
+  deepgram: boolean;
   voice: boolean;
   voiceClientUrl: string | null;
   voiceDecision: string;
@@ -96,11 +97,18 @@ const ROWS: Omit<BackendRow, "live">[] = [
     sponsor: "Sentry",
   },
   {
+    key: "deepgram",
+    label: "Deepgram voice",
+    category: "Voice",
+    fallback: "Browser speech recognition or text chat handles commands.",
+    sponsor: "Deepgram",
+  },
+  {
     key: "voice",
-    label: "Moshi voice",
+    label: "Voice surface",
     category: "Voice",
     fallback: "Voice disabled; use text chat.",
-    sponsor: "Kyutai",
+    sponsor: "Deepgram / Kyutai",
   },
 ];
 
@@ -161,7 +169,9 @@ export function summarizeReadiness(settings: BackendSettings): ReadinessSummary 
       label: "Voice transport",
       live: settings.voice,
       detail: settings.voice
-        ? "Moshi endpoint configured."
+        ? settings.deepgram
+          ? "Deepgram push-to-talk transcription is configured."
+          : "Moshi endpoint configured."
         : "Voice is disabled; text flow remains available.",
     },
   ];

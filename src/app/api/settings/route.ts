@@ -3,6 +3,7 @@ import { isRedisConfigured } from "@/lib/redis";
 import { isBrainConfigured, pingBrain } from "@/lib/brain";
 import { isEmbeddingConfigured } from "@/lib/brain/embeddings";
 import { securityReadiness } from "@/lib/security";
+import { getDeepgramSettings } from "@/lib/voice/deepgram";
 import { getMoshiSettings } from "@/lib/voice/moshi";
 
 export const runtime = "nodejs";
@@ -14,7 +15,14 @@ export const runtime = "nodejs";
 export async function GET() {
   const brainPing = isBrainConfigured() ? await pingBrain() : { ok: false };
   const moshi = getMoshiSettings();
+  const deepgram = getDeepgramSettings();
   const security = securityReadiness(process.env);
+  const voiceDecision = deepgram.configured
+    ? "Deepgram is configured for push-to-talk transcription. Moshi remains the full-duplex target."
+    : moshi.decision;
+  const voiceNextAction = deepgram.configured
+    ? "Demo spoken audit commands, then add Deepgram Agent or Moshi full-duplex response audio."
+    : moshi.nextAction;
 
   return NextResponse.json({
     redis: isRedisConfigured(),
@@ -26,10 +34,11 @@ export async function GET() {
     ),
     phoenix: Boolean(process.env.PHOENIX_COLLECTOR_ENDPOINT),
     sentry: Boolean(process.env.SENTRY_DSN),
-    voice: moshi.configured,
+    deepgram: deepgram.configured,
+    voice: deepgram.configured || moshi.configured,
     voiceClientUrl: moshi.publicClientUrl,
-    voiceDecision: moshi.decision,
-    voiceNextAction: moshi.nextAction,
+    voiceDecision,
+    voiceNextAction,
     chatModel: process.env.QUAD_CHAT_MODEL ?? "claude-opus-4-8",
     auditModel: process.env.QUAD_AUDIT_MODEL ?? "claude-opus-4-8",
     security,

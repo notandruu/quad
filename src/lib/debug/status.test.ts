@@ -15,6 +15,7 @@ function settings(overrides: Partial<BackendSettings> = {}): BackendSettings {
     browserbase: false,
     phoenix: false,
     sentry: false,
+    deepgram: false,
     voice: false,
     voiceClientUrl: null,
     voiceDecision: "Moshi should be self-hosted behind a websocket endpoint before voice is enabled.",
@@ -28,7 +29,7 @@ function settings(overrides: Partial<BackendSettings> = {}): BackendSettings {
 describe("summarizeBackends", () => {
   it("returns one row per backend with the right live flag", () => {
     const rows = summarizeBackends(settings({ redis: true, sentry: true }));
-    expect(rows).toHaveLength(7);
+    expect(rows).toHaveLength(8);
     expect(rows.find((r) => r.key === "redis")?.live).toBe(true);
     expect(rows.find((r) => r.key === "brain")?.live).toBe(false);
   });
@@ -57,7 +58,7 @@ describe("isDemoReady", () => {
 describe("liveCount", () => {
   it("counts live rows out of total", () => {
     const rows = summarizeBackends(settings({ redis: true, brain: true }));
-    expect(liveCount(rows)).toEqual({ live: 2, total: 7 });
+    expect(liveCount(rows)).toEqual({ live: 2, total: 8 });
   });
 });
 
@@ -85,6 +86,7 @@ describe("summarizeReadiness", () => {
         embeddings: true,
         phoenix: true,
         sentry: true,
+        deepgram: true,
         voice: true,
       })
     );

@@ -136,7 +136,7 @@ export default function Home() {
               className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-medium text-accent hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
               title="Seed BrightPath brain and run a live demo audit"
             >
-              {demoState === "loading" ? "Loading..." : "Load Demo"}
+              {demoState === "loading" ? "Loading..." : "Load demo"}
             </button>
             <span className="text-xs text-neutral-600">Live audit employee</span>
           </div>
@@ -158,6 +158,7 @@ export default function Home() {
           disabled={active}
           voiceEnabled={Boolean(settings?.voice)}
           voiceClientUrl={settings?.voiceClientUrl ?? null}
+          deepgramEnabled={Boolean(settings?.deepgram)}
         />
       </section>
 

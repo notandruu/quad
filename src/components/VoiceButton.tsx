@@ -1,38 +1,79 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { buildVoiceSurfaceCapability } from "@/lib/voice/surface";
 
-type VoiceStatus = "idle" | "recording" | "blocked" | "error";
+type VoiceStatus = "idle" | "listening" | "recording" | "blocked" | "error";
+
+type SpeechRecognitionLike = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type SpeechRecognitionEventLike = {
+  results: ArrayLike<ArrayLike<{ transcript: string; isFinal?: boolean }>>;
+};
+
+type SpeechWindow = Window & {
+  SpeechRecognition?: new () => SpeechRecognitionLike;
+  webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+};
 
 export function VoiceButton({
   enabled,
   clientUrl,
+  deepgramEnabled = false,
+  onTranscript,
 }: {
   enabled: boolean;
   clientUrl: string | null;
+  deepgramEnabled?: boolean;
+  onTranscript: (text: string) => void;
 }) {
   const [status, setStatus] = useState<VoiceStatus>("idle");
-  const [message, setMessage] = useState("Push to talk");
+  const [message, setMessage] = useState("Voice mode");
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  const disabledReason = useMemo(() => {
-    if (!enabled) return "Moshi is not configured.";
-    if (!clientUrl) return "Voice needs a browser-reachable Moshi websocket.";
-    if (typeof window !== "undefined" && !window.isSecureContext && window.location.hostname !== "localhost") {
-      return "Microphone access requires HTTPS.";
+  const capability = useMemo(() => {
+    if (typeof window === "undefined") {
+      return buildVoiceSurfaceCapability({
+        deepgramConfigured: false,
+        moshiConfigured: false,
+        browserSpeechSupported: false,
+        secureContext: false,
+      });
     }
-    return null;
-  }, [clientUrl, enabled]);
+    const speechWindow = window as SpeechWindow;
+    return buildVoiceSurfaceCapability({
+      deepgramConfigured: deepgramEnabled,
+      moshiConfigured: enabled && Boolean(clientUrl),
+      browserSpeechSupported: Boolean(speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition),
+      secureContext: window.isSecureContext || window.location.hostname === "localhost",
+    });
+  }, [clientUrl, deepgramEnabled, enabled]);
 
   async function start() {
-    if (disabledReason || status === "recording") return;
+    if (!capability.canListen || status === "recording" || status === "listening") return;
+
+    if (capability.mode === "browser_speech_fallback") {
+      startBrowserSpeech();
+      return;
+    }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const socket = new WebSocket(clientUrl!);
-      socket.binaryType = "arraybuffer";
+      const socket =
+        capability.mode === "moshi_full_duplex" && clientUrl ? new WebSocket(clientUrl) : null;
+      if (socket) socket.binaryType = "arraybuffer";
       socketRef.current = socket;
       chunksRef.current = [];
 
@@ -42,17 +83,20 @@ export function VoiceButton({
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunksRef.current.push(event.data);
-          if (socket.readyState === WebSocket.OPEN) socket.send(event.data);
+          if (socket?.readyState === WebSocket.OPEN) socket.send(event.data);
         }
       };
-      recorder.onstop = () => {
+      recorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop());
-        if (socket.readyState === WebSocket.OPEN) socket.close(1000, "Push-to-talk complete");
+        if (socket?.readyState === WebSocket.OPEN) socket.close(1000, "Push-to-talk complete");
+        if (capability.mode === "deepgram_stt") await submitDeepgramAudio();
       };
-      socket.onerror = () => {
-        setStatus("error");
-        setMessage("Voice transport failed");
-      };
+      if (socket) {
+        socket.onerror = () => {
+          setStatus("error");
+          setMessage("Voice transport failed");
+        };
+      }
 
       recorder.start(250);
       setStatus("recording");
@@ -63,11 +107,82 @@ export function VoiceButton({
     }
   }
 
+  async function submitDeepgramAudio() {
+    const audio = new Blob(chunksRef.current, { type: preferredMimeType() ?? "audio/webm" });
+    if (audio.size === 0) {
+      setMessage("Voice mode");
+      return;
+    }
+
+    setMessage("Transcribing...");
+    try {
+      const form = new FormData();
+      form.append("audio", audio, `quad-voice.${audio.type.includes("mp4") ? "mp4" : "webm"}`);
+      const response = await fetch("/api/voice/transcribe", { method: "POST", body: form });
+      const data = (await response.json()) as { transcript?: string; error?: string };
+      if (!response.ok) throw new Error(data.error ?? "Transcription failed");
+      const transcript = data.transcript?.trim();
+      if (transcript) {
+        onTranscript(transcript);
+        setMessage("Voice mode");
+      } else {
+        setMessage("No speech heard");
+      }
+    } catch {
+      setStatus("error");
+      setMessage("Voice failed");
+    }
+  }
+
   function stop() {
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
     recorderRef.current?.stop();
     recorderRef.current = null;
     setStatus("idle");
-    setMessage(chunksRef.current.length > 0 ? "Audio sent" : "Push to talk");
+    setMessage(chunksRef.current.length > 0 ? "Audio sent" : "Voice mode");
+  }
+
+  function startBrowserSpeech() {
+    const speechWindow = window as SpeechWindow;
+    const SpeechRecognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setStatus("blocked");
+      setMessage("Speech unsupported");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+    recognitionRef.current = recognition;
+
+    recognition.onresult = (event) => {
+      let finalText = "";
+      let partialText = "";
+      for (let i = 0; i < event.results.length; i += 1) {
+        const result = event.results[i];
+        const text = result[0]?.transcript?.trim() ?? "";
+        if (!text) continue;
+        if (result[0]?.isFinal || (result as unknown as { isFinal?: boolean }).isFinal) finalText += `${text} `;
+        else partialText = text;
+      }
+      setMessage(finalText.trim() || partialText || "Listening...");
+      if (finalText.trim()) onTranscript(finalText.trim());
+    };
+    recognition.onerror = () => {
+      setStatus("error");
+      setMessage("Voice failed");
+    };
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      setStatus("idle");
+      setMessage("Voice mode");
+    };
+    recognition.start();
+    setStatus("listening");
+    setMessage("Listening...");
   }
 
   return (
@@ -75,7 +190,7 @@ export function VoiceButton({
       type="button"
       onMouseDown={start}
       onMouseUp={stop}
-      onMouseLeave={() => status === "recording" && stop()}
+      onMouseLeave={() => (status === "recording" || status === "listening") && stop()}
       onTouchStart={(event) => {
         event.preventDefault();
         start();
@@ -84,15 +199,15 @@ export function VoiceButton({
         event.preventDefault();
         stop();
       }}
-      disabled={Boolean(disabledReason)}
-      title={disabledReason ?? "Hold to talk to Quad"}
+      disabled={!capability.canListen}
+      title={capability.detail}
       className={`rounded-lg border px-3 py-1.5 text-sm transition ${
-        status === "recording"
+        status === "recording" || status === "listening"
           ? "border-accent bg-accent/15 text-accent"
           : "border-edge bg-panel text-neutral-300 hover:border-accent/40 hover:text-accent"
       } disabled:cursor-not-allowed disabled:opacity-40`}
     >
-      {disabledReason ? "Voice unavailable" : message}
+      {!capability.canListen ? capability.label : message}
     </button>
   );
 }
