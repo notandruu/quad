@@ -1,5 +1,6 @@
 import { CAPABILITY_CATALOG, summarizeCapabilities } from "@/lib/metaregistry";
 import { securityReadiness } from ".";
+import { buildRetentionPolicy, type RetentionPolicy } from "./retention";
 
 export type SecurityControlStatus = "pass" | "warning" | "missing";
 
@@ -42,6 +43,7 @@ export type SecurityPacket = {
   deletion: {
     configured: boolean;
     retentionDays: number | null;
+    policy: RetentionPolicy;
     supportedToday: string[];
     missing: string[];
   };
@@ -71,7 +73,8 @@ export function buildSecurityPacket(input: {
   const env = input.env ?? process.env;
   const readiness = securityReadiness(env);
   const capabilities = summarizeCapabilities(env);
-  const retentionDays = parseRetentionDays(env.QUAD_RETENTION_DAYS);
+  const retentionPolicy = buildRetentionPolicy({ env, now: input.now });
+  const retentionDays = retentionPolicy.retentionDays;
   const apiSecretConfigured = Boolean(env.QUAD_API_SECRET);
   const allowedOrgsConfigured = Boolean(env.QUAD_ALLOWED_ORGS);
   const durableBrainConfigured = Boolean(
@@ -261,6 +264,7 @@ export function buildSecurityPacket(input: {
     deletion: {
       configured: retentionDays !== null,
       retentionDays,
+      policy: retentionPolicy,
       supportedToday: [
         "protected dry-run deletion receipts",
         "protected org/run deletion execution",
@@ -352,11 +356,4 @@ function scoreControls(controls: SecurityControl[]): number {
     return sum;
   }, 0);
   return Math.round((total / controls.length) * 100);
-}
-
-function parseRetentionDays(raw: string | undefined): number | null {
-  if (!raw) return null;
-  const parsed = Number(raw);
-  if (!Number.isInteger(parsed) || parsed <= 0) return null;
-  return parsed;
 }

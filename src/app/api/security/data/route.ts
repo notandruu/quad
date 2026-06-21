@@ -9,7 +9,7 @@ import {
   mutationGuardError,
   saveIdempotentResult,
 } from "@/lib/security/mutations";
-import { buildDataDeletionReceipt, DataDeletionError } from "@/lib/security/retention";
+import { buildDataDeletionReceipt, buildRetentionPolicy, DataDeletionError } from "@/lib/security/retention";
 
 export const runtime = "nodejs";
 
@@ -22,6 +22,40 @@ const DeletionBody = z.object({
   requestedBy: z.string().min(1).optional(),
   confirmation: z.string().min(1).optional(),
 });
+
+export async function GET(request: NextRequest) {
+  const url = new URL(request.url);
+  const auth = authorizeRequest({
+    headers: request.headers,
+    requestedOrgId: url.searchParams.get("orgId") ?? DEMO_ORG_ID,
+  });
+  if (!auth.ok) {
+    return NextResponse.json(requestAuthError(auth), { status: auth.status });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    orgId: auth.orgId,
+    policy: buildRetentionPolicy(),
+    deletion: {
+      route: "/api/security/data",
+      method: "POST",
+      dryRun: {
+        scope: "run",
+        mode: "dry_run",
+        orgId: auth.orgId,
+        runId: "run_...",
+      },
+      execute: {
+        scope: "run",
+        mode: "execute",
+        orgId: auth.orgId,
+        runId: "run_...",
+        confirmation: `delete:${auth.orgId}:run_...`,
+      },
+    },
+  });
+}
 
 export async function POST(request: NextRequest) {
   let body: z.infer<typeof DeletionBody>;

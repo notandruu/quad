@@ -213,11 +213,16 @@ Shipped v2:
 - non-public packet detail and packet verification require org-scoped route auth.
 - packet lists are scoped to an authorized org instead of anonymously enumerating all org packet metadata.
 
+Shipped v3:
+
+- `GET /api/security/data` returns the current retention policy and deletion examples.
+- the security packet embeds store-by-store retention policy for workflow runs, quadchain packets, jobs, brain memories, audit events, connector credentials, and external providers.
+- retention policy warns when durable retention is missing, redis ttl is missing, or redis ttl exceeds the configured retention window.
+
 Build:
 
 - enforce org-scoped access on durable run reads.
 - add data retention settings per org.
-- add deletion route for demo/customer data.
 - document what stays off-chain/off-registry.
 - add secret leak tests for all public settings and summaries.
 

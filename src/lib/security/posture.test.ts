@@ -46,6 +46,11 @@ describe("security posture packet", () => {
       configured: true,
       retentionDays: 30,
     });
+    expect(packet.deletion.policy).toMatchObject({
+      configured: true,
+      retentionDays: 30,
+    });
+    expect(packet.deletion.policy.stores.some((store) => store.store === "external_providers")).toBe(true);
   });
 
   it("summarizes controls without raw evidence lists", () => {

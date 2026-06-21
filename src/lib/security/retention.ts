@@ -8,6 +8,29 @@ export type DeletionMode = "dry_run" | "execute";
 
 export type DeletionStore = "workflow_runs" | "quadchain_packets" | "jobs" | "brain_memories";
 
+export type RetentionStorePolicy = {
+  store: DeletionStore | "audit_events" | "connector_credentials" | "external_providers";
+  contents: string;
+  automatic: boolean;
+  targetDays: number | null;
+  ttlSeconds: number | null;
+  deletion: string;
+};
+
+export type RetentionPolicy = {
+  configured: boolean;
+  retentionDays: number | null;
+  eventTtlSeconds: number | null;
+  generatedAt: string;
+  stores: RetentionStorePolicy[];
+  deletionModes: Array<{
+    scope: DeletionScope;
+    supported: boolean;
+    confirmationPattern: string;
+  }>;
+  warnings: string[];
+};
+
 export type DeletionStoreResult = {
   store: DeletionStore;
   matched: number;
@@ -49,6 +72,95 @@ export class DataDeletionError extends Error {
   ) {
     super(message);
   }
+}
+
+export function buildRetentionPolicy(input: {
+  env?: Record<string, string | undefined>;
+  now?: string;
+} = {}): RetentionPolicy {
+  const env = input.env ?? process.env;
+  const retentionDays = parsePositiveInteger(env.QUAD_RETENTION_DAYS);
+  const eventTtlSeconds = parsePositiveInteger(env.QUAD_AUDIT_EVENT_TTL_SECONDS);
+  const configured = retentionDays !== null;
+  const warnings = buildRetentionWarnings({ retentionDays, eventTtlSeconds });
+
+  return {
+    configured,
+    retentionDays,
+    eventTtlSeconds,
+    generatedAt: input.now ?? new Date().toISOString(),
+    stores: [
+      {
+        store: "workflow_runs",
+        contents: "workflow run snapshots, tasks, artifacts, approvals, and receipts",
+        automatic: false,
+        targetDays: retentionDays,
+        ttlSeconds: null,
+        deletion: "deleted by protected org/run deletion receipts",
+      },
+      {
+        store: "quadchain_packets",
+        contents: "packet json, certificates, hashes, verification results, and summaries",
+        automatic: false,
+        targetDays: retentionDays,
+        ttlSeconds: null,
+        deletion: "deleted by protected org/run/source deletion receipts",
+      },
+      {
+        store: "jobs",
+        contents: "queued, running, completed, failed, and dead-lettered worker jobs",
+        automatic: false,
+        targetDays: retentionDays,
+        ttlSeconds: null,
+        deletion: "deleted by protected org/run deletion receipts",
+      },
+      {
+        store: "brain_memories",
+        contents: "company brain memories, source ids, evidence, entities, permissions, and embeddings",
+        automatic: false,
+        targetDays: retentionDays,
+        ttlSeconds: null,
+        deletion: "deleted by protected org/source deletion receipts",
+      },
+      {
+        store: "audit_events",
+        contents: "redis live audit events, counters, queue bridges, and packet cache entries",
+        automatic: eventTtlSeconds !== null,
+        targetDays: eventTtlSeconds ? Math.ceil(eventTtlSeconds / 86400) : null,
+        ttlSeconds: eventTtlSeconds,
+        deletion: "expires through redis ttl and can also be cleared through run/org deletion where indexed",
+      },
+      {
+        store: "connector_credentials",
+        contents: "encrypted connector credential envelopes, scopes, hashes, status, and revocation timestamps",
+        automatic: false,
+        targetDays: retentionDays,
+        ttlSeconds: null,
+        deletion: "revoked through connector credential route, then removed through org deletion",
+      },
+      {
+        store: "external_providers",
+        contents: "sentry events, arize traces, browserbase sessions, deepgram logs, and model provider telemetry",
+        automatic: false,
+        targetDays: null,
+        ttlSeconds: null,
+        deletion: "requires provider console or api deletion outside the quad data plane",
+      },
+    ],
+    deletionModes: [
+      {
+        scope: "run",
+        supported: true,
+        confirmationPattern: "delete:<orgId>:<runId>",
+      },
+      {
+        scope: "org",
+        supported: true,
+        confirmationPattern: "delete:<orgId>",
+      },
+    ],
+    warnings,
+  };
 }
 
 export async function buildDataDeletionReceipt(input: DataDeletionRequest): Promise<DataDeletionReceipt> {
@@ -153,6 +265,34 @@ function buildDeletionWarnings(input: DataDeletionRequest): string[] {
     warnings.push("Run-scoped deletion does not delete general company brain memories unless sourceId is provided.");
   }
   return warnings;
+}
+
+function buildRetentionWarnings(input: {
+  retentionDays: number | null;
+  eventTtlSeconds: number | null;
+}): string[] {
+  const warnings: string[] = [];
+  if (input.retentionDays === null) {
+    warnings.push("QUAD_RETENTION_DAYS is missing or invalid; durable stores rely on explicit deletion only.");
+  }
+  if (input.eventTtlSeconds === null) {
+    warnings.push("QUAD_AUDIT_EVENT_TTL_SECONDS is missing or invalid; redis event ttl falls back to runtime defaults.");
+  }
+  if (input.retentionDays !== null && input.eventTtlSeconds !== null) {
+    const targetSeconds = input.retentionDays * 86400;
+    if (input.eventTtlSeconds > targetSeconds) {
+      warnings.push("QUAD_AUDIT_EVENT_TTL_SECONDS is longer than QUAD_RETENTION_DAYS.");
+    }
+  }
+  warnings.push("External provider retention is not controlled by quad and must be managed in each provider console.");
+  return warnings;
+}
+
+function parsePositiveInteger(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) return null;
+  return parsed;
 }
 
 function hashParts(...parts: string[]): string {

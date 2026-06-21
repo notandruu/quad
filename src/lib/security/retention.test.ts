@@ -5,9 +5,56 @@ import { createQuadChainPacket } from "@/lib/quad-chain";
 import { getQuadChainPackets, saveQuadChainPacket } from "@/lib/quad-chain/registry";
 import { listRunSnapshots } from "@/lib/runs";
 import type { BrainMemory } from "@/lib/types";
-import { buildDataDeletionReceipt, confirmationFor } from "./retention";
+import { buildDataDeletionReceipt, buildRetentionPolicy, confirmationFor } from "./retention";
 
 describe("data retention deletion receipts", () => {
+  it("builds a configured retention policy across quad stores", () => {
+    const policy = buildRetentionPolicy({
+      now: "2026-06-21T00:00:00.000Z",
+      env: {
+        QUAD_RETENTION_DAYS: "30",
+        QUAD_AUDIT_EVENT_TTL_SECONDS: "86400",
+      },
+    });
+
+    expect(policy.configured).toBe(true);
+    expect(policy.retentionDays).toBe(30);
+    expect(policy.eventTtlSeconds).toBe(86400);
+    expect(policy.generatedAt).toBe("2026-06-21T00:00:00.000Z");
+    expect(policy.stores.find((store) => store.store === "audit_events")).toMatchObject({
+      automatic: true,
+      targetDays: 1,
+      ttlSeconds: 86400,
+    });
+    expect(policy.stores.find((store) => store.store === "external_providers")?.deletion).toContain("provider console");
+    expect(policy.deletionModes).toEqual([
+      {
+        scope: "run",
+        supported: true,
+        confirmationPattern: "delete:<orgId>:<runId>",
+      },
+      {
+        scope: "org",
+        supported: true,
+        confirmationPattern: "delete:<orgId>",
+      },
+    ]);
+  });
+
+  it("warns when retention env is missing or inconsistent", () => {
+    const missing = buildRetentionPolicy({ env: {} });
+    const inconsistent = buildRetentionPolicy({
+      env: {
+        QUAD_RETENTION_DAYS: "1",
+        QUAD_AUDIT_EVENT_TTL_SECONDS: "172800",
+      },
+    });
+
+    expect(missing.configured).toBe(false);
+    expect(missing.warnings.join(" ")).toContain("QUAD_RETENTION_DAYS");
+    expect(inconsistent.warnings.join(" ")).toContain("longer than QUAD_RETENTION_DAYS");
+  });
+
   it("dry-runs org deletion without deleting fallback data", async () => {
     vi.stubEnv("SUPABASE_URL", "");
     vi.stubEnv("SUPABASE_SERVICE_KEY", "");
