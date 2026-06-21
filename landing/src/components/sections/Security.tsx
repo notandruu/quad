@@ -46,7 +46,7 @@ function ShapeIcon({ kind }: { kind: "octa" | "sphere" | "hex" | "pyramid" }) {
   return (
     <svg ref={ref} viewBox="0 0 200 150" className="h-full w-full" fill="none" stroke={s}>
       {kind === "octa" && (
-        <g strokeWidth="1.1" opacity="0.85">
+        <g strokeWidth="1.35" opacity="1">
           <path data-draw d="M100 26 L148 75 L100 124 L52 75 Z" />
           <path data-draw d="M52 75 L100 58 L148 75" />
           <path data-draw d="M52 75 L100 92 L148 75" />
@@ -54,7 +54,7 @@ function ShapeIcon({ kind }: { kind: "octa" | "sphere" | "hex" | "pyramid" }) {
         </g>
       )}
       {kind === "sphere" && (
-        <g strokeWidth="1.1" opacity="0.85">
+        <g strokeWidth="1.35" opacity="1">
           <circle data-draw cx="100" cy="75" r="46" />
           <ellipse data-draw cx="100" cy="75" rx="46" ry="15" />
           <ellipse data-draw cx="100" cy="75" rx="15" ry="46" />
@@ -62,7 +62,7 @@ function ShapeIcon({ kind }: { kind: "octa" | "sphere" | "hex" | "pyramid" }) {
         </g>
       )}
       {kind === "hex" && (
-        <g strokeWidth="1.1" opacity="0.85">
+        <g strokeWidth="1.35" opacity="1">
           <path data-draw d="M58 58 L79 44 L121 44 L142 58 L121 72 L79 72 Z" />
           <path data-draw d="M58 58 L58 86" />
           <path data-draw d="M79 72 L79 100" />
@@ -73,7 +73,7 @@ function ShapeIcon({ kind }: { kind: "octa" | "sphere" | "hex" | "pyramid" }) {
         </g>
       )}
       {kind === "pyramid" && (
-        <g strokeWidth="1.1" opacity="0.85">
+        <g strokeWidth="1.35" opacity="1">
           <path data-draw d="M54 100 L100 80 L146 100 L100 120 Z" />
           <path data-draw d="M68 78 L100 64 L132 78 L100 92 Z" />
           <path data-draw d="M82 58 L100 50 L118 58 L100 66 Z" />
