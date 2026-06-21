@@ -2,12 +2,21 @@ import { NextResponse } from "next/server";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { summarizeCapabilities } from "@/lib/metaregistry";
 import { listRunSnapshots, summarizeAgentTask } from "@/lib/runs";
+import { authorizeRequest, requestAuthError } from "@/lib/security";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const orgId = url.searchParams.get("orgId") ?? DEMO_ORG_ID;
+  const auth = authorizeRequest({
+    headers: request.headers,
+    requestedOrgId: url.searchParams.get("orgId") ?? DEMO_ORG_ID,
+  });
+  if (!auth.ok) {
+    return NextResponse.json(requestAuthError(auth), { status: auth.status });
+  }
+
+  const orgId = auth.orgId;
   const limit = Number(url.searchParams.get("limit") ?? 8);
   const snapshots = await listRunSnapshots({ orgId, limit });
   const capabilities = summarizeCapabilities(process.env);

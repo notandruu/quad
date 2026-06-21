@@ -9,6 +9,9 @@ export type ModelPurpose =
 
 export type ProviderName = "anthropic" | "openai" | "local" | "blocked";
 
+export { authorizeRequest, requestAuthError } from "./request";
+export type { RequestAuthContext, RequestAuthResult } from "./request";
+
 export type Redaction = {
   kind: "secret" | "email" | "phone" | "bearer_token" | "private_key";
   count: number;
@@ -196,14 +199,19 @@ export function securityReadiness(env: Record<string, string | undefined>): {
   modelGatewaySubstrate: boolean;
   telemetryRedactionSubstrate: boolean;
   tenantKeySubstrate: boolean;
+  requestAuthSubstrate: boolean;
+  orgAllowlistConfigured: boolean;
   retentionPolicy: boolean;
   label: string;
 } {
   const retentionPolicy = Boolean(env.QUAD_RETENTION_DAYS);
+  const orgAllowlistConfigured = Boolean(env.QUAD_ALLOWED_ORGS);
   return {
     modelGatewaySubstrate: true,
     telemetryRedactionSubstrate: true,
     tenantKeySubstrate: true,
+    requestAuthSubstrate: true,
+    orgAllowlistConfigured,
     retentionPolicy,
     label: retentionPolicy ? "Security substrate present" : "Security substrate present, retention policy missing",
   };

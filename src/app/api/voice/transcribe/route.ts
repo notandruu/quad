@@ -3,6 +3,7 @@ import { getDeepgramSettings, transcribeWithDeepgram } from "@/lib/voice/deepgra
 import { DEMO_ORG_ID } from "@/data/seed";
 import { createQuadChainPacket, summarizeQuadChainPacket } from "@/lib/quad-chain";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
+import { authorizeRequest, requestAuthError } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -23,6 +24,14 @@ export async function POST(request: Request) {
   if (audio.size <= 0 || audio.size > MAX_AUDIO_BYTES) {
     return NextResponse.json({ error: "Audio upload is empty or too large." }, { status: 413 });
   }
+  const orgId = typeof form.get("orgId") === "string" ? String(form.get("orgId")) : DEMO_ORG_ID;
+  const auth = authorizeRequest({
+    headers: request.headers,
+    requestedOrgId: orgId,
+  });
+  if (!auth.ok) {
+    return NextResponse.json(requestAuthError(auth), { status: auth.status });
+  }
 
   try {
     const result = await transcribeWithDeepgram({
@@ -34,7 +43,7 @@ export async function POST(request: Request) {
 
     const packet = createQuadChainPacket({
       type: "voice_transcript",
-      orgId: typeof form.get("orgId") === "string" ? String(form.get("orgId")) : DEMO_ORG_ID,
+      orgId: auth.orgId,
       runId: typeof form.get("runId") === "string" ? String(form.get("runId")) : `voice_${crypto.randomUUID()}`,
       producer: "quad.voice.deepgram",
       consumer: "quad.chat",

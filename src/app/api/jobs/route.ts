@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { enqueueAuditJob, listJobs, type JobStatus } from "@/lib/jobs/queue";
+import { authorizeRequest, requestAuthError } from "@/lib/security";
 
 export const runtime = "nodejs";
 
@@ -19,8 +20,16 @@ const JobBody = z.object({
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const status = url.searchParams.get("status");
+  const auth = authorizeRequest({
+    headers: request.headers,
+    requestedOrgId: url.searchParams.get("orgId") ?? DEMO_ORG_ID,
+  });
+  if (!auth.ok) {
+    return NextResponse.json(requestAuthError(auth), { status: auth.status });
+  }
+
   const jobs = await listJobs({
-    orgId: url.searchParams.get("orgId") ?? DEMO_ORG_ID,
+    orgId: auth.orgId,
     status: status && STATUSES.includes(status as JobStatus) ? (status as JobStatus) : undefined,
     limit: Number(url.searchParams.get("limit") ?? 25),
   });
@@ -39,8 +48,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const auth = authorizeRequest({
+    headers: request.headers,
+    requestedOrgId: body.orgId ?? DEMO_ORG_ID,
+  });
+  if (!auth.ok) {
+    return NextResponse.json(requestAuthError(auth), { status: auth.status });
+  }
+
   const result = await enqueueAuditJob({
-    orgId: body.orgId,
+    orgId: auth.orgId,
     targetUrl: body.targetUrl,
     limit: body.limit,
     workflow: body.workflow,

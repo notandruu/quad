@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { DEMO_ORG_ID } from "@/data/seed";
 import { ApprovalDecisionError, decideWorkflowApproval } from "@/lib/runs/approvalDecision";
 import { summarizeAgentTask } from "@/lib/runs";
+import { authorizeRequest, requestAuthError } from "@/lib/security";
 
 export const runtime = "nodejs";
 
@@ -30,11 +32,19 @@ export async function POST(
     );
   }
 
+  const auth = authorizeRequest({
+    headers: request.headers,
+    requestedOrgId: body.orgId ?? DEMO_ORG_ID,
+  });
+  if (!auth.ok) {
+    return NextResponse.json(requestAuthError(auth), { status: auth.status });
+  }
+
   try {
     const result = await decideWorkflowApproval({
       runId: body.runId,
       approvalId: params.approvalId,
-      orgId: body.orgId,
+      orgId: auth.orgId,
       decision: body.decision,
       approver: body.approver,
       reason: body.reason,

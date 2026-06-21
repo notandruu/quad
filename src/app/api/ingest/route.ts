@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ingestMemory } from "@/lib/brain";
 import { DEMO_ORG_ID } from "@/data/seed";
+import { authorizeRequest, requestAuthError } from "@/lib/security";
 import type { SourceType } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -27,9 +28,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "title and content required" }, { status: 400 });
   }
 
+  const auth = authorizeRequest({
+    headers: req.headers,
+    requestedOrgId: body.orgId ?? DEMO_ORG_ID,
+  });
+  if (!auth.ok) {
+    return NextResponse.json(requestAuthError(auth), { status: auth.status });
+  }
+
   try {
     const memory = await ingestMemory({
-      orgId: body.orgId ?? DEMO_ORG_ID,
+      orgId: auth.orgId,
       sourceId: body.sourceId ?? `manual_${Date.now()}`,
       sourceType: coerceSourceType(body.sourceType),
       title: body.title,

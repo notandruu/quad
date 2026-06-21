@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { DEMO_ORG_ID } from "@/data/seed";
 import { DryRunPublishError, dryRunPublish } from "@/lib/fde/publisher";
+import { authorizeRequest, requestAuthError } from "@/lib/security";
 
 export const runtime = "nodejs";
 
@@ -18,10 +20,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "runId is required." }, { status: 400 });
   }
 
+  const auth = authorizeRequest({
+    headers: request.headers,
+    requestedOrgId: body.orgId ?? DEMO_ORG_ID,
+  });
+  if (!auth.ok) {
+    return NextResponse.json(requestAuthError(auth), { status: auth.status });
+  }
+
   try {
     const result = await dryRunPublish({
       runId: body.runId,
-      orgId: body.orgId,
+      orgId: auth.orgId,
       actor: body.actor,
     });
 

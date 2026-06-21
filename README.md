@@ -61,6 +61,8 @@ With no env keys set, the app still runs: Redis falls back to in-stream events, 
 
 To enable the durable brain, point `DATABASE_URL` at Postgres and run `src/lib/brain/schema.sql`.
 
+Hosted API routes accept `Authorization: Bearer $QUAD_API_SECRET` or `x-quad-api-key: $QUAD_API_SECRET`. In zero-key mode, org-owned routes only allow the seeded demo org. Set `QUAD_ALLOWED_ORGS` to a comma-separated allowlist before hosting customer data.
+
 ## Verification
 
 ```bash
@@ -82,6 +84,8 @@ npm run worker:once  # process one queued job locally
 ```
 
 `POST /api/jobs` queues a website audit or enterprise proof run, `GET /api/jobs` lists queued/running/completed jobs, `GET /api/jobs/:jobId` inspects a job, and `POST /api/jobs/process` processes one job for cron-style or protected worker calls. Redis is used when configured; local demos fall back to in-memory jobs.
+
+Set `QUAD_WORKER_SECRET` for protected worker processing calls. When it is configured, `POST /api/jobs/process` requires the same bearer/api-key auth shape as the rest of the hosted API.
 
 ## What is stubbed
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildDashboardTrustPacket } from "@/lib/fde/trustPacketService";
 import { loadCachedReport } from "@/lib/runtime/reportCache";
+import { authorizeRequest, requestAuthError } from "@/lib/security";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,14 @@ export async function POST(req: NextRequest) {
   const report = await loadCachedReport(runId);
   if (!report) {
     return NextResponse.json({ ok: false, error: "audit report not found" }, { status: 404 });
+  }
+
+  const auth = authorizeRequest({
+    headers: req.headers,
+    requestedOrgId: report.orgId,
+  });
+  if (!auth.ok) {
+    return NextResponse.json(requestAuthError(auth), { status: auth.status });
   }
 
   const result = await buildDashboardTrustPacket({ report });

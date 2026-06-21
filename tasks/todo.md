@@ -206,6 +206,7 @@ hard constraints:
 
 - [x] add security gateway primitives for classification, redaction, tenant keys, and provider policy
 - [x] wire model and embedding calls through payload minimization
+- [x] add hosted request auth guard for org-owned api routes with zero-key demo fallback
 - [ ] add security rows to operator panel for tenant isolation, telemetry redaction, connector scopes, and model routing
 - [ ] add validation checks for unsafe telemetry env/config where practical
 - [ ] add security packet for quad itself: what data is sent to models, what is stored, what is redacted, what can be deleted
