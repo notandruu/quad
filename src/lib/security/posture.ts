@@ -1,5 +1,5 @@
 import { CAPABILITY_CATALOG, summarizeCapabilities } from "@/lib/metaregistry";
-import { securityReadiness } from ".";
+import { getServiceTokenReadiness, securityReadiness, type ServiceTokenReadiness } from ".";
 import { buildRetentionPolicy, type RetentionPolicy } from "./retention";
 
 export type SecurityControlStatus = "pass" | "warning" | "missing";
@@ -47,6 +47,7 @@ export type SecurityPacket = {
     supportedToday: string[];
     missing: string[];
   };
+  serviceTokens: ServiceTokenReadiness;
   connectorScopes: Array<{
     id: string;
     scopes: string[];
@@ -76,6 +77,7 @@ export function buildSecurityPacket(input: {
   const retentionPolicy = buildRetentionPolicy({ orgId: input.orgId, env, now: input.now });
   const retentionDays = retentionPolicy.retentionDays;
   const apiSecretConfigured = Boolean(env.QUAD_API_SECRET);
+  const serviceTokens = getServiceTokenReadiness(env);
   const allowedOrgsConfigured = Boolean(env.QUAD_ALLOWED_ORGS);
   const durableBrainConfigured = Boolean(
     env.DATABASE_URL || (env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY)
@@ -108,6 +110,16 @@ export function buildSecurityPacket(input: {
       passDetail: "QUAD_ALLOWED_ORGS restricts hosted org access.",
       missingDetail: "QUAD_ALLOWED_ORGS is not configured; secret holders can request any org.",
       evidence: ["authorizeRequest() enforces QUAD_ALLOWED_ORGS when present"],
+    }),
+    control({
+      id: "service_tokens",
+      label: "Scoped service tokens",
+      ok: serviceTokens.configured && serviceTokens.unscopedCount === 0 && serviceTokens.orgScopedCount === serviceTokens.count,
+      warning: serviceTokens.configured && (serviceTokens.unscopedCount > 0 || serviceTokens.orgScopedCount < serviceTokens.count),
+      passDetail: `Scoped service tokens are configured for ${serviceTokens.count} runtime(s).`,
+      warningDetail: "Service tokens exist, but at least one token is admin-scoped or not org-scoped.",
+      missingDetail: "Service runtimes still need to share the admin API secret.",
+      evidence: ["QUAD_SERVICE_TOKENS", "requiredScopes on worker and jobs routes"],
     }),
     control({
       id: "model_gateway",
@@ -276,6 +288,7 @@ export function buildSecurityPacket(input: {
         "external provider-side token invalidation",
       ],
     },
+    serviceTokens,
     connectorScopes: capabilities.activeTools.map((tool) => {
       const manifest = CAPABILITY_CATALOG.find((capability) => capability.id === tool.id);
       return {

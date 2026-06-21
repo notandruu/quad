@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEMO_ORG_ID } from "@/data/seed";
-import { authorizeRequest } from "./request";
+import { authorizeRequest, getServiceTokenReadiness } from "./request";
 
 function headers(input: Record<string, string> = {}) {
   return new Headers(input);
@@ -199,5 +199,44 @@ describe("request auth", () => {
       mode: "secret",
       scopes: ["*"],
     });
+  });
+
+  it("summarizes service token readiness without exposing token values", () => {
+    const readiness = getServiceTokenReadiness({
+      QUAD_SERVICE_TOKENS: JSON.stringify([
+        {
+          label: "railway-worker",
+          token: "super-secret-worker-token",
+          orgs: ["org_a"],
+          scopes: ["worker", "jobs:read"],
+        },
+        {
+          token: "super-secret-admin-token",
+          scopes: ["*"],
+        },
+      ]),
+    });
+
+    expect(readiness).toMatchObject({
+      configured: true,
+      count: 2,
+      scopedCount: 1,
+      unscopedCount: 1,
+      orgScopedCount: 1,
+      scopes: ["*", "jobs:read", "worker"],
+      tokens: [
+        {
+          label: "railway-worker",
+          orgScoped: true,
+          scopes: ["worker", "jobs:read"],
+        },
+        {
+          label: "service-token-2",
+          orgScoped: false,
+          scopes: ["*"],
+        },
+      ],
+    });
+    expect(JSON.stringify(readiness)).not.toContain("super-secret");
   });
 });

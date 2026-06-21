@@ -9,8 +9,8 @@ export type ModelPurpose =
 
 export type ProviderName = "anthropic" | "openai" | "local" | "blocked";
 
-export { authorizeRequest, requestAuthError } from "./request";
-export type { RequestAuthContext, RequestAuthResult } from "./request";
+export { authorizeRequest, getServiceTokenReadiness, requestAuthError } from "./request";
+export type { RequestAuthContext, RequestAuthResult, ServiceTokenReadiness } from "./request";
 
 export type Redaction = {
   kind: "secret" | "email" | "phone" | "bearer_token" | "private_key";

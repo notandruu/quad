@@ -33,7 +33,7 @@ QUAD_SMOKE_BASE_URL=https://quad.example.com npm run smoke:prod
 - unauthenticated worker canary calls are blocked when worker auth is configured.
 - authenticated worker canary completes.
 - jobs health reports the latest canary receipt.
-- backend readiness exposes component status for Supabase, Redis, worker, auth, encryption, observability, voice, and Browserbase.
+- backend readiness exposes component status for Supabase, Redis, worker, auth, service tokens, encryption, observability, voice, and Browserbase.
 - retention policy is readable through the authenticated security route.
 
 Required environment:
@@ -73,6 +73,7 @@ Current route scopes:
 - `jobs:write`: enqueue jobs.
 
 If a request uses `QUAD_API_SECRET`, it is treated as admin and bypasses per-route scopes. If it uses a service token, both org and scope must match.
+Backend readiness and security packets only expose token labels, scopes, counts, and org-scoped status. Raw token values are never returned.
 
 ## Current blockers to a fully green backend
 

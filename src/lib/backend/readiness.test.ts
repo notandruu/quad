@@ -16,6 +16,14 @@ const fullEnv = {
   BROWSERBASE_PROJECT_ID: "project",
   QUAD_RETENTION_DAYS: "30",
   QUAD_WORKER_ENABLED: "true",
+  QUAD_SERVICE_TOKENS: JSON.stringify([
+    {
+      label: "railway-worker",
+      token: "worker-token",
+      orgs: ["demo-org"],
+      scopes: ["worker", "jobs:read", "jobs:write"],
+    },
+  ]),
 };
 
 describe("getBackendReadiness", () => {
@@ -32,6 +40,15 @@ describe("getBackendReadiness", () => {
     expect(report.ok).toBe(true);
     expect(report.mode).toBe("production_ready");
     expect(report.components.supabase.missingTables).toEqual([]);
+    expect(report.components.serviceTokens.status).toBe("ready");
+    expect(report.components.serviceTokens.tokens).toEqual([
+      {
+        label: "railway-worker",
+        orgScoped: true,
+        scopes: ["worker", "jobs:read", "jobs:write"],
+      },
+    ]);
+    expect(JSON.stringify(report)).not.toContain("worker-token");
     expect(report.components.worker.canary.ok).toBe(true);
     expect(report.nextActions).toEqual([]);
   });
@@ -66,7 +83,34 @@ describe("getBackendReadiness", () => {
     expect(report.components.supabase.configured).toBe(false);
     expect(report.components.supabase.missingTables).toEqual([...PLATFORM_REQUIRED_TABLES]);
     expect(report.components.redis.status).toBe("missing");
+    expect(report.components.serviceTokens.status).toBe("missing");
+    expect(report.nextActions).toContain("Configure org-scoped QUAD_SERVICE_TOKENS for Railway workers and read-only operators.");
     expect(report.nextActions.length).toBeGreaterThan(5);
+  });
+
+  it("degrades readiness when service tokens are admin-scoped", async () => {
+    const report = await getBackendReadiness({
+      env: {
+        ...fullEnv,
+        QUAD_SERVICE_TOKENS: JSON.stringify([
+          {
+            label: "wide-open-worker",
+            token: "wide-token",
+            orgs: [],
+            scopes: ["*"],
+          },
+        ]),
+      },
+      probeSupabase: async () => true,
+      probeRedis: async () => true,
+      probeWorker: async () => workerHealth({ alive: true }),
+      probeCanary: async () => canaryHealth({ ok: true }),
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.components.serviceTokens.status).toBe("degraded");
+    expect(report.nextActions).toContain("Configure org-scoped QUAD_SERVICE_TOKENS for Railway workers and read-only operators.");
+    expect(JSON.stringify(report)).not.toContain("wide-token");
   });
 
   it("does not claim production readiness without a live worker heartbeat", async () => {

@@ -12,6 +12,14 @@ describe("security posture packet", () => {
         OPENAI_API_KEY: "sk-proj-secret",
         QUAD_REDIS_REST_URL: "https://redis.example",
         QUAD_REDIS_REST_TOKEN: "redis-secret",
+        QUAD_SERVICE_TOKENS: JSON.stringify([
+          {
+            label: "worker",
+            token: "service-token-secret",
+            orgs: ["org_demo"],
+            scopes: ["worker"],
+          },
+        ]),
       },
     });
     const serialized = JSON.stringify(packet);
@@ -24,6 +32,13 @@ describe("security posture packet", () => {
     expect(serialized).not.toContain("super-secret-value");
     expect(serialized).not.toContain("sk-ant-secret");
     expect(serialized).not.toContain("redis-secret");
+    expect(serialized).not.toContain("service-token-secret");
+    expect(packet.serviceTokens).toMatchObject({
+      configured: true,
+      count: 1,
+      scopedCount: 1,
+      orgScopedCount: 1,
+    });
   });
 
   it("marks production posture when all core controls are configured", () => {
@@ -37,12 +52,28 @@ describe("security posture packet", () => {
         DATABASE_URL: "postgresql://user:pass@example.com/db",
         SENTRY_DSN: "https://sentry.example",
         PHOENIX_COLLECTOR_ENDPOINT: "https://phoenix.example",
+        QUAD_SERVICE_TOKENS: JSON.stringify([
+          {
+            label: "railway-worker",
+            token: "worker-token",
+            orgs: ["org_prod"],
+            scopes: ["worker", "jobs:read", "jobs:write"],
+          },
+        ]),
       },
     });
 
     expect(packet.posture).toBe("production_ready");
     expect(packet.score).toBe(100);
     expect(packet.controls.every((control) => control.status === "pass")).toBe(true);
+    expect(packet.controls.find((control) => control.id === "service_tokens")?.status).toBe("pass");
+    expect(packet.serviceTokens.tokens).toEqual([
+      {
+        label: "railway-worker",
+        orgScoped: true,
+        scopes: ["worker", "jobs:read", "jobs:write"],
+      },
+    ]);
     expect(packet.deletion).toMatchObject({
       configured: true,
       retentionDays: 14,

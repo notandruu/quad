@@ -32,6 +32,20 @@ export type QuadServiceToken = {
   label?: string;
 };
 
+export type ServiceTokenReadiness = {
+  configured: boolean;
+  count: number;
+  scopedCount: number;
+  unscopedCount: number;
+  orgScopedCount: number;
+  scopes: string[];
+  tokens: Array<{
+    label: string;
+    orgScoped: boolean;
+    scopes: string[];
+  }>;
+};
+
 const ADMIN_SCOPE = "*";
 
 export function authorizeRequest(input: AuthorizeRequestInput): RequestAuthResult {
@@ -112,6 +126,28 @@ export function requestAuthError(result: Exclude<RequestAuthResult, { ok: true }
     ok: false,
     error: result.error,
     code: result.code,
+  };
+}
+
+export function getServiceTokenReadiness(
+  env: Record<string, string | undefined> = process.env
+): ServiceTokenReadiness {
+  const tokens = parseServiceTokens(env.QUAD_SERVICE_TOKENS);
+  const summaries = tokens.map((token, index) => ({
+    label: token.label?.trim() || `service-token-${index + 1}`,
+    orgScoped: token.orgs.length > 0,
+    scopes: token.scopes,
+  }));
+  const scopes = [...new Set(tokens.flatMap((token) => token.scopes))].sort();
+
+  return {
+    configured: tokens.length > 0,
+    count: tokens.length,
+    scopedCount: tokens.filter((token) => !token.scopes.includes(ADMIN_SCOPE)).length,
+    unscopedCount: tokens.filter((token) => token.scopes.includes(ADMIN_SCOPE)).length,
+    orgScopedCount: tokens.filter((token) => token.orgs.length > 0).length,
+    scopes,
+    tokens: summaries,
   };
 }
 

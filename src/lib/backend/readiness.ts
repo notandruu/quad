@@ -6,7 +6,7 @@ import {
   type WorkerRuntimeHealth,
 } from "@/lib/jobs/queue";
 import { getRedis, isRedisConfigured } from "@/lib/redis";
-import { securityReadiness } from "@/lib/security";
+import { getServiceTokenReadiness, securityReadiness, type ServiceTokenReadiness } from "@/lib/security";
 
 export type BackendComponentStatus = "ready" | "degraded" | "missing";
 
@@ -29,6 +29,7 @@ export type BackendReadinessReport = {
     };
     redis: BackendComponentHealth;
     auth: BackendComponentHealth;
+    serviceTokens: BackendComponentHealth & ServiceTokenReadiness;
     encryption: BackendComponentHealth;
     observability: BackendComponentHealth;
     voice: BackendComponentHealth;
@@ -74,6 +75,7 @@ export async function getBackendReadiness(
   const supabaseConfigured = Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY);
   const redisConfigured = Boolean(env.QUAD_REDIS_REST_URL && env.QUAD_REDIS_REST_TOKEN);
   const requiredSecretConfigured = Boolean(env.QUAD_API_SECRET);
+  const serviceTokens = getServiceTokenReadiness(env);
   const encryptionConfigured = Boolean(env.QUAD_CONNECTOR_ENCRYPTION_KEY);
   const sentryConfigured = Boolean(env.SENTRY_DSN);
   const phoenixConfigured = Boolean(env.PHOENIX_COLLECTOR_ENDPOINT);
@@ -117,6 +119,20 @@ export async function getBackendReadiness(
       detail: requiredSecretConfigured
         ? "Hosted API secret is configured."
         : "Hosted API secret is missing, so demo fallback can allow local-only org access.",
+    },
+    serviceTokens: {
+      ...serviceTokens,
+      status: serviceTokens.configured
+        ? serviceTokens.unscopedCount === 0 && serviceTokens.orgScopedCount === serviceTokens.count
+          ? "ready"
+          : "degraded"
+        : "missing",
+      configured: serviceTokens.configured,
+      detail: serviceTokens.configured
+        ? serviceTokens.unscopedCount === 0 && serviceTokens.orgScopedCount === serviceTokens.count
+          ? `Scoped service tokens are configured for ${serviceTokens.count} runtime(s).`
+          : "Service tokens are configured, but at least one token is admin-scoped or not org-scoped."
+        : "Service tokens are not configured, so runtimes must share the admin API secret.",
     },
     encryption: {
       status: encryptionConfigured ? "ready" : "degraded",
@@ -175,6 +191,7 @@ export async function getBackendReadiness(
     components.redis.status === "ready" &&
     components.worker.status === "ready" &&
     components.auth.status === "ready" &&
+    components.serviceTokens.status === "ready" &&
     components.encryption.status === "ready";
   const optionalReady =
     components.observability.status === "ready" &&
@@ -268,6 +285,9 @@ function buildNextActions(
   }
   if (components.auth.status !== "ready") {
     actions.push("Set QUAD_API_SECRET and QUAD_ALLOWED_ORGS before exposing hosted mutation routes.");
+  }
+  if (components.serviceTokens.status !== "ready") {
+    actions.push("Configure org-scoped QUAD_SERVICE_TOKENS for Railway workers and read-only operators.");
   }
   if (components.encryption.status !== "ready") {
     actions.push("Set QUAD_CONNECTOR_ENCRYPTION_KEY before installing real connector credentials.");
