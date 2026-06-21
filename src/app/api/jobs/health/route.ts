@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getWorkerQueueHealth } from "@/lib/jobs/queue";
+import { getWorkerQueueHealth, getWorkerRuntimeHealth } from "@/lib/jobs/queue";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
 
 export const runtime = "nodejs";
@@ -14,10 +14,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(requestAuthError(auth), { status: auth.status });
   }
 
-  const health = await getWorkerQueueHealth();
+  const [health, runtime] = await Promise.all([
+    getWorkerQueueHealth(),
+    getWorkerRuntimeHealth(),
+  ]);
   return NextResponse.json({
-    ok: health.deadLetter === 0,
+    ok: health.deadLetter === 0 && (!runtime.configured || runtime.alive),
     worker: health,
+    runtime,
     authMode: auth.mode,
   });
 }

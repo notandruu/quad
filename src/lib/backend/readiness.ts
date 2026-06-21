@@ -1,4 +1,5 @@
 import { getClient } from "@/lib/brain/db";
+import { getWorkerRuntimeHealth, type WorkerRuntimeHealth } from "@/lib/jobs/queue";
 import { getRedis, isRedisConfigured } from "@/lib/redis";
 import { securityReadiness } from "@/lib/security";
 
@@ -27,6 +28,13 @@ export type BackendReadinessReport = {
     observability: BackendComponentHealth;
     voice: BackendComponentHealth;
     browserbase: BackendComponentHealth;
+    worker: BackendComponentHealth & {
+      seen: boolean;
+      workerId: string | null;
+      lastHeartbeatAt: string | null;
+      processed: number;
+      staleAfterMs: number;
+    };
   };
   nextActions: string[];
 };
@@ -36,6 +44,7 @@ export type BackendReadinessInput = {
   now?: string;
   probeSupabase?: (table: string) => Promise<boolean>;
   probeRedis?: () => Promise<boolean>;
+  probeWorker?: (input?: { now?: string }) => Promise<WorkerRuntimeHealth>;
 };
 
 export const PLATFORM_REQUIRED_TABLES = [
@@ -66,6 +75,7 @@ export async function getBackendReadiness(
 
   const supabaseProbe = await probeRequiredTables(input.probeSupabase ?? defaultSupabaseProbe, supabaseConfigured);
   const redisProbe = await probeRedis(input.probeRedis ?? defaultRedisProbe, redisConfigured);
+  const workerProbe = await (input.probeWorker ?? getWorkerRuntimeHealth)({ now: generatedAt });
   const security = securityReadiness(env);
 
   const components: BackendReadinessReport["components"] = {
@@ -133,12 +143,28 @@ export async function getBackendReadiness(
         ? "Browserbase is configured for remote browser execution."
         : "Browserbase is missing, so browser automation falls back to direct fetch.",
     },
+    worker: {
+      status: componentStatus(workerProbe.configured || workerProbe.seen, workerProbe.alive),
+      configured: workerProbe.configured || workerProbe.seen,
+      reachable: workerProbe.alive,
+      seen: workerProbe.seen,
+      workerId: workerProbe.workerId,
+      lastHeartbeatAt: workerProbe.lastHeartbeatAt,
+      processed: workerProbe.processed,
+      staleAfterMs: workerProbe.staleAfterMs,
+      detail: workerProbe.alive
+        ? `Backend worker ${workerProbe.workerId ?? "unknown"} is heartbeating.`
+        : workerProbe.seen
+          ? "Backend worker heartbeat is stale."
+          : "No backend worker heartbeat has been observed.",
+    },
   };
 
   const nextActions = buildNextActions(components, security);
   const hardReady =
     components.supabase.status === "ready" &&
     components.redis.status === "ready" &&
+    components.worker.status === "ready" &&
     components.auth.status === "ready" &&
     components.encryption.status === "ready";
   const optionalReady =
@@ -227,6 +253,9 @@ function buildNextActions(
   }
   if (components.redis.status !== "ready") {
     actions.push("Configure Upstash Redis for live events, packet cache, and background job continuity.");
+  }
+  if (components.worker.status !== "ready") {
+    actions.push("Run npm run worker on Railway or another long-running runtime so queued jobs are processed continuously.");
   }
   if (components.auth.status !== "ready") {
     actions.push("Set QUAD_API_SECRET and QUAD_ALLOWED_ORGS before exposing hosted mutation routes.");

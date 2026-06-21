@@ -4,8 +4,10 @@ import {
   claimNextJob,
   enqueueAuditJob,
   getJob,
+  getWorkerRuntimeHealth,
   getWorkerQueueHealth,
   listJobs,
+  recordWorkerHeartbeat,
   retryJob,
   updateJob,
 } from "./queue";
@@ -101,5 +103,30 @@ describe("job queue", () => {
     expect(health.retrying).toBeGreaterThanOrEqual(1);
     expect(reclaimed?.id).toBe(result.job.id);
     expect(reclaimed?.attempts).toBe(2);
+  });
+
+  it("records fresh and stale worker runtime heartbeats", async () => {
+    vi.stubEnv("QUAD_REDIS_REST_URL", "");
+    vi.stubEnv("QUAD_REDIS_REST_TOKEN", "");
+    vi.stubEnv("QUAD_WORKER_HEARTBEAT_STALE_MS", "1000");
+
+    await recordWorkerHeartbeat({
+      workerId: "worker_test_1",
+      startedAt: "2026-06-21T00:00:00.000Z",
+      processed: 2,
+      now: "2026-06-21T00:00:01.000Z",
+    });
+
+    const fresh = await getWorkerRuntimeHealth({ now: "2026-06-21T00:00:01.500Z" });
+    const stale = await getWorkerRuntimeHealth({ now: "2026-06-21T00:00:03.000Z" });
+
+    expect(fresh).toMatchObject({
+      configured: true,
+      seen: true,
+      alive: true,
+      workerId: "worker_test_1",
+      processed: 2,
+    });
+    expect(stale.alive).toBe(false);
   });
 });

@@ -73,9 +73,9 @@ High-risk mutation routes are protected by org-scoped rate limits and optional `
 
 `POST /api/verify-fix` runs post-ship verification over staged connector artifacts, emits verification reports, creates executed or blocked receipts, and attaches quadchain `connector_action` packets to the run.
 
-`GET /api/health/backend` reports whether Supabase platform tables, Redis, hosted API auth, credential encryption, Browserbase, voice, Sentry, and Phoenix are configured and reachable. Run `docs/backend/platform-schema.sql` in Supabase before relying on durable runs.
+`GET /api/health/backend` reports whether Supabase platform tables, Redis, hosted API auth, credential encryption, the backend worker, Browserbase, voice, Sentry, and Phoenix are configured and reachable. Run `docs/backend/platform-schema.sql` in Supabase before relying on durable runs.
 
-`GET /api/jobs/health` reports worker queue depth, running jobs, retrying jobs, completed jobs, failed jobs, and dead-lettered jobs. Worker failures retry up to `maxAttempts`, then move to `dead_letter` for operator review.
+`GET /api/jobs/health` reports worker queue depth, running jobs, retrying jobs, completed jobs, failed jobs, dead-lettered jobs, and the latest worker heartbeat. Worker failures retry up to `maxAttempts`, then move to `dead_letter` for operator review.
 
 Hosted run artifacts are addressable after creation: `GET /api/runs/:runId`, `GET /api/runs/:runId/artifacts`, `GET /api/runs/:runId/artifacts/:artifactId`, `GET /api/runs/:runId/tasks`, and `GET /api/runs/:runId/tasks/:taskId`.
 
@@ -101,7 +101,7 @@ npm run worker:once  # process one queued job locally
 
 `POST /api/jobs` queues a website audit or enterprise proof run, `GET /api/jobs` lists queued/running/completed jobs, `GET /api/jobs/:jobId` inspects a job, and `POST /api/jobs/process` processes one job for cron-style or protected worker calls. Redis is used when configured; local demos fall back to in-memory jobs.
 
-Set `QUAD_WORKER_SECRET` for protected worker processing calls. When it is configured, `POST /api/jobs/process` requires the same bearer/api-key auth shape as the rest of the hosted API.
+Set `QUAD_WORKER_SECRET` for protected worker processing calls. When it is configured, `POST /api/jobs/process` requires the same bearer/api-key auth shape as the rest of the hosted API. Set `QUAD_WORKER_ENABLED=true` on hosted environments that expect a long-running worker; backend readiness will stay degraded until a fresh heartbeat appears.
 
 ## What is stubbed
 

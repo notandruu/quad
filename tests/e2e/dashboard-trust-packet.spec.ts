@@ -52,12 +52,15 @@ test.describe("dashboard trust packet flow", () => {
     let trustPacketBody: Record<string, unknown> | null = null;
     let approvalDecisionBody: Record<string, unknown> | null = null;
     let dryRunPublishBody: Record<string, unknown> | null = null;
+    let verifyFixBody: Record<string, unknown> | null = null;
     await mockDashboardBackends(page, async (body) => {
       trustPacketBody = body;
     }, async (body) => {
       approvalDecisionBody = body;
     }, async (body) => {
       dryRunPublishBody = body;
+    }, async (body) => {
+      verifyFixBody = body;
     });
 
     await page.goto("/");
@@ -91,6 +94,13 @@ test.describe("dashboard trust packet flow", () => {
       runId: `trust_${runId}`,
       actor: "demo.operator",
     });
+    await operatorConsole.getByRole("button", { name: "Verify fix", exact: true }).click();
+    await expect(operatorConsole.getByText("Fix verified")).toBeVisible();
+    await expect(operatorConsole.getByRole("heading", { name: "Verification report" })).toBeVisible();
+    expect(verifyFixBody).toMatchObject({
+      runId: `trust_${runId}`,
+      actor: "demo.operator",
+    });
 
     await page.getByRole("button", { name: "Build packet" }).click();
 
@@ -106,10 +116,12 @@ async function mockDashboardBackends(
   page: Page,
   onTrustPacket: (body: Record<string, unknown>) => void | Promise<void>,
   onApprovalDecision?: (body: Record<string, unknown>) => void | Promise<void>,
-  onDryRunPublish?: (body: Record<string, unknown>) => void | Promise<void>
+  onDryRunPublish?: (body: Record<string, unknown>) => void | Promise<void>,
+  onVerifyFix?: (body: Record<string, unknown>) => void | Promise<void>
 ) {
   let approvalDecision: "pending" | "approved" = "pending";
   let publishStaged = false;
+  let fixVerified = false;
   await page.route("**/api/settings", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -164,16 +176,28 @@ async function mockDashboardBackends(
             status: approvalDecision === "approved" ? "completed" : "needs_approval",
             title: "Enterprise proof trust packet",
             targetUrl: "https://example.com",
-            artifacts: publishStaged
-              ? [
-                  {
-                    id: "artifact_publish_ui",
-                    kind: "cms_draft",
-                    title: "Cms proof block draft",
-                    hash: "fnv1a:stage1234",
-                  },
-                ]
-              : [],
+            artifacts: [
+              ...(publishStaged
+                ? [
+                    {
+                      id: "artifact_publish_ui",
+                      kind: "cms_draft",
+                      title: "Cms proof block draft",
+                      hash: "fnv1a:stage1234",
+                    },
+                  ]
+                : []),
+              ...(fixVerified
+                ? [
+                    {
+                      id: "artifact_verify_ui",
+                      kind: "verification_report",
+                      title: "Verification report",
+                      hash: "fnv1a:verify1234",
+                    },
+                  ]
+                : []),
+            ],
             approvals: [
               {
                 id: "approval_ui_1",
@@ -195,29 +219,42 @@ async function mockDashboardBackends(
             nextAction: "Human approval required before customer-facing work can ship.",
           },
         ],
+        shipTrails: {
+          [`trust_${runId}`]: [
+            shipStep("audit", "Audit", "complete"),
+            shipStep("packet", "Packet", "complete"),
+            shipStep("approval", "Approval", approvalDecision === "approved" ? "complete" : "active"),
+            shipStep("publish", "Publish", publishStaged ? "complete" : approvalDecision === "approved" ? "active" : "pending"),
+            shipStep("verify", "Verify", fixVerified ? "complete" : publishStaged ? "active" : "pending"),
+          ],
+        },
         artifacts: publishStaged
           ? [
               {
-                id: "artifact_publish_ui",
+                id: fixVerified ? "artifact_verify_ui" : "artifact_publish_ui",
                 runId: `trust_${runId}`,
-                title: "Cms proof block draft",
-                kind: "cms_draft",
-                status: "ready",
-                headline: "Dry-run publisher artifact staged. No customer-facing write was executed.",
+                title: fixVerified ? "Verification report" : "Cms proof block draft",
+                kind: fixVerified ? "verification_report" : "cms_draft",
+                status: fixVerified ? "executed" : "ready",
+                headline: fixVerified
+                  ? "Post-ship verification passed for staged connector artifacts."
+                  : "Dry-run publisher artifact staged. No customer-facing write was executed.",
                 preview: {
-                  label: "Publisher artifact",
-                  primaryMetric: "dry",
-                  primaryLabel: "run mode",
-                  secondaryMetric: "cms draft",
-                  secondaryLabel: "connector",
-                  risk: "staged only",
+                  label: fixVerified ? "Verification artifact" : "Publisher artifact",
+                  primaryMetric: fixVerified ? "pass" : "dry",
+                  primaryLabel: fixVerified ? "status" : "run mode",
+                  secondaryMetric: fixVerified ? "3" : "cms draft",
+                  secondaryLabel: fixVerified ? "checks" : "connector",
+                  risk: fixVerified ? "verified" : "staged only",
                 },
                 proof: [
                   {
-                    id: "receipt_ui_publish",
-                    status: "ready",
-                    summary: "Cms proof block draft staged in dry-run mode.",
-                    artifactHash: "fnv1a:stage1234",
+                    id: fixVerified ? "receipt_ui_verify" : "receipt_ui_publish",
+                    status: fixVerified ? "executed" : "ready",
+                    summary: fixVerified
+                      ? "Cms proof block draft passed post-ship verification."
+                      : "Cms proof block draft staged in dry-run mode.",
+                    artifactHash: fixVerified ? "fnv1a:verify1234" : "fnv1a:stage1234",
                   },
                 ],
               },
@@ -349,6 +386,42 @@ async function mockDashboardBackends(
     });
   });
 
+  await page.route("**/api/verify-fix", async (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    await onVerifyFix?.(body);
+    fixVerified = true;
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        status: "passed",
+        items: [
+          {
+            artifactId: "artifact_publish_ui",
+            artifactKind: "cms_draft",
+            title: "Cms proof block draft",
+            status: "passed",
+            checks: [],
+          },
+        ],
+        task: {
+          runId: `trust_${runId}`,
+          status: "completed",
+          artifacts: [
+            {
+              id: "artifact_verify_ui",
+              kind: "verification_report",
+              title: "Verification report",
+              hash: "fnv1a:verify1234",
+            },
+          ],
+        },
+        packets: [],
+      }),
+    });
+  });
+
   await page.route("**/api/quadchain/packets?**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -460,4 +533,19 @@ async function mockDashboardBackends(
 
 function sse(payload: unknown) {
   return `data: ${JSON.stringify(payload)}\n\n`;
+}
+
+function shipStep(
+  id: "audit" | "packet" | "approval" | "publish" | "verify",
+  label: string,
+  status: "pending" | "active" | "blocked" | "complete"
+) {
+  return {
+    id,
+    label,
+    status,
+    summary: `${label} ${status}`,
+    href: `/api/runs/trust_${runId}`,
+    createdAt: "2026-06-21T00:00:00.000Z",
+  };
 }

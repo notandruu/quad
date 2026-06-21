@@ -78,13 +78,34 @@ export type WorkerQueueHealth = {
   latestUpdatedAt: string | null;
 };
 
+export type WorkerRuntimeHealth = {
+  mode: "redis" | "memory";
+  configured: boolean;
+  seen: boolean;
+  alive: boolean;
+  workerId: string | null;
+  startedAt: string | null;
+  lastHeartbeatAt: string | null;
+  processed: number;
+  staleAfterMs: number;
+};
+
+export type WorkerHeartbeatInput = {
+  workerId: string;
+  startedAt?: string;
+  processed?: number;
+  now?: string;
+};
+
 const QUEUE_KEY = "quad:jobs:queue";
 const JOB_KEY_PREFIX = "quad:jobs:item:";
+const WORKER_HEARTBEAT_KEY = "quad:jobs:worker:heartbeat";
 const JOB_TTL_SECONDS = 60 * 60 * 24;
 
 const g = globalThis as typeof globalThis & {
   __quadJobs?: Map<string, QuadJob>;
   __quadJobQueue?: string[];
+  __quadWorkerHeartbeat?: WorkerRuntimeHealth;
 };
 if (!g.__quadJobs) g.__quadJobs = new Map();
 if (!g.__quadJobQueue) g.__quadJobQueue = [];
@@ -297,6 +318,77 @@ export async function getWorkerQueueHealth(): Promise<WorkerQueueHealth> {
   };
 }
 
+export async function recordWorkerHeartbeat(input: WorkerHeartbeatInput): Promise<WorkerRuntimeHealth> {
+  const now = input.now ?? new Date().toISOString();
+  const heartbeat: WorkerRuntimeHealth = {
+    mode: getRedis() ? "redis" : "memory",
+    configured: true,
+    seen: true,
+    alive: true,
+    workerId: input.workerId,
+    startedAt: input.startedAt ?? g.__quadWorkerHeartbeat?.startedAt ?? now,
+    lastHeartbeatAt: now,
+    processed: input.processed ?? g.__quadWorkerHeartbeat?.processed ?? 0,
+    staleAfterMs: workerHeartbeatStaleMs(),
+  };
+  g.__quadWorkerHeartbeat = heartbeat;
+
+  const redis = getRedis();
+  if (redis) {
+    try {
+      await redis.set(WORKER_HEARTBEAT_KEY, heartbeat, {
+        ex: Math.max(60, Math.ceil(heartbeat.staleAfterMs / 1000) * 2),
+      });
+    } catch {
+      // Memory heartbeat still tells local health checks that this process is alive.
+    }
+  }
+
+  return heartbeat;
+}
+
+export async function getWorkerRuntimeHealth(input: { now?: string } = {}): Promise<WorkerRuntimeHealth> {
+  const staleAfterMs = workerHeartbeatStaleMs();
+  const redis = getRedis();
+  const mode: WorkerRuntimeHealth["mode"] = redis ? "redis" : "memory";
+  let heartbeat = g.__quadWorkerHeartbeat;
+
+  if (redis) {
+    try {
+      const redisHeartbeat = await redis.get<WorkerRuntimeHealth>(WORKER_HEARTBEAT_KEY);
+      if (isWorkerRuntimeHealth(redisHeartbeat)) heartbeat = redisHeartbeat;
+    } catch {
+      // Fall back to the in-process heartbeat below.
+    }
+  }
+
+  if (!heartbeat) {
+    return {
+      mode,
+      configured: workerExpected(),
+      seen: false,
+      alive: false,
+      workerId: null,
+      startedAt: null,
+      lastHeartbeatAt: null,
+      processed: 0,
+      staleAfterMs,
+    };
+  }
+
+  const nowMs = Date.parse(input.now ?? new Date().toISOString());
+  const lastMs = Date.parse(heartbeat.lastHeartbeatAt ?? "");
+  const alive = Number.isFinite(lastMs) && nowMs - lastMs <= staleAfterMs;
+  return {
+    ...heartbeat,
+    mode,
+    configured: true,
+    seen: true,
+    alive,
+    staleAfterMs,
+  };
+}
+
 export async function updateJob(
   jobId: string,
   patch: Partial<Omit<QuadJob, "id" | "createdAt">>
@@ -407,6 +499,16 @@ function retryDelayMs(attempts: number): number {
   return Math.min(base, 30_000);
 }
 
+function workerHeartbeatStaleMs(): number {
+  const configured = Number.parseInt(process.env.QUAD_WORKER_HEARTBEAT_STALE_MS ?? "", 10);
+  if (Number.isFinite(configured)) return Math.max(1000, configured);
+  return 30_000;
+}
+
+function workerExpected(): boolean {
+  return Boolean(process.env.QUAD_WORKER_ENABLED || process.env.QUAD_WORKER_SECRET || process.env.RAILWAY_SERVICE_NAME);
+}
+
 function clampLimit(value: number | undefined): number {
   if (!Number.isFinite(value)) return 12;
   return Math.max(1, Math.min(50, Math.floor(value ?? 12)));
@@ -423,6 +525,16 @@ function isJob(value: unknown): value is QuadJob {
       typeof (value as QuadJob).id === "string" &&
       typeof (value as QuadJob).runId === "string" &&
       typeof (value as QuadJob).type === "string"
+  );
+}
+
+function isWorkerRuntimeHealth(value: unknown): value is WorkerRuntimeHealth {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      typeof (value as WorkerRuntimeHealth).seen === "boolean" &&
+      typeof (value as WorkerRuntimeHealth).alive === "boolean" &&
+      typeof (value as WorkerRuntimeHealth).processed === "number"
   );
 }
 

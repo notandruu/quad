@@ -48,21 +48,25 @@ Next:
 
 ## Gap 2: operator console
 
-Status: next.
+Status: shipped v1.
 
-Build:
+Shipped v1:
 
-- add `/operator` or dashboard panel for recent runs, pending approvals, receipts, and active capabilities.
-- read from `/api/runs`.
-- show only summaries by default.
-- drill into artifacts only when packet visibility allows it.
-- include sponsor badges for Arize, Sentry, Browserbase, Redis, Fetch.ai, and Deepgram where the capability is live.
+- dashboard operator panel for recent runs, pending approvals, staged artifacts, active capabilities, connector credentials, security posture, and ship trail.
+- reads from `/api/operator`.
+- shows artifact summaries by default, with run/artifact links for hosted drilldown.
+- includes proof/preview artifact sidecar controls.
 
 Acceptance:
 
 - user can see pending trust packets without opening logs.
 - user can identify blocked connectors/env.
 - user can click from a run to `/quadchain?runId=...`.
+
+Next:
+
+- add packet visibility filtering to hosted drilldowns.
+- show sponsor badges only when the underlying capability is live.
 
 ## Gap 3: dry-run publisher workbench
 
@@ -90,20 +94,43 @@ Acceptance:
 
 ## Gap 4: post-ship verification
 
-Status: planned.
+Status: shipped v1.
 
-Build:
+Shipped v1:
 
-- add targeted verification route for a finding or receipt.
-- rerun the relevant audit page with the original evidence obligation.
-- compare before/after evidence.
-- emit `approval` or `connector_action` packets for the verification result.
-- close the receipt as `executed` only after evidence passes.
+- `POST /api/verify-fix` verifies staged connector artifacts.
+- verification emits a `verification_report` artifact.
+- passed verification creates executed receipts and connector action packets.
+- operator console can trigger verification after staging a fix.
+- Playwright covers approve -> stage -> verify from the dashboard.
 
 Acceptance:
 
 - fix is not marked done just because a draft exists.
 - verification includes page evidence, packet summary, and final receipt state.
+
+Next:
+
+- compare live before/after browser evidence for real customer writes.
+- support per-finding verification targets.
+
+## Gap 4.5: backend worker runtime
+
+Status: shipped v1.
+
+Shipped v1:
+
+- `npm run worker` runs the long-lived backend worker loop for Railway.
+- `npm run worker:once` processes one queued job locally.
+- worker records runtime heartbeats with worker id, start time, last heartbeat, and processed count.
+- `GET /api/jobs/health` reports queue health and worker runtime liveness.
+- `GET /api/health/backend` marks production readiness degraded until a fresh worker heartbeat exists when workers are expected.
+
+Next:
+
+- add distributed claim locks so multiple workers cannot process the same run.
+- add deployment docs for Railway env and start command.
+- add a worker canary that creates and processes a tiny synthetic job.
 
 ## Gap 5: voice-led enterprise proof interview
 
