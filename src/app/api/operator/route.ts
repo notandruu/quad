@@ -157,6 +157,14 @@ type OperatorArtifactOutcome = {
   summary: string;
   status: "drafted" | "executed" | "paused" | "verified" | "blocked";
   submitted: boolean | null;
+  autonomy: {
+    tier: string;
+    label: string;
+    approvalRequired: boolean;
+    humanReviewRequired: boolean;
+    submitsExternally: boolean;
+    nextTier: string | null;
+  };
   target: {
     connectorId: string;
     destination: string;
@@ -343,6 +351,7 @@ function buildConnectorExecutionOutcome(
       : "Approved connector execution completed with rollback and post-ship verification requirements.",
     status: "executed",
     submitted: browserOutcome?.submitted ?? null,
+    autonomy: readAutonomy(data.action, browserOutcome?.autonomy),
     target: {
       connectorId: typeof connector.id === "string" ? connector.id : "connector",
       destination: typeof target.destination === "string" ? target.destination : "approved connector",
@@ -396,6 +405,7 @@ function buildBrowserActionOutcome(data: Record<string, unknown>): OperatorArtif
       : "Controlled browser action captured with before and after evidence.",
     status: submitted ? "executed" : "paused",
     submitted,
+    autonomy: readAutonomy(action),
     target: {
       connectorId: typeof connector.id === "string" ? connector.id : "browserbase.write_browser",
       destination: typeof target.destination === "string" ? target.destination : "controlled browser",
@@ -432,6 +442,14 @@ function buildVerificationOutcome(data: Record<string, unknown>): OperatorArtifa
       : `Post-ship verification passed ${passed} checks.`,
     status: failed > 0 ? "blocked" : "verified",
     submitted: null,
+    autonomy: {
+      tier: "tier_0_observe",
+      label: "observe only",
+      approvalRequired: false,
+      humanReviewRequired: false,
+      submitsExternally: false,
+      nextTier: null,
+    },
     target: {
       connectorId: "quad.post_ship_verifier",
       destination: "verification report",
@@ -450,6 +468,29 @@ function buildVerificationOutcome(data: Record<string, unknown>): OperatorArtifa
       }),
     },
     openObligations: failed > 0 ? ["Review failed verification checks before demoing this as shipped."] : [],
+  };
+}
+
+function readAutonomy(value: unknown, fallback?: OperatorArtifactOutcome["autonomy"]): OperatorArtifactOutcome["autonomy"] {
+  const action = isRecord(value) ? value : {};
+  const autonomy = isRecord(action.autonomy) ? action.autonomy : {};
+  if (typeof autonomy.tier !== "string" || typeof autonomy.label !== "string") {
+    return fallback ?? {
+      tier: "unknown",
+      label: "policy missing",
+      approvalRequired: true,
+      humanReviewRequired: true,
+      submitsExternally: false,
+      nextTier: null,
+    };
+  }
+  return {
+    tier: autonomy.tier,
+    label: autonomy.label,
+    approvalRequired: autonomy.approvalRequired === true,
+    humanReviewRequired: autonomy.humanReviewRequired === true,
+    submitsExternally: autonomy.submitsExternally === true,
+    nextTier: typeof autonomy.nextTier === "string" ? autonomy.nextTier : null,
   };
 }
 

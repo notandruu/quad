@@ -50,9 +50,23 @@ describe("dry-run publisher", () => {
       expect.objectContaining({
         schemaVersion: "quad.connector_draft.v1",
         connector: expect.objectContaining({ id: "cms.publisher", mode: "dry_run" }),
-        action: expect.objectContaining({ type: "upsert_page_section", approvalRequired: true }),
+        action: expect.objectContaining({
+          type: "upsert_page_section",
+          approvalRequired: true,
+          autonomy: expect.objectContaining({
+            tier: "tier_1_draft",
+            label: "draft only",
+            submitsExternally: false,
+            nextTier: "tier_2_confirm",
+          }),
+        }),
         proof: expect.objectContaining({ trustPacketArtifactId: expect.any(String), trustPacketHash: expect.any(String) }),
-        validation: expect.objectContaining({ ready: true }),
+        validation: expect.objectContaining({
+          ready: true,
+          checks: expect.arrayContaining([
+            expect.objectContaining({ id: "external_submit_requires_tier_3", passed: true }),
+          ]),
+        }),
       }),
       expect.objectContaining({
         schemaVersion: "quad.connector_draft.v1",

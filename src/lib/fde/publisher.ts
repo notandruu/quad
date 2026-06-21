@@ -2,6 +2,7 @@ import { createQuadChainPacket, summarizeQuadChainPacket, type QuadChainPacketSu
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 import { summarizeCapabilities } from "@/lib/metaregistry";
 import { createEvidenceBundle, summarizeEvidenceBundle } from "@/lib/storage/evidence";
+import { buildAutonomyPolicy, validateAutonomyPolicy, type AutonomyPolicy } from "@/lib/policy/autonomy";
 import {
   addArtifact,
   addTask,
@@ -203,6 +204,7 @@ export type ConnectorDraftPayload = {
     summary: string;
     reversible: boolean;
     approvalRequired: true;
+    autonomy: AutonomyPolicy;
   };
   payload: Record<string, unknown>;
   proof: {
@@ -304,6 +306,11 @@ function buildDrafts(snapshot: RunLedgerSnapshot, trustPacket: WorkflowArtifactR
           summary: `Stage proof block on ${targetUrl}.`,
           reversible: true,
           approvalRequired: true,
+          autonomy: buildAutonomyPolicy({
+            tier: "tier_1_draft",
+            reversible: true,
+            nextTier: "tier_2_confirm",
+          }),
         },
         payload: {
           sectionKey: "quad-proof-block",
@@ -342,6 +349,11 @@ function buildDrafts(snapshot: RunLedgerSnapshot, trustPacket: WorkflowArtifactR
           summary: `Create an implementation task for ${headline}.`,
           reversible: true,
           approvalRequired: true,
+          autonomy: buildAutonomyPolicy({
+            tier: "tier_1_draft",
+            reversible: true,
+            nextTier: "tier_3_approve",
+          }),
         },
         payload: {
           title: `Ship approved proof update: ${headline}`,
@@ -387,6 +399,11 @@ function buildDrafts(snapshot: RunLedgerSnapshot, trustPacket: WorkflowArtifactR
           summary: `Export approved packet for ${targetUrl}.`,
           reversible: true,
           approvalRequired: true,
+          autonomy: buildAutonomyPolicy({
+            tier: "tier_1_draft",
+            reversible: true,
+            nextTier: "tier_3_approve",
+          }),
         },
         payload: {
           format: "markdown",
@@ -436,6 +453,7 @@ function withValidation(payload: Omit<ConnectorDraftPayload, "validation">): Con
       passed: Boolean(payload.target.url),
       detail: "Draft includes a customer target.",
     },
+    ...validateAutonomyPolicy(payload.action.autonomy),
   ];
   return {
     ...payload,

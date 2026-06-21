@@ -126,6 +126,7 @@ test.describe("dashboard trust packet flow", () => {
     await expect(operatorConsole.getByText("Browser screenshot")).toBeVisible();
     await expect(operatorConsole.getByText("Browser pause")).toBeVisible();
     await expect(operatorConsole.getByRole("heading", { name: "Outcome summary" })).toBeVisible();
+    await expect(operatorConsole.getByText("draft and confirm")).toBeVisible();
     await expect(operatorConsole.getByText("not submitted")).toBeVisible();
     await expect(operatorConsole.getByText("Before capture")).toBeVisible();
     await expect(operatorConsole.getByText("After capture")).toBeVisible();
@@ -408,6 +409,14 @@ async function mockDashboardBackends(
                       summary: "Approved connector execution completed and a controlled Browserbase form-fill proof was captured before submit.",
                       status: fixVerified ? "verified" : "executed",
                       submitted: false,
+                      autonomy: {
+                        tier: "tier_2_confirm",
+                        label: "draft and confirm",
+                        approvalRequired: true,
+                        humanReviewRequired: true,
+                        submitsExternally: false,
+                        nextTier: "tier_3_approve",
+                      },
                       target: {
                         connectorId: "cms.publisher",
                         destination: "website_cms",

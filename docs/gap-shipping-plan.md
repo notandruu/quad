@@ -417,6 +417,14 @@ Shipped v9:
 - `/api/trust-packet` returns a compact proof summary with certificate id, handoff id, validator, evidence preserved, tokens saved, compression ratio, omitted ranges, open obligations, and registry anchor.
 - the trust packet panel now renders quad chain verification status, evidence preservation, token savings, omitted ranges, open obligations, readiness score, and registry receipt directly in the approval flow.
 
+Shipped v10:
+
+- publisher and browser-action payloads now carry explicit autonomy policy receipts instead of relying on prose-only approval copy.
+- staged CMS/task/export drafts are tier 1 draft-only actions with receipts and no external submit.
+- controlled Browserbase form fill is tier 2 draft-and-confirm, pauses before submit, preserves before/after evidence, and declares tier 3 explicit approval as the next gate.
+- approved connector execution is tier 3 explicit approve with rollback and post-ship verifier requirements.
+- the operator artifact sidecar now shows the autonomy label and next gate beside submit state, selector, captures, verifier, and obligations.
+
 ## Gap 4: post-ship verification
 
 Status: shipped v2.

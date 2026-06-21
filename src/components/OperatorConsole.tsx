@@ -54,6 +54,14 @@ type OperatorArtifact = {
     summary: string;
     status: "drafted" | "executed" | "paused" | "verified" | "blocked";
     submitted: boolean | null;
+    autonomy: {
+      tier: string;
+      label: string;
+      approvalRequired: boolean;
+      humanReviewRequired: boolean;
+      submitsExternally: boolean;
+      nextTier: string | null;
+    };
     target: {
       connectorId: string;
       destination: string;
@@ -1170,6 +1178,10 @@ function ArtifactPreview({ artifact }: { artifact: OperatorArtifact }) {
 
 function ArtifactOutcome({ outcome }: { outcome: NonNullable<OperatorArtifact["outcome"]> }) {
   const submittedLabel = outcome.submitted === null ? "n/a" : outcome.submitted ? "submitted" : "not submitted";
+  const autonomy = outcome.autonomy ?? {
+    label: "policy missing",
+    nextTier: null,
+  };
 
   return (
     <div className="rounded border border-pink-300/25 bg-pink-950/10 p-2">
@@ -1185,9 +1197,11 @@ function ArtifactOutcome({ outcome }: { outcome: NonNullable<OperatorArtifact["o
 
       <div className="mt-2 grid grid-cols-2 gap-1.5">
         <OutcomeRow label="connector" value={outcome.target.connectorId} />
+        <OutcomeRow label="autonomy" value={autonomy.label} />
         <OutcomeRow label="submit" value={submittedLabel} />
         <OutcomeRow label="selector" value={outcome.target.selector ?? "n/a"} />
         <OutcomeRow label="captures" value={String(outcome.evidence.length)} />
+        <OutcomeRow label="next gate" value={autonomy.nextTier ? formatStatus(autonomy.nextTier) : "none"} />
       </div>
 
       {outcome.evidence.length > 0 && (

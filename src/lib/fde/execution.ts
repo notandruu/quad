@@ -2,6 +2,7 @@ import { createQuadChainPacket, summarizeQuadChainPacket, type QuadChainPacketSu
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 import { summarizeCapabilities } from "@/lib/metaregistry";
 import { createEvidenceBundle, summarizeEvidenceBundle, type EvidenceBundleSummary } from "@/lib/storage/evidence";
+import { buildAutonomyPolicy, validateAutonomyPolicy, type AutonomyPolicy } from "@/lib/policy/autonomy";
 import {
   addArtifact,
   addTask,
@@ -59,6 +60,7 @@ type ConnectorExecutionPayload = {
   action: ConnectorDraftPayload["action"] & {
     approvalRequired: true;
     executed: true;
+    autonomy: AutonomyPolicy;
   };
   payload: Record<string, unknown>;
   proof: ConnectorDraftPayload["proof"] & {
@@ -112,6 +114,7 @@ type BrowserActionPayload = {
     summary: string;
     submitted: false;
     approvalRequired: true;
+    autonomy: AutonomyPolicy;
   };
   evidence: {
     before: EvidenceBundleSummary;
@@ -359,6 +362,10 @@ function buildExecutionPayload(input: {
         ? "Draft is reversible and has a rollback plan."
         : "Draft did not declare reversibility.",
     },
+    ...validateAutonomyPolicy(buildAutonomyPolicy({
+      tier: "tier_3_approve",
+      reversible: input.draftPayload.action.reversible,
+    })),
   ];
 
   return {
@@ -375,6 +382,10 @@ function buildExecutionPayload(input: {
       ...input.draftPayload.action,
       approvalRequired: true,
       executed: true,
+      autonomy: buildAutonomyPolicy({
+        tier: "tier_3_approve",
+        reversible: input.draftPayload.action.reversible,
+      }),
     },
     payload: input.draftPayload.payload,
     proof: {
@@ -508,6 +519,11 @@ async function maybeCreateBrowserAction(input: {
       summary: `Fill ${selector} on ${input.draftPayload.targetUrl} and pause before submit.`,
       submitted: false,
       approvalRequired: true,
+      autonomy: buildAutonomyPolicy({
+        tier: "tier_2_confirm",
+        reversible: true,
+        nextTier: "tier_3_approve",
+      }),
     },
     evidence: {
       before: summarizeEvidenceBundle(before),

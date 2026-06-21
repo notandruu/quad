@@ -90,7 +90,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [ ] connector auth/security model with encrypted tokens, scopes, per-user oauth where possible, and service-account audit logs
 - [ ] skill/playbook layer so workflows wrap raw tools with guardrails and synthesis rules
 - [ ] connector registry for source systems, publishers, browser actions, and specialist agents
-- [ ] autonomy tier policy for read, draft, confirm, explicit approve, and irreversible actions
+- [x] autonomy tier policy for read, draft, confirm, explicit approve, and irreversible actions
 - [x] browserbase rendered evidence capture
 - [x] grounded finding schema with citations and screenshots/selectors where possible
 - [x] approval workflow before memory writeback or external action
@@ -190,7 +190,7 @@ hard constraints:
 - [x] record every browser action with intent, selector, value summary, source answer id, approval state, and replay metadata
 - [x] register browser action capability as an allowlisted tool with health and permission metadata
 - [x] surface browser action replay events in the operator task stream
-- [ ] encode form fill as tier 2 draft-and-confirm, and submit as tier 3 explicit approve with a receipt
+- [x] encode form fill as tier 2 draft-and-confirm, and submit as tier 3 explicit approve with a receipt
 
 ### phase 3 hosted fde shipping layer
 

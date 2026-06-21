@@ -57,6 +57,12 @@ describe("GET /api/operator", () => {
         expect.objectContaining({ label: "section body", valueHash: expect.stringMatching(/^fnv1a:/) }),
       ],
       verifier: expect.objectContaining({ required: true }),
+      autonomy: expect.objectContaining({
+        tier: "tier_2_confirm",
+        label: "draft and confirm",
+        submitsExternally: false,
+        nextTier: "tier_3_approve",
+      }),
       openObligations: expect.arrayContaining(["Human must review the filled browser session before final submit."]),
     });
     expect(JSON.stringify(body)).not.toMatch(/cms_test|linear_test|section body value|sk-ant-|sk-proj-/);

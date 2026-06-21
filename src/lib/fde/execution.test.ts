@@ -89,7 +89,17 @@ describe("approved publisher execution", () => {
       schemaVersion: "quad.browser_action.v1",
       connector: { id: "browserbase.write_browser", mode: "approved_browser_write" },
       target: { selector: "[data-quad-proof-block]" },
-      action: { type: "fill_and_pause_before_submit", submitted: false, approvalRequired: true },
+      action: {
+        type: "fill_and_pause_before_submit",
+        submitted: false,
+        approvalRequired: true,
+        autonomy: {
+          tier: "tier_2_confirm",
+          label: "draft and confirm",
+          submitsExternally: false,
+          nextTier: "tier_3_approve",
+        },
+      },
       evidence: {
         before: { kind: "browser_action", storageMode: "external_provider", hash: expect.stringMatching(/^fnv1a:/) },
         after: { kind: "browser_action", storageMode: "external_provider", hash: expect.stringMatching(/^fnv1a:/) },
@@ -100,6 +110,14 @@ describe("approved publisher execution", () => {
       schemaVersion: "quad.connector_execution.v1",
       dryRun: false,
       connector: { mode: "approved_execution", writeIntent: "execute_approved_artifact" },
+      action: {
+        executed: true,
+        autonomy: {
+          tier: "tier_3_approve",
+          label: "explicit approve",
+          submitsExternally: true,
+        },
+      },
       proof: { sourceDraftHash: expect.stringMatching(/^fnv1a:/) },
       rollbackPlan: { steps: expect.arrayContaining([expect.any(String)]) },
       postExecutionVerification: { required: true, verifier: "quad.post_ship_verifier" },
