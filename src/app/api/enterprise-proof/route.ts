@@ -3,6 +3,14 @@ import { ENTERPRISE_PROOF_ORG_ID } from "@/data/demo/enterprise-proof";
 import { ENTERPRISE_PROOF_CONNECTOR_DOCS } from "@/data/demo/enterprise-proof";
 import { registerLocalDocuments } from "@/lib/connectors/documents";
 import { answerTrustQuestion } from "@/lib/skills/answerTrustQuestion";
+import { authorizeRequest, requestAuthError } from "@/lib/security";
+import {
+  buildRequestFingerprint,
+  checkMutationGuards,
+  idempotencyReplayBody,
+  mutationGuardError,
+  saveIdempotentResult,
+} from "@/lib/security/mutations";
 import {
   addArtifact,
   addTask,
@@ -40,12 +48,44 @@ export async function POST(req: NextRequest) {
   }
 
   const orgId = typeof body.orgId === "string" && body.orgId ? body.orgId : ENTERPRISE_PROOF_ORG_ID;
+  const auth = authorizeRequest({
+    headers: req.headers,
+    requestedOrgId: orgId,
+    defaultOrgId: ENTERPRISE_PROOF_ORG_ID,
+    requiredScopes: ["runs:write"],
+  });
+  if (!auth.ok) {
+    return NextResponse.json(requestAuthError(auth), { status: auth.status });
+  }
+  const runId = typeof body.runId === "string" && body.runId.trim() ? body.runId.trim() : undefined;
+  const fingerprint = buildRequestFingerprint({
+    orgId: auth.orgId,
+    question,
+    runId: runId ?? null,
+  });
+  const guard = await checkMutationGuards({
+    orgId: auth.orgId,
+    route: "enterprise_proof.answer",
+    headers: req.headers,
+    fingerprint,
+    limit: 12,
+  });
+  if (!guard.ok) {
+    return NextResponse.json(mutationGuardError(guard), { status: guard.status });
+  }
+  if (guard.replay) {
+    return NextResponse.json(idempotencyReplayBody(guard.replay), { status: guard.replay.status });
+  }
+  if (runId && getRunSnapshot(runId)) {
+    return NextResponse.json({ ok: false, error: "runId already exists.", code: "run_conflict" }, { status: 409 });
+  }
 
   // Register local connector fixtures for the demo org
   registerLocalDocuments(ENTERPRISE_PROOF_CONNECTOR_DOCS);
 
   const run = createWorkflowRun({
-    orgId,
+    id: runId,
+    orgId: auth.orgId,
     workflowKind: "enterprise_proof",
     title: `Trust question: ${question.slice(0, 60)}`,
     createdBy: "dashboard",
@@ -62,7 +102,7 @@ export async function POST(req: NextRequest) {
     });
 
     const result = await answerTrustQuestion({
-      orgId,
+      orgId: auth.orgId,
       question,
       runId: run.id,
     });
@@ -122,10 +162,20 @@ export async function POST(req: NextRequest) {
     const snapshot = getRunSnapshot(run.id);
     await saveRunSnapshot(run.id);
 
-    return NextResponse.json({
+    const responseBody = {
+      ok: true,
       result,
       run: snapshot ? summarizeAgentTask(snapshot) : null,
+    };
+    await saveIdempotentResult({
+      orgId: auth.orgId,
+      route: "enterprise_proof.answer",
+      headers: req.headers,
+      fingerprint,
+      body: responseBody,
     });
+
+    return NextResponse.json(responseBody);
   } catch (err) {
     transitionRun(run.id, "failed", {
       failureReason: err instanceof Error ? err.message : String(err),

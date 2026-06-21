@@ -469,6 +469,13 @@ Shipped v6:
 - unconfigured providers, blocked restricted payloads, retries, failures, and successful calls all produce safe receipts.
 - `/api/operator` exposes a compact `modelGateway` summary so operators can see model-call health without leaking customer context.
 
+Shipped v7:
+
+- `POST /api/enterprise-proof` now uses the same hosted auth guard as other mutation routes while preserving zero-key demo fallback for the enterprise-proof demo org.
+- enterprise-proof question answering is protected by mutation rate limits and idempotency replay.
+- external callers can provide a deterministic run id for correlation, and duplicate run ids are rejected unless the request is an idempotency replay.
+- route tests cover demo fallback, hosted secret enforcement, idempotency replay, and run-id conflict protection.
+
 Build:
 
 - document what stays off-chain/off-registry.

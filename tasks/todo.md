@@ -124,7 +124,7 @@ next functional slice:
 
 - [x] add `src/lib/runs/**` durable run/task/artifact/approval/receipt contracts
 - [x] add `/api/agent/run` thin hosted bridge returning normalized task summaries
-- [ ] add enterprise proof fixture and `answerTrustQuestion()` workflow
+- [x] add enterprise proof fixture and `answerTrustQuestion()` workflow
 - [ ] add persistent approval ledger before any real external write action
 - [ ] add dry-run publisher connectors behind metaregistry capability ids
 - [ ] route all future customer-mutating writes through approval receipts
@@ -167,15 +167,15 @@ hard constraints:
 
 ### phase 1 enterprise proof learn loop
 
-- [ ] create enterprise proof/security-questionnaire fixture with sparse starting brain and collectible local artifacts
-- [ ] implement `answerTrustQuestion()` with retrieve, collect, ground, evaluate, and validated writeback
-- [ ] emit redis events for question progress, context collection, evaluation, learning, and needs-human states
-- [ ] test that failed or unsupported enterprise proof answers are never persisted
+- [x] create enterprise proof/security-questionnaire fixture with sparse starting brain and collectible local artifacts
+- [x] implement `answerTrustQuestion()` with retrieve, collect, ground, evaluate, and validated writeback
+- [x] emit redis events for question progress, context collection, evaluation, learning, and needs-human states
+- [x] test that failed or unsupported enterprise proof answers are never persisted
 - [ ] show brain growth and at least one learned organizational fact reused later in the dashboard
-- [ ] model learned organizational facts with stable ids, org scope, source references, validation metadata, and idempotent writeback
+- [x] model learned organizational facts with stable ids, org scope, source references, validation metadata, and idempotent writeback
 - [ ] include context scope on every learned fact and block writeback when the target scope is ambiguous
-- [ ] expose the enterprise proof workflow as a skill/playbook over reusable retrieve, collect, ground, evaluate, writeback, and action primitives
-- [ ] normalize local artifacts as connector documents so future github, confluence, jira, slack, and email connectors can plug into the same retrieval path
+- [x] expose the enterprise proof workflow as a skill/playbook over reusable retrieve, collect, ground, evaluate, writeback, and action primitives
+- [x] normalize local artifacts as connector documents so future github, confluence, jira, slack, and email connectors can plug into the same retrieval path
 
 ### phase 2 approved customer action path
 
@@ -226,6 +226,7 @@ hard constraints:
 - [x] add encrypted connector credential install/list/revoke substrate
 - [x] emit restricted quadchain receipts for metaregistry install requests and connector credential install/revoke mutations
 - [x] hide hosted run/task/artifact reads behind org-scoped access checks and admin-only raw artifact reads
+- [x] guard enterprise proof question-answering with route auth, rate limits, idempotency replay, and run-id conflict protection
 
 ## next build plan
 
