@@ -219,6 +219,13 @@ Shipped v1:
 - The card points external agent surfaces at `POST /api/agent/run` for the actual enterprise proof or website audit workflow.
 - The descriptor is shaped for Agentverse/ASI messaging: public endpoint, agent chat protocol readiness, a2a readiness, discoverability keywords, and a normalized run contract.
 
+Shipped v2:
+
+- `GET /api/sponsor/proof` returns a booth-safe sponsor proof manifest.
+- The manifest maps each sponsor to live/fallback/planned status, product claim, demo moment, and route or surface to show.
+- The manifest includes `safeToClaim` and `doNotClaim` lists so slide and booth claims match real configured capabilities.
+- Deepgram is now first-class in the metaregistry, and Sentry readiness is keyed to the server-side DSN used by backend readiness.
+
 Acceptance:
 
 - each sponsor claim maps to a visible product moment and a real route/integration.

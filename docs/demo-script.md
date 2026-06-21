@@ -111,3 +111,12 @@ Type in the chat: *"Which finding should we fix first?"*
 - **92%** college acceptance rate — BrightPath's top differentiator, invisible online
 - **200-student waitlist** for After-School Tutoring — not mentioned anywhere
 - **$0** spent on consultants to find these gaps
+
+## Sponsor Claim Check
+
+Before the sponsor booth pass, open `GET /api/sponsor/proof`.
+
+- Use `safeToClaim` for the deck and live explanation.
+- Use `doNotClaim` as the no-bullshit guardrail.
+- If a sponsor row is `fallback`, show the product surface but say the hosted credential is not live.
+- If a sponsor row is `live`, show the listed route or surface as proof.

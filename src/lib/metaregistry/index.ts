@@ -16,7 +16,7 @@ export type CapabilityManifest = {
   kind: CapabilityKind;
   description: string;
   owner: "stephen" | "andrew" | "silas" | "maddy" | "shared";
-  sponsor?: "Arize" | "Browserbase" | "Fetch.ai" | "Redis" | "Sentry" | "OpenAI";
+  sponsor?: "Arize" | "Browserbase" | "Deepgram" | "Fetch.ai" | "Redis" | "Sentry" | "OpenAI";
   env: string[];
   scopes: string[];
   /** True only when this capability can mutate customer-facing state. */
@@ -128,12 +128,26 @@ export const CAPABILITY_CATALOG: CapabilityManifest[] = [
     description: "Captures production errors, traces, and demo reliability proof.",
     owner: "stephen",
     sponsor: "Sentry",
-    env: ["NEXT_PUBLIC_SENTRY_DSN"],
+    env: ["SENTRY_DSN"],
     scopes: ["telemetry:write"],
     writes: false,
     approvalMode: "none",
     enabledByDefault: true,
     tags: ["observability", "reliability"],
+  },
+  {
+    id: "deepgram.voice_memory",
+    name: "Deepgram voice memory",
+    kind: "surface",
+    description: "Turns spoken buyer-readiness answers into verified company memory.",
+    owner: "stephen",
+    sponsor: "Deepgram",
+    env: ["DEEPGRAM_API_KEY"],
+    scopes: ["voice:transcribe", "memory:write"],
+    writes: false,
+    approvalMode: "none",
+    enabledByDefault: true,
+    tags: ["voice", "memory"],
   },
   {
     id: "arize.phoenix",
@@ -224,6 +238,7 @@ const ENTERPRISE_PROOF_STARTER_BUNDLE = [
   "browserbase.read_browser",
   "arize.phoenix",
   "sentry.reliability",
+  "deepgram.voice_memory",
   "fetch.agent_bridge",
 ];
 
