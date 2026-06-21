@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getQuadChainPackets } from "@/lib/quad-chain/registry";
 import { getRunSnapshot, summarizeTaskStream } from "@/lib/runs";
 import { createCapabilityInstallRequest } from "./installRequest";
 
@@ -28,10 +29,25 @@ describe("capability install requests", () => {
       evidenceVisible: true,
     });
     expect(snapshot?.receipts[0].status).toBe("blocked");
+    expect(result.packet).toMatchObject({
+      type: "connector_action",
+      orgId: "org_install_request",
+      runId: result.runId,
+      accepted: true,
+      evidenceRequired: 2,
+      evidencePreserved: 2,
+    });
     expect(result.plan.newlyForceInstalled).toEqual(expect.arrayContaining(["cms.publisher", "task.publisher"]));
     expect(result.task.nextAction).toBe("Human approval required before customer-facing work can ship.");
     expect(summarizeTaskStream(snapshot!).map((event) => event.kind)).toEqual(
       expect.arrayContaining(["run.created", "task.blocked", "approval.requested", "receipt.created"])
     );
+    const packets = await getQuadChainPackets({
+      orgId: "org_install_request",
+      runId: result.runId,
+      type: "connector_action",
+    });
+    expect(packets).toHaveLength(1);
+    expect(JSON.stringify(packets[0])).not.toContain("cms_test");
   });
 });

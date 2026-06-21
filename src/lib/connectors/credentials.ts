@@ -1,6 +1,8 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 import { getClient } from "@/lib/brain/db";
 import { getCapability } from "@/lib/metaregistry";
+import { createQuadChainPacket, type QuadChainPacketSummary } from "@/lib/quad-chain";
+import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 
 export type ConnectorCredentialStatus = "installed" | "revoked";
 
@@ -51,6 +53,13 @@ export type ConnectorCredentialReceipt = {
   credentialHash: string;
 };
 
+export type ConnectorCredentialMutationResult = {
+  summary: ConnectorCredentialSummary;
+  receipt: ConnectorCredentialReceipt;
+  durable: boolean;
+  packet: QuadChainPacketSummary;
+};
+
 export class ConnectorCredentialError extends Error {
   constructor(
     message: string,
@@ -74,7 +83,7 @@ const memoryCredentials = g.__quadConnectorCredentials;
 
 export async function installConnectorCredential(
   input: InstallConnectorCredentialInput
-): Promise<{ summary: ConnectorCredentialSummary; receipt: ConnectorCredentialReceipt; durable: boolean }> {
+): Promise<ConnectorCredentialMutationResult> {
   const manifest = getCapability(input.capabilityId);
   if (!manifest) {
     throw new ConnectorCredentialError("Capability not found.", "capability_not_found", 404);
@@ -110,10 +119,19 @@ export async function installConnectorCredential(
 
   memoryCredentials.set(record.id, record);
   const durable = await upsertCredential(record);
+  const summary = summarizeConnectorCredential(record);
+  const receipt = receiptFor(record, "installed");
+  const packet = await createCredentialPacket({
+    record,
+    summary,
+    receipt,
+    action: "installed",
+  });
   return {
-    summary: summarizeConnectorCredential(record),
-    receipt: receiptFor(record, "installed"),
+    summary,
+    receipt,
     durable,
+    packet,
   };
 }
 
@@ -148,7 +166,7 @@ export async function listConnectorCredentials(input: {
 
 export async function revokeConnectorCredential(
   input: RevokeConnectorCredentialInput
-): Promise<{ summary: ConnectorCredentialSummary; receipt: ConnectorCredentialReceipt; durable: boolean }> {
+): Promise<ConnectorCredentialMutationResult> {
   const existing = await findCredential(input);
   if (!existing) {
     throw new ConnectorCredentialError("Connector credential not found.", "credential_not_found", 404);
@@ -164,11 +182,20 @@ export async function revokeConnectorCredential(
   };
   memoryCredentials.set(updated.id, updated);
   const durable = await upsertCredential(updated);
+  const summary = summarizeConnectorCredential(updated);
+  const receipt = receiptFor(updated, "revoked");
+  const packet = await createCredentialPacket({
+    record: updated,
+    summary,
+    receipt,
+    action: "revoked",
+  });
 
   return {
-    summary: summarizeConnectorCredential(updated),
-    receipt: receiptFor(updated, "revoked"),
+    summary,
+    receipt,
     durable,
+    packet,
   };
 }
 
@@ -196,6 +223,75 @@ function receiptFor(record: ConnectorCredentialRecord, action: ConnectorCredenti
     createdAt: record.updatedAt,
     credentialHash: record.credentialHash,
   };
+}
+
+async function createCredentialPacket(input: {
+  record: ConnectorCredentialRecord;
+  summary: ConnectorCredentialSummary;
+  receipt: ConnectorCredentialReceipt;
+  action: ConnectorCredentialReceipt["action"];
+}): Promise<QuadChainPacketSummary> {
+  const actionPhrase = input.action === "installed" ? "connector credential installed" : "connector credential revoked";
+  const output = [
+    `${actionPhrase} for ${input.record.capabilityId}.`,
+    `credential hash ${input.record.credentialHash} recorded.`,
+    "no secret value included in the quadchain packet.",
+  ].join(" ");
+  const packet = createQuadChainPacket({
+    type: "connector_action",
+    orgId: input.record.orgId,
+    runId: input.receipt.id,
+    producer: "quad.connector_vault",
+    consumer: "quad.metaregistry",
+    sources: [
+      {
+        id: input.record.id,
+        kind: "tool_result",
+        content: {
+          ...input.summary,
+          encryptedCredential: undefined,
+        },
+      },
+      {
+        id: input.receipt.id,
+        kind: "tool_result",
+        content: input.receipt,
+      },
+    ],
+    evidence: [
+      {
+        id: "credential-action",
+        sourceId: input.receipt.id,
+        quote: actionPhrase,
+        required: true,
+      },
+      {
+        id: "credential-hash-recorded",
+        sourceId: input.receipt.id,
+        quote: "credential hash",
+        required: true,
+      },
+      {
+        id: "secret-value-omitted",
+        sourceId: input.record.id,
+        quote: "no secret value included",
+        required: true,
+      },
+    ],
+    omittedRanges: [
+      {
+        sourceId: input.record.id,
+        rangeId: "encrypted-credential",
+        reason: "Encrypted connector credential bytes and plaintext secret values are intentionally omitted from quadchain packets.",
+      },
+    ],
+    output,
+    answerConcepts: ["connector credential", "credential hash", "no secret value"],
+    visibility: "restricted",
+    createdAt: input.record.updatedAt,
+  });
+  const saved = await saveQuadChainPacket(packet);
+  return saved.summary;
 }
 
 async function findCredential(input: RevokeConnectorCredentialInput): Promise<ConnectorCredentialRecord | null> {

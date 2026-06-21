@@ -73,7 +73,7 @@ export async function GET(request: Request) {
         .map((capability) => ({
           id: capability.id,
           status: capability.status,
-          reason: capability.reason,
+          reason: redactConfigNames(capability.reason),
           missingEnvCount: capability.missingEnv.length,
           allowlisted: capability.allowlisted,
           disabled: capability.disabled,
@@ -216,16 +216,20 @@ function summarizeBackendReadiness(report: NonNullable<Awaited<ReturnType<typeof
     ok: report.ok,
     mode: report.mode,
     generatedAt: report.generatedAt,
-    nextActions: report.nextActions.slice(0, 6),
+    nextActions: report.nextActions.slice(0, 6).map(redactConfigNames),
     components: Object.fromEntries(
       Object.entries(report.components).map(([key, value]) => [
         key,
         {
           status: value.status,
           configured: value.configured,
-          detail: value.detail,
+          detail: redactConfigNames(value.detail),
         },
       ])
     ),
   };
+}
+
+function redactConfigNames(value: string): string {
+  return value.replace(/\b[A-Z][A-Z0-9_]*(?:API_KEY|TOKEN|SECRET|DSN|KEY)\b/g, "required secret config");
 }

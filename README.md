@@ -77,7 +77,7 @@ High-risk mutation routes are protected by org-scoped rate limits and optional `
 
 `GET /api/security/data` returns the org-scoped retention policy, store-by-store deletion behavior, and safe deletion request examples. Configure global retention with `QUAD_RETENTION_DAYS`, and per-org overrides with `QUAD_ORG_RETENTION_DAYS='{"org_enterprise":7}'`. `POST /api/security/data` supports protected deletion dry-runs and execution receipts for org-scoped or run-scoped data. Execute mode requires the confirmation string returned by the dry-run receipt, such as `delete:demo_org:run_123`.
 
-`/api/connectors/credentials` installs, lists, and revokes connector credentials. Stored credentials are encrypted with `QUAD_CONNECTOR_ENCRYPTION_KEY` and list responses return only metadata, scopes, status, and credential hashes.
+`/api/connectors/credentials` installs, lists, and revokes connector credentials. Stored credentials are encrypted with `QUAD_CONNECTOR_ENCRYPTION_KEY` and list responses return only metadata, scopes, status, credential hashes, and restricted quadchain packet summaries.
 
 `GET /api/metaregistry/install-plan` returns a dry-run capability install plan for the enterprise proof starter bundle. It reports allowlist changes, force-installed tools, missing env key names, blockers, and active-after-install tools without mutating connector state or exposing secret values.
 

@@ -29,6 +29,10 @@ describe("POST /api/metaregistry/install-request", () => {
       task: {
         status: "needs_approval",
       },
+      packet: {
+        type: "connector_action",
+        accepted: true,
+      },
     });
     expect(snapshot?.run.workflowKind).toBe("capability_install");
     expect(snapshot?.approvals).toHaveLength(1);

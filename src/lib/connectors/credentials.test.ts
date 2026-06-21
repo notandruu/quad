@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { getQuadChainPackets } from "@/lib/quad-chain/registry";
 import {
   installConnectorCredential,
   listConnectorCredentials,
@@ -33,7 +34,23 @@ describe("connector credential vault", () => {
     });
     expect(result.summary).not.toHaveProperty("encryptedCredential");
     expect(result.summary.credentialHash).toMatch(/^sha256:/);
+    expect(result.packet).toMatchObject({
+      type: "connector_action",
+      orgId: "org_connector_secret",
+      accepted: true,
+      evidenceRequired: 3,
+      evidencePreserved: 3,
+      visibility: "restricted",
+    });
     expect(serialized).not.toContain("secret-token-value");
+
+    const packets = await getQuadChainPackets({
+      orgId: "org_connector_secret",
+      runId: result.receipt.id,
+      type: "connector_action",
+    });
+    expect(packets).toHaveLength(1);
+    expect(JSON.stringify(packets[0])).not.toContain("secret-token-value");
   });
 
   it("rejects scopes outside the manifest", async () => {
@@ -71,6 +88,11 @@ describe("connector credential vault", () => {
       action: "revoked",
       installId: installed.summary.id,
       actor: "security@example.com",
+    });
+    expect(revoked.packet).toMatchObject({
+      type: "connector_action",
+      accepted: true,
+      visibility: "restricted",
     });
   });
 });

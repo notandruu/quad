@@ -41,6 +41,11 @@ Shipped v2:
 - approval decisions emit `approval` quadchain packets.
 - operator console can approve or reject pending packets.
 
+Shipped v3:
+
+- Metaregistry capability install requests emit `connector_action` quadchain packets tied to the approval run.
+- Connector credential install and revoke mutations emit restricted `connector_action` packet summaries without storing secret values in packet sources.
+
 Next:
 
 - add row-level tenant checks before exposing raw artifacts.
