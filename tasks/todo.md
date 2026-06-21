@@ -90,7 +90,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [ ] approval workflow before memory writeback or external action
 - [ ] persistent approval ledger with approver, artifact hash, evidence visible, edit/reject state, and receipt id
 - [x] post-ship verification step for browser, publisher, task, and team actions
-- [ ] post-audit chat that can cite audit evidence and company memory
+- [x] post-audit chat that can cite audit evidence and company memory
 - [ ] arize tracing/evals for retrieval, page analysis, and final findings
 - [ ] sentry monitoring for api routes, workers, browser sessions, redis calls, and model calls
 - [x] telemetry redaction policy for sentry, arize, replay events, and logs

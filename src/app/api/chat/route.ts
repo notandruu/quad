@@ -7,7 +7,7 @@ import { retrieveMemoriesWithPackets } from "@/lib/brain";
 import { complete, chatModel } from "@/lib/llm/anthropic";
 import { buildAuditChatSystemPrompt } from "@/lib/runtime/prompts";
 import type { AuditReport, BrainMemory } from "@/lib/types";
-import { loadCachedReport } from "@/lib/runtime/reportCache";
+import { loadAuditChatContext } from "@/lib/runtime/auditChatContext";
 import { buildQuadCoreContext, saveQuadCoreReceipt } from "@/lib/core";
 import type { QuadChainPacketSummary, QuadChainSource } from "@/lib/quad-chain";
 
@@ -46,29 +46,16 @@ export async function POST(req: NextRequest) {
 
     // If there's a runId, try the audit-grounded path first.
     if (runId) {
-      const report = await loadCachedReport(runId);
-      if (report) {
-        const grounded = await auditGroundedChat(text, orgId, employee, report);
+      const auditContext = await loadAuditChatContext({ orgId, runId });
+      if (auditContext.report) {
+        const grounded = await auditGroundedChat(text, orgId, employee, auditContext.report);
         const quadChain = await saveQuadCoreReceipt({
           context: coreContext,
           output: grounded.reply,
           producer: "quad.chat",
           consumer: "quad.dashboard",
           sources: [
-            {
-              id: `${runId}:audit_report`,
-              kind: "artifact",
-              content: { summary: report.summary, metrics: report.metrics },
-            },
-            ...report.topFindings.slice(0, 5).map((finding) => ({
-              id: finding.id,
-              kind: "finding" as const,
-              content: {
-                title: finding.title,
-                quote: finding.evidence.quote,
-                fix: finding.recommendedFix,
-              },
-            })),
+            ...auditContext.sources,
             ...buildMemorySources(coreContext.memories),
           ] satisfies QuadChainSource[],
         });
@@ -76,7 +63,10 @@ export async function POST(req: NextRequest) {
           message: grounded.reply,
           intent: "audit_follow_up",
           quadChain,
-          verifiedContext: grounded.verifiedContext,
+          verifiedContext: uniquePacketSummaries([
+            ...auditContext.verifiedContext,
+            ...grounded.verifiedContext,
+          ]),
         });
       }
     }
@@ -156,4 +146,15 @@ function buildMemorySources(memories: BrainMemory[]): QuadChainSource[] {
       evidence: item.evidence,
     },
   }));
+}
+
+function uniquePacketSummaries(packets: QuadChainPacketSummary[]): QuadChainPacketSummary[] {
+  const seen = new Set<string>();
+  const unique: QuadChainPacketSummary[] = [];
+  for (const packet of packets) {
+    if (seen.has(packet.id)) continue;
+    seen.add(packet.id);
+    unique.push(packet);
+  }
+  return unique;
 }

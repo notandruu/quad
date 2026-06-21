@@ -78,6 +78,21 @@ Next:
 - add packet visibility filtering to hosted drilldowns.
 - show sponsor badges only when the underlying capability is live.
 
+## Gap 2.5: post-audit chat grounding
+
+Status: shipped v1.
+
+Shipped v1:
+
+- post-audit chat loads cached audit reports and falls back to durable run artifacts when the cache is empty.
+- chat answer receipts include audit report and finding sources beside company brain memory sources.
+- chat responses return verified context from audit/finding quadchain packets and brain memory packets.
+
+Acceptance:
+
+- follow-up answers can cite both the completed audit evidence and verified company memory.
+- audit report context does not cross org boundaries.
+
 ## Gap 3: dry-run publisher workbench
 
 Status: shipped v1.
