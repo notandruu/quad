@@ -3,12 +3,11 @@ import { runEmployee } from "@/lib/runtime/runtime";
 import { getEmployee } from "@/lib/employees";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { withSpan } from "@/lib/observability/sentry";
-import { getRedis, metaKeys } from "@/lib/redis";
 import { retrieveMemories } from "@/lib/brain";
 import { complete, chatModel } from "@/lib/llm/anthropic";
 import { buildAuditChatSystemPrompt } from "@/lib/runtime/prompts";
 import type { AuditReport } from "@/lib/types";
-import { getCachedReport } from "@/lib/runtime/reportCache";
+import { loadCachedReport } from "@/lib/runtime/reportCache";
 import { createQuadChainPacket, summarizeQuadChainPacket, type QuadChainPacketSummary } from "@/lib/quad-chain";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 
@@ -34,7 +33,7 @@ export async function POST(req: NextRequest) {
   return withSpan("chat.request", { orgId, runId, employeeId: employee.id }, async () => {
     // If there's a runId, try the audit-grounded path first.
     if (runId) {
-      const report = await loadReport(runId);
+      const report = await loadCachedReport(runId);
       if (report) {
         const reply = await auditGroundedChat(text, orgId, employee, report);
         const quadChain = await saveChatPacket({
@@ -161,18 +160,4 @@ async function auditGroundedChat(
   });
 
   return reply ?? `Based on the audit of ${report.targetUrl}: ${report.summary}`;
-}
-
-async function loadReport(runId: string): Promise<AuditReport | null> {
-  // Try Redis first, fall back to in-memory process cache.
-  const redis = getRedis();
-  if (redis) {
-    try {
-      const raw = await redis.get<string>(metaKeys.auditRun(`${runId}:report`));
-      if (raw) return JSON.parse(raw) as AuditReport;
-    } catch {
-      // Redis read failed — fall through to in-memory.
-    }
-  }
-  return getCachedReport(runId);
 }

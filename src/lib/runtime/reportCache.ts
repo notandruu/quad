@@ -1,4 +1,5 @@
 import type { AuditReport } from "@/lib/types";
+import { getRedis, metaKeys } from "@/lib/redis";
 
 // Attach to globalThis so the cache survives Next.js dev-mode module reloads
 // and is shared across all route handlers in the same Node.js process.
@@ -17,4 +18,19 @@ export function cacheReport(report: AuditReport): void {
 
 export function getCachedReport(runId: string): AuditReport | null {
   return cache.get(runId) ?? null;
+}
+
+export async function loadCachedReport(runId: string): Promise<AuditReport | null> {
+  const redis = getRedis();
+  if (redis) {
+    try {
+      const raw = await redis.get<string | AuditReport>(metaKeys.auditRun(`${runId}:report`));
+      if (!raw) return getCachedReport(runId);
+      return typeof raw === "string" ? (JSON.parse(raw) as AuditReport) : raw;
+    } catch {
+      // Redis is optional in demo mode, so fall back to the process cache.
+    }
+  }
+
+  return getCachedReport(runId);
 }

@@ -1,0 +1,166 @@
+"use client";
+
+import { useState } from "react";
+import type { QuadChainOpenObligation, QuadChainPacketSummary } from "@/lib/quad-chain";
+import type { AuditReport } from "@/lib/types";
+
+type TrustPacketStep = {
+  id: string;
+  title: string;
+  status: "ready" | "dry_run" | "blocked" | "needs_human";
+  owner: "quad" | "human" | "connector";
+  detail: string;
+};
+
+type TrustPacketResponse = {
+  ok: boolean;
+  error?: string;
+  packet: QuadChainPacketSummary;
+  task: {
+    runId: string;
+    status: string;
+    nextAction: string;
+    approvals: Array<{ id: string; decision: string; reason: string; evidenceVisible: boolean }>;
+    receipts: Array<{ id: string; status: string; summary: string; artifactHash: string }>;
+  };
+  workflow: {
+    workflowId: string;
+    title: string;
+    receiptPreview: {
+      id: string;
+      status: "ready_for_approval" | "blocked";
+      summary: string;
+    };
+    steps: TrustPacketStep[];
+    openObligations: QuadChainOpenObligation[];
+  };
+};
+
+export function TrustPacketPanel({ report }: { report: AuditReport | null }) {
+  const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [result, setResult] = useState<TrustPacketResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!report) return null;
+
+  async function buildPacket() {
+    if (!report || state === "loading") return;
+    setState("loading");
+    setError(null);
+
+    try {
+      const response = await fetch("/api/trust-packet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ runId: report.runId, orgId: report.orgId }),
+      });
+      const json = (await response.json()) as TrustPacketResponse;
+      if (!response.ok || !json.ok) throw new Error(json.error ?? "trust packet build failed");
+      setResult(json);
+      setState("done");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setState("error");
+    }
+  }
+
+  const ready = result?.workflow.receiptPreview.status === "ready_for_approval";
+
+  return (
+    <section className="rounded-lg border border-accent/30 bg-panel p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-medium text-neutral-100">Trust packet</h2>
+          <p className="mt-1 text-[11px] leading-5 text-neutral-500">
+            Turn this audit into a verified approval packet with evidence, certificate, and receipt.
+          </p>
+        </div>
+        <button
+          onClick={buildPacket}
+          disabled={state === "loading"}
+          className="shrink-0 rounded-lg border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {state === "loading" ? "Building..." : result ? "Rebuild" : "Build packet"}
+        </button>
+      </div>
+
+      {error && (
+        <div className="mt-3 rounded border border-red-300/30 bg-red-950/30 px-2 py-1.5 text-xs text-red-200">
+          {error}
+        </div>
+      )}
+
+      {result && (
+        <div className="mt-3 space-y-3">
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <TrustPacketStat label="status" value={ready ? "approval" : "blocked"} accent={ready} />
+            <TrustPacketStat label="steps" value={String(result.workflow.steps.length)} />
+            <TrustPacketStat label="proof" value={result.packet.accepted ? "accepted" : "rejected"} accent={result.packet.accepted} />
+          </div>
+
+          <div className="rounded border border-edge bg-ink/50 p-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-medium text-neutral-200">
+                {ready ? "Ready for approval" : "Needs work"}
+              </span>
+              <span className="font-mono text-[10px] text-neutral-500">{result.packet.certificateId}</span>
+            </div>
+            <p className="mt-1 text-[11px] leading-5 text-neutral-500">
+              {result.workflow.receiptPreview.summary}
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            {result.workflow.steps.slice(0, 5).map((step) => (
+              <div key={step.id} className="flex items-center justify-between gap-3 rounded border border-edge bg-ink/40 px-2 py-1.5">
+                <div className="min-w-0">
+                  <div className="truncate text-xs text-neutral-200">{step.title}</div>
+                  <div className="truncate text-[10px] text-neutral-600">{step.owner}</div>
+                </div>
+                <span className={step.status === "blocked" || step.status === "needs_human" ? "text-[10px] text-amber-200" : "text-[10px] text-accent"}>
+                  {formatStatus(step.status)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {result.workflow.openObligations.length > 0 && (
+            <div className="rounded border border-amber-300/30 bg-amber-950/20 p-2">
+              <div className="text-[11px] font-medium text-amber-100">Open obligations</div>
+              <ul className="mt-1 space-y-1">
+                {result.workflow.openObligations.slice(0, 3).map((item) => (
+                  <li key={item.id} className="text-[10px] leading-4 text-amber-100/80">
+                    {item.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function TrustPacketStat({
+  label,
+  value,
+  accent = false,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+}) {
+  return (
+    <div className="rounded border border-edge bg-ink/50 p-2">
+      <div className={accent ? "text-sm font-semibold text-accent" : "text-sm font-semibold text-neutral-100"}>
+        {value}
+      </div>
+      <div className="mt-1 text-[9px] text-neutral-600">{label}</div>
+    </div>
+  );
+}
+
+function formatStatus(status: TrustPacketStep["status"]) {
+  return status.replace("_", " ");
+}

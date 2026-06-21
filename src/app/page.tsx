@@ -7,6 +7,7 @@ import { FindingsPanel } from "@/components/FindingsPanel";
 import { DebugDrawer } from "@/components/DebugDrawer";
 import { AsciiBlossoms } from "@/components/AsciiBlossoms";
 import { TrustTrail } from "@/components/TrustTrail";
+import { TrustPacketPanel } from "@/components/TrustPacketPanel";
 import type { AuditReport } from "@/lib/types";
 import type { PublishedEvent } from "@/lib/redis/publisher";
 import type { BackendSettings } from "@/lib/debug/status";
@@ -166,6 +167,7 @@ export default function Home() {
             </div>
           ))}
           <TrustTrail runId={report?.runId ?? null} />
+          <TrustPacketPanel report={report} />
           <FindingsPanel report={report} />
         </div>
 

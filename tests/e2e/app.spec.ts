@@ -103,6 +103,24 @@ test.describe("quad production flows", () => {
     expect(packetJson.summary.total).toBeGreaterThan(0);
     expect(packetJson.packets.some((packet: { type: string }) => packet.type === "audit_report")).toBe(true);
 
+    const trustPacket = await request.post("/api/trust-packet", {
+      data: {
+        orgId: "org_brightpath",
+        runId,
+      },
+    });
+    expect(trustPacket.ok()).toBe(true);
+    const trustPacketJson = await trustPacket.json();
+    expect(trustPacketJson.ok).toBe(true);
+    expect(trustPacketJson.packet.type).toBe("trust_packet");
+    expect(trustPacketJson.task.approvals).toHaveLength(1);
+    expect(trustPacketJson.workflow.receiptPreview.status).toMatch(/ready_for_approval|blocked/);
+
+    const trustPackets = await request.get(`/api/quadchain/packets?runId=${runId}&type=trust_packet`);
+    expect(trustPackets.ok()).toBe(true);
+    const trustPacketsJson = await trustPackets.json();
+    expect(trustPacketsJson.packets.some((packet: { type: string }) => packet.type === "trust_packet")).toBe(true);
+
     await page.goto(`/quadchain?runId=${runId}`);
     await expect(page.getByRole("heading", { name: "Run trust trail" })).toBeVisible();
     await expect(page.getByText(new RegExp(`run ${runId}`))).toBeVisible();
