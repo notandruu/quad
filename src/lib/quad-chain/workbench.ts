@@ -12,6 +12,11 @@ export type QuadChainComparison = {
   mode: "anthropic" | "deterministic";
   rawTrace: string;
   quadChainTrace: string;
+  mechanisticTrace: Array<{
+    label: string;
+    detail: string;
+    status: "pass" | "warn" | "info";
+  }>;
   withoutQuadChain: {
     tokens: number;
     evidence: string;
@@ -119,6 +124,30 @@ export function buildQuadChainComparison(input: {
     mode: input.modelPlan ? "anthropic" : "deterministic",
     rawTrace,
     quadChainTrace,
+    mechanisticTrace: [
+      {
+        label: "Evidence extraction",
+        detail: `${evidenceLines.length} exact evidence obligations copied from source context.`,
+        status: "pass",
+      },
+      {
+        label: "Compression",
+        detail: `${omitted.length} low-signal spans omitted before receiver handoff.`,
+        status: omitted.length > 0 ? "pass" : "info",
+      },
+      {
+        label: "Hash binding",
+        detail: `Input and output hashes are bound into ${certificate.certificateId}.`,
+        status: "pass",
+      },
+      {
+        label: "Verifier",
+        detail: verification.accepted
+          ? "Certificate accepted. Receiver can trust this compressed packet."
+          : `Certificate rejected: ${verification.failures.join(", ")}`,
+        status: verification.accepted ? "pass" : "warn",
+      },
+    ],
     withoutQuadChain: {
       tokens: rawTokens,
       evidence: `${evidenceLines.length}/${evidenceLines.length}`,

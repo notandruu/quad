@@ -15,6 +15,13 @@ describe("quad chain workbench", () => {
     expect(comparison.withQuadChain.accepted).toBe(true);
     expect(comparison.withQuadChain.certificateId).toMatch(/^qchain_/);
     expect(comparison.quadChainTrace).toContain("verified evidence");
+    expect(comparison.mechanisticTrace).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Evidence extraction", status: "pass" }),
+        expect.objectContaining({ label: "Hash binding", status: "pass" }),
+        expect.objectContaining({ label: "Verifier", status: "pass" }),
+      ])
+    );
   });
 
   it("omits low-signal trace lines while preserving required evidence", () => {
