@@ -135,39 +135,53 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* wordmark — Didone serif, halftone dissolve at the foot of the letters */}
-          <div className="relative select-none py-10">
-            <span
-              className="block leading-[0.78] tracking-[-0.03em] text-ink"
-              style={{
-                fontFamily: "var(--font-serif), Georgia, serif",
-                fontWeight: 800,
-                fontSize: "clamp(110px, 26vw, 400px)",
-              }}
-            >
-              Quad
-            </span>
-            {/* halftone overlay — orange dots punch through the lower part of the glyphs */}
-            <span
+          {/* logo lockup — four-shape mark + Didone wordmark with halftone dissolve */}
+          <div
+            className="flex select-none items-center gap-[0.1em] py-10"
+            style={{ fontSize: "clamp(96px, 23vw, 360px)" }}
+          >
+            {/* four-shape Quad mark, scales with the wordmark */}
+            <svg
+              viewBox="0 0 40 40"
+              fill="none"
+              stroke="#161616"
+              strokeWidth="2.1"
+              strokeLinejoin="round"
               aria-hidden
-              className="pointer-events-none absolute inset-0 block py-10 leading-[0.78] tracking-[-0.03em]"
-              style={{
-                fontFamily: "var(--font-serif), Georgia, serif",
-                fontWeight: 800,
-                fontSize: "clamp(110px, 26vw, 400px)",
-                backgroundImage:
-                  "radial-gradient(circle, #FF5CAB 36%, transparent 39%)",
-                backgroundSize: "7px 7px",
-                WebkitBackgroundClip: "text",
-                backgroundClip: "text",
-                color: "transparent",
-                WebkitMaskImage:
-                  "linear-gradient(to bottom, transparent 48%, black 92%)",
-                maskImage: "linear-gradient(to bottom, transparent 48%, black 92%)",
-              }}
+              style={{ width: "0.86em", height: "0.86em", flexShrink: 0 }}
             >
-              Quad
-            </span>
+              <rect x="3.5" y="3.5" width="14" height="14" rx="4.5" />
+              <path d="M29.5 3 L37 10.5 L29.5 18 L22 10.5 Z" />
+              <circle cx="10.5" cy="29.5" r="7.2" />
+              <path d="M37.2 29.5 L33.35 36.2 L25.65 36.2 L21.8 29.5 L25.65 22.8 L33.35 22.8 Z" />
+            </svg>
+
+            <div className="relative leading-[0.78] tracking-[-0.03em]">
+              <span
+                className="block text-ink"
+                style={{ fontFamily: "var(--font-serif), Georgia, serif", fontWeight: 800 }}
+              >
+                Quad
+              </span>
+              {/* halftone overlay punching through the lower part of the glyphs */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 block leading-[0.78] tracking-[-0.03em]"
+                style={{
+                  fontFamily: "var(--font-serif), Georgia, serif",
+                  fontWeight: 800,
+                  backgroundImage: "radial-gradient(circle, #FF5CAB 36%, transparent 39%)",
+                  backgroundSize: "7px 7px",
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  color: "transparent",
+                  WebkitMaskImage: "linear-gradient(to bottom, transparent 48%, black 92%)",
+                  maskImage: "linear-gradient(to bottom, transparent 48%, black 92%)",
+                }}
+              >
+                Quad
+              </span>
+            </div>
           </div>
 
           {/* legal bar */}
