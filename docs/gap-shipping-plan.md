@@ -95,6 +95,17 @@ Shipped v1:
 - operator summary exposes runtime trace totals, failures, average duration, and latest receipts beside model gateway receipts.
 - backend readiness now treats `workflow_task_events` as a required production table so task-stream replay is not silently missing.
 
+## Gap 2.2: shared core runtime facade
+
+Status: shipped v1.
+
+Shipped v1:
+
+- `runQuadCoreCommand()` gives chat, queued audit, and future voice/fetch/cli surfaces one shared runtime command contract.
+- `POST /api/core/run` exposes that contract with auth, idempotency, mutation guards, runtime traces, quadchain receipts, and task/job summaries.
+- `/api/chat` now calls the shared core facade instead of duplicating context loading, audit-follow-up grounding, employee runtime, and receipt creation logic.
+- api-contract tests prove both chat and queued-audit commands work through the shared facade without leaking secrets.
+
 ## Gap 2.5: post-audit chat grounding
 
 Status: shipped v1.

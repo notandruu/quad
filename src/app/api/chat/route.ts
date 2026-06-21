@@ -1,144 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runEmployee } from "@/lib/runtime/runtime";
-import { getEmployee } from "@/lib/employees";
 import { DEMO_ORG_ID } from "@/data/seed";
-import { withSpan } from "@/lib/observability/sentry";
-import { getMemoryMetadata, retrieveMemoriesWithPackets } from "@/lib/brain";
-import { complete, chatModel } from "@/lib/llm/anthropic";
-import { buildAuditChatSystemPrompt } from "@/lib/runtime/prompts";
-import type { AuditReport, BrainMemory } from "@/lib/types";
-import { loadAuditChatContext } from "@/lib/runtime/auditChatContext";
-import { buildQuadCoreContext, saveQuadCoreReceipt } from "@/lib/core";
+import { runQuadCoreCommand } from "@/lib/core/run";
 import type { BrainMemoryRequester } from "@/lib/brain/permissions";
-import type { QuadChainPacketSummary, QuadChainSource } from "@/lib/quad-chain";
 
 export const runtime = "nodejs";
 // Grounded chat makes a model call; give it headroom over the serverless default.
 export const maxDuration = 60;
 
 /**
- * Chat entrypoint. Two modes:
- *
- * 1. No active audit: classifyIntent -> retrieveMemories -> model reply.
- * 2. Active audit (runId present): load the persisted AuditReport from Redis,
- *    inject it into the system prompt, answer grounded in findings + brain.
- *
- * This is what makes post-audit follow-up ("what should I fix first?",
- * "draft the missing FAQ") actually useful rather than hallucinated.
+ * Chat is now a surface over the shared Quad Core command facade. The route
+ * keeps the dashboard response contract stable while the runtime path is shared
+ * with future voice, fetch, cli, and agent surfaces.
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const text: string = body.text ?? "";
-  const orgId: string = body.orgId ?? DEMO_ORG_ID;
-  const runId: string = body.runId ?? "";
-  const employee = getEmployee(body.employeeId);
-  const requester = buildMemoryRequester(body);
+  const text = typeof body.text === "string" ? body.text : "";
 
-  return withSpan("chat.request", { orgId, runId, employeeId: employee.id }, async () => {
-    const effectiveRunId = runId || crypto.randomUUID();
-    const coreContext = await buildQuadCoreContext({
-      orgId,
-      employee,
-      runId: effectiveRunId,
+  try {
+    const result = await runQuadCoreCommand({
+      command: "chat",
+      orgId: typeof body.orgId === "string" ? body.orgId : DEMO_ORG_ID,
+      employeeId: typeof body.employeeId === "string" ? body.employeeId : undefined,
+      runId: typeof body.runId === "string" ? body.runId : undefined,
       text,
+      pinnedUrl: typeof body.pinnedUrl === "string" ? body.pinnedUrl : undefined,
+      hasActiveAudit: body.hasActiveAudit === true,
       surface: "chat",
-      pinnedUrl: body.pinnedUrl,
-      hasActiveAudit: body.hasActiveAudit || Boolean(runId),
-      requester,
+      requester: buildMemoryRequester(body),
     });
 
-    // If there's a runId, try the audit-grounded path first.
-    if (runId) {
-      const auditContext = await loadAuditChatContext({ orgId, runId });
-      if (auditContext.report) {
-        const grounded = await auditGroundedChat(text, orgId, employee, auditContext.report, requester);
-        const quadChain = await saveQuadCoreReceipt({
-          context: coreContext,
-          output: grounded.reply,
-          producer: "quad.chat",
-          consumer: "quad.dashboard",
-          sources: [
-            ...auditContext.sources,
-            ...buildMemorySources(coreContext.memories),
-          ] satisfies QuadChainSource[],
-        });
-        return NextResponse.json({
-          message: grounded.reply,
-          intent: "audit_follow_up",
-          quadChain,
-          verifiedContext: uniquePacketSummaries([
-            ...auditContext.verifiedContext,
-            ...grounded.verifiedContext,
-          ]),
-        });
-      }
-    }
-
-    // Normal employee runtime path.
-    const result = await runEmployee({
-      orgId,
-      employee,
-      runId: effectiveRunId,
-      text,
-      pinnedUrl: body.pinnedUrl,
-      hasActiveAudit: body.hasActiveAudit,
-      surface: "chat",
-      coreContext,
-    });
-    const quadChain = await saveQuadCoreReceipt({
-      context: coreContext,
-      output: result.message,
-      producer: `quad.${employee.id}`,
-      consumer: "quad.dashboard",
-    });
-    return NextResponse.json({ ...result, quadChain });
-  });
-}
-
-/**
- * Answer a follow-up question grounded in the completed audit report and the
- * company brain. Falls back to a plain text acknowledgement if no model key.
- */
-async function auditGroundedChat(
-  text: string,
-  orgId: string,
-  employee: ReturnType<typeof getEmployee>,
-  report: AuditReport,
-  requester?: BrainMemoryRequester
-): Promise<{ reply: string; verifiedContext: QuadChainPacketSummary[] }> {
-  const retrieved = await retrieveMemoriesWithPackets({ orgId, query: text, limit: 5, requester });
-  const brainContext = retrieved.map((item) => item.memory);
-  const verifiedContext = retrieved
-    .map((item) => item.quadChain)
-    .filter((item): item is QuadChainPacketSummary => Boolean(item));
-
-  const system = buildAuditChatSystemPrompt(
-    employee.name,
-    employee.tone,
-    brainContext,
-    report.summary,
-    report.topFindings.map((f) => ({
-      title: f.title,
-      severity: f.severity,
-      recommendedFix: f.recommendedFix,
-      pageUrl: f.pageUrl,
-    }))
-  );
-
-  const reply = await complete({
-    orgId,
-    runId: report.runId,
-    model: chatModel(),
-    system,
-    prompt: text,
-    maxTokens: 1000,
-    purpose: "chat",
-  });
-
-  return {
-    reply: reply ?? `Based on the audit of ${report.targetUrl}: ${report.summary}`,
-    verifiedContext,
-  };
+    return NextResponse.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: message,
+        message: "I hit an error answering that. Try again in a moment.",
+      },
+      { status: /required/.test(message) ? 400 : 500 }
+    );
+  }
 }
 
 function buildMemoryRequester(body: Record<string, unknown>): BrainMemoryRequester | undefined {
@@ -151,29 +53,4 @@ function buildMemoryRequester(body: Record<string, unknown>): BrainMemoryRequest
   const includePersonal = body.includePersonal === true;
   if (!userId && !teamIds?.length && !includePersonal) return undefined;
   return { userId, teamIds, includePersonal };
-}
-
-function buildMemorySources(memories: BrainMemory[]): QuadChainSource[] {
-  return memories.slice(0, 6).map((item) => ({
-    id: item.id,
-    kind: "memory",
-    content: {
-      title: item.title,
-      sourceType: item.sourceType,
-      summary: item.summary,
-      evidence: item.evidence,
-      metadata: getMemoryMetadata(item),
-    },
-  }));
-}
-
-function uniquePacketSummaries(packets: QuadChainPacketSummary[]): QuadChainPacketSummary[] {
-  const seen = new Set<string>();
-  const unique: QuadChainPacketSummary[] = [];
-  for (const packet of packets) {
-    if (seen.has(packet.id)) continue;
-    seen.add(packet.id);
-    unique.push(packet);
-  }
-  return unique;
 }

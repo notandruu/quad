@@ -67,6 +67,51 @@ test.describe("api contracts", () => {
     expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
   });
 
+  test("runs shared core commands for chat and queued audit", async ({ request }) => {
+    const chat = await request.post("/api/core/run", {
+      data: {
+        command: "chat",
+        orgId: "org_brightpath",
+        runId: `run_core_chat_contract_${Date.now()}`,
+        text: "hello quad",
+        surface: "chat",
+      },
+    });
+    expect(chat.ok()).toBe(true);
+    const chatJson = await chat.json();
+    expect(chatJson).toMatchObject({
+      ok: true,
+      command: "chat",
+      intent: expect.any(String),
+      quadChain: {
+        accepted: true,
+      },
+    });
+
+    const runId = `run_core_queue_contract_${Date.now()}`;
+    const queued = await request.post("/api/core/run", {
+      data: {
+        command: "queue_audit",
+        orgId: "org_brightpath",
+        runId,
+        targetUrl: "https://example.com",
+        surface: "dashboard",
+      },
+    });
+    expect(queued.ok()).toBe(true);
+    const queuedJson = await queued.json();
+    expect(queuedJson).toMatchObject({
+      ok: true,
+      command: "queue_audit",
+      runId,
+      job: {
+        type: "audit",
+        status: "queued",
+      },
+    });
+    expect(JSON.stringify({ chatJson, queuedJson })).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+  });
+
   test("replays the hosted task stream for a queued backend run", async ({ request }) => {
     const runId = `run_events_contract_${Date.now()}`;
     const created = await request.post("/api/jobs", {
