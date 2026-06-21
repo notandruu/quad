@@ -27,6 +27,9 @@ type OperatorCapability = {
 type OperatorArtifact = {
   id: string;
   runId: string;
+  artifactId: string | null;
+  href: string;
+  runHref: string;
   title: string;
   kind: string;
   status: string;
@@ -40,6 +43,35 @@ type OperatorArtifact = {
     risk: string;
   };
   proof: Array<{ id: string; status: string; summary: string; artifactHash: string }>;
+};
+
+type HostedArtifactPayload = {
+  ok: boolean;
+  artifact?: {
+    id: string;
+    runId: string;
+    kind: string;
+    title: string;
+    hash: string;
+    createdAt: string;
+    data: unknown;
+    links: {
+      self: string;
+      run: string;
+    };
+  };
+  detail?: {
+    run: {
+      id: string;
+      status: string;
+      title: string;
+    };
+    links: {
+      self: string;
+      artifacts: string;
+      tasks: string;
+    };
+  };
 };
 
 type OperatorResponse = {
@@ -69,6 +101,8 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [activeArtifactId, setActiveArtifactId] = useState<string | null>(null);
   const [artifactTab, setArtifactTab] = useState<"preview" | "data" | "proof">("preview");
+  const [artifactDetail, setArtifactDetail] = useState<HostedArtifactPayload | null>(null);
+  const [artifactDetailStatus, setArtifactDetailStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [decisionState, setDecisionState] = useState<{ id: string; decision: "approved" | "rejected" } | null>(null);
   const [publishingRunId, setPublishingRunId] = useState<string | null>(null);
 
@@ -119,6 +153,32 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
     const artifacts = data?.artifacts ?? [];
     return artifacts.find((artifact) => artifact.id === activeArtifactId) ?? artifacts[0] ?? null;
   }, [activeArtifactId, data?.artifacts]);
+
+  useEffect(() => {
+    if (!activeArtifact || artifactTab !== "data") return;
+    let cancelled = false;
+    setArtifactDetailStatus("loading");
+    fetch(activeArtifact.href, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((json: HostedArtifactPayload | null) => {
+        if (cancelled) return;
+        if (!json?.ok) {
+          setArtifactDetail(null);
+          setArtifactDetailStatus("error");
+          return;
+        }
+        setArtifactDetail(json);
+        setArtifactDetailStatus("ready");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setArtifactDetail(null);
+        setArtifactDetailStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeArtifact, artifactTab]);
 
   if (!data) {
     return (
@@ -224,6 +284,8 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
           artifact={activeArtifact}
           artifacts={data.artifacts}
           tab={artifactTab}
+          detail={artifactDetail}
+          detailStatus={artifactDetailStatus}
           onTabChange={setArtifactTab}
           onSelect={setActiveArtifactId}
         />
@@ -371,12 +433,16 @@ function ArtifactSidecar({
   artifact,
   artifacts,
   tab,
+  detail,
+  detailStatus,
   onTabChange,
   onSelect,
 }: {
   artifact: OperatorArtifact | null;
   artifacts: OperatorArtifact[];
   tab: "preview" | "data" | "proof";
+  detail: HostedArtifactPayload | null;
+  detailStatus: "idle" | "loading" | "ready" | "error";
   onTabChange: (tab: "preview" | "data" | "proof") => void;
   onSelect: (id: string) => void;
 }) {
@@ -429,7 +495,7 @@ function ArtifactSidecar({
 
       <div className="p-3">
         {tab === "preview" && <ArtifactPreview artifact={artifact} />}
-        {tab === "data" && <ArtifactData artifact={artifact} />}
+        {tab === "data" && <ArtifactData artifact={artifact} detail={detail} detailStatus={detailStatus} />}
         {tab === "proof" && <ArtifactProof artifact={artifact} />}
       </div>
     </aside>
@@ -469,23 +535,62 @@ function ArtifactPreview({ artifact }: { artifact: OperatorArtifact }) {
   );
 }
 
-function ArtifactData({ artifact }: { artifact: OperatorArtifact }) {
+function ArtifactData({
+  artifact,
+  detail,
+  detailStatus,
+}: {
+  artifact: OperatorArtifact;
+  detail: HostedArtifactPayload | null;
+  detailStatus: "idle" | "loading" | "ready" | "error";
+}) {
   const lines = [
     ["artifact", artifact.id],
     ["run", artifact.runId],
     ["kind", artifact.kind],
     ["status", artifact.status],
+    ["hosted", artifact.href],
     ["proof rows", String(artifact.proof.length)],
   ];
 
   return (
-    <div className="space-y-1 font-mono text-[10px]">
-      {lines.map(([key, value]) => (
-        <div key={key} className="flex justify-between gap-3 rounded border border-edge bg-panel px-2 py-1">
-          <span className="text-neutral-600">{key}</span>
-          <span className="truncate text-neutral-300">{value}</span>
-        </div>
-      ))}
+    <div className="space-y-2">
+      <div className="space-y-1 font-mono text-[10px]">
+        {lines.map(([key, value]) => (
+          <div key={key} className="flex justify-between gap-3 rounded border border-edge bg-panel px-2 py-1">
+            <span className="text-neutral-600">{key}</span>
+            <span className="truncate text-neutral-300">{value}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        <a
+          href={artifact.href}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded border border-accent/30 bg-accent/10 px-2 py-1 text-[10px] text-accent hover:border-accent/60"
+        >
+          Open hosted artifact
+        </a>
+        <a
+          href={artifact.runHref}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded border border-edge bg-panel px-2 py-1 text-[10px] text-neutral-300 hover:border-accent/40 hover:text-accent"
+        >
+          Open run
+        </a>
+      </div>
+      <div className="max-h-36 overflow-auto rounded border border-edge bg-ink/80 p-2 font-mono text-[9px] leading-4 text-neutral-400">
+        {detailStatus === "loading" && "loading hosted payload..."}
+        {detailStatus === "error" && "hosted payload unavailable"}
+        {detailStatus === "ready" && (
+          <pre className="whitespace-pre-wrap break-words">
+            {JSON.stringify(detail?.artifact?.data ?? detail?.detail ?? null, null, 2)}
+          </pre>
+        )}
+        {detailStatus === "idle" && "select data to load the hosted payload"}
+      </div>
     </div>
   );
 }

@@ -87,6 +87,9 @@ function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorA
         return {
           id: `artifact_${artifact.id}`,
           runId: run.runId,
+          artifactId: artifact.id,
+          href: `/api/runs/${run.runId}/artifacts/${artifact.id}`,
+          runHref: `/api/runs/${run.runId}`,
           title: artifact.title,
           kind: artifact.kind,
           status: receipt?.status ?? "ready",
@@ -118,6 +121,9 @@ function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorA
     return {
       id: `artifact_${run.runId}`,
       runId: run.runId,
+      artifactId: null,
+      href: `/api/runs/${run.runId}`,
+      runHref: `/api/runs/${run.runId}`,
       title: run.title,
       kind: "run_snapshot",
       status: run.status,
@@ -142,6 +148,9 @@ function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorA
   const approvalArtifacts = approvals.slice(0, 2).map((approval) => ({
     id: `artifact_${approval.id}`,
     runId: approval.runId,
+    artifactId: null,
+    href: `/api/runs/${approval.runId}`,
+    runHref: `/api/runs/${approval.runId}`,
     title: approval.runTitle,
     kind: "approval_request",
     status: "pending",
