@@ -199,6 +199,27 @@ test.describe("api contracts", () => {
     expect(JSON.stringify(json)).not.toMatch(/sk-ant-|sk-proj-|postgres:\/\/|service_role|bb_live_|gQAAAA/);
   });
 
+  test("returns metaregistry runtime tool routing without leaking secrets", async ({ request }) => {
+    const response = await request.get("/api/metaregistry/runtime-tools?orgId=org_redcross&intent=website_audit&surface=fetch_agent");
+
+    expect(response.ok()).toBe(true);
+    const json = await response.json();
+    expect(json).toMatchObject({
+      ok: true,
+      orgId: "org_redcross",
+      plan: {
+        intent: "website_audit",
+        surface: "fetch_agent",
+        requiredCapabilityIds: expect.arrayContaining(["browserbase.read_browser", "fetch.agent_bridge"]),
+        eagerTools: expect.any(Array),
+        deferredTools: expect.any(Array),
+        blockedCapabilities: expect.any(Array),
+      },
+    });
+    expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+    expect(JSON.stringify(json)).not.toMatch(/sk-ant-|sk-proj-|postgres:\/\/|service_role|bb_live_|gQAAAA/);
+  });
+
   test("runs the scripted meeting agent into governed artifacts", async ({ request }) => {
     const response = await request.post("/api/meeting/scripted", {
       timeout: 60_000,

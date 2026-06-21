@@ -68,6 +68,8 @@ describe("quad core", () => {
       env: {
         BROWSERBASE_API_KEY: "bb_test",
         BROWSERBASE_PROJECT_ID: "proj_test",
+        PHOENIX_COLLECTOR_ENDPOINT: "https://phoenix.example.test",
+        SENTRY_DSN: "https://sentry.example.test",
       },
       retrieve: async () => [memory],
       publish,
@@ -79,6 +81,12 @@ describe("quad core", () => {
     expect(context.verifiedContext.map((packet) => packet.certificateId)).toEqual(["qchain_memory"]);
     expect(context.selectedTools.map((tool) => tool.id)).toContain("browserbase.read_browser");
     expect(context.selectedTools.map((tool) => tool.id)).toContain("quad.chain_verifier");
+    expect(context.toolRouting.eagerTools.map((route) => route.tool.id)).toEqual(
+      expect.arrayContaining(["browserbase.read_browser", "quad.chain_verifier"])
+    );
+    expect(context.toolRouting.deferredTools.map((route) => route.tool.id)).toEqual(
+      expect.arrayContaining(["arize.phoenix", "sentry.reliability"])
+    );
     expect(context.missingCapabilities.map((tool) => tool.id)).toContain("quad.company_brain");
     expect(context.permission.allowed).toBe(true);
     expect(context.events.map((event) => event.type)).toEqual([

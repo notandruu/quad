@@ -11,7 +11,7 @@
 
 quad is not a throwaway hackathon build. quad should be designed as a production product that happens to have a hackathon launch/demo deadline.
 
-2026-06-21 update: shipped the next biggest backend gap as an event-driven context capture pipeline. quad can now classify runtime events into durable memory signals versus noise, emit memory-candidate task-stream events, expose `/api/context/capture`, and stage approval-backed memory proposals before writeback.
+2026-06-21 update: shipped the next biggest backend gap as runtime tool routing from the metaregistry. quad can now build eager/deferred/blocked tool plans per intent and surface, expose `/api/metaregistry/runtime-tools`, and make core agent loops consume the same routing plan instead of hard-coded tool selection.
 
 the core product is a company-aware ai employee platform: it understands a business goal, retrieves and collects missing context, uses tools, validates its own work, learns only verified knowledge, executes approved actions, and leaves a replayable evidence trail. website audits and security questionnaires are product workflows on top of that runtime, not the whole company.
 
@@ -85,7 +85,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [x] tenant-scoped redis/memory replay for audit and enterprise-proof workflow events
 - [ ] normalized task stream schema shared by dashboard, fetch agent, future cli, and replay
 - [ ] quad chain certificate schema for audit briefs, customer trust packets, learned memory receipts, and agent handoffs
-- [ ] dynamic tool catalog with eager hot tools, deferred cold tools, health state, and allowlist filtering
+- [x] dynamic tool catalog with eager hot tools, deferred cold tools, health state, and allowlist filtering
 - [ ] metaregistry catalog for installable connectors, publishers, skills, agents, approval policies, eval policies, and surfaces
 - [ ] connector auth/security model with encrypted tokens, scopes, per-user oauth where possible, and service-account audit logs
 - [ ] skill/playbook layer so workflows wrap raw tools with guardrails and synthesis rules

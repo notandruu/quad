@@ -3,6 +3,7 @@ import {
   CAPABILITY_CATALOG,
   buildActiveToolCatalog,
   buildCapabilityInstallPlan,
+  buildRuntimeToolRoutingPlan,
   getEnterpriseProofStarterBundle,
   resolveCapabilityPolicy,
   summarizeCapabilities,
@@ -231,5 +232,46 @@ describe("metaregistry", () => {
     expect(plan.knownIds).toEqual(["quad.chain_verifier"]);
     expect(plan.unknownIds).toEqual(["missing.capability"]);
     expect(plan.policyPreview.allowlist).toEqual(["quad.chain_verifier"]);
+  });
+
+  it("builds runtime routing with eager, deferred, and blocked capabilities", () => {
+    const capabilities = summarizeCapabilities({
+      BROWSERBASE_API_KEY: "bb",
+      BROWSERBASE_PROJECT_ID: "project",
+      PHOENIX_COLLECTOR_ENDPOINT: "https://phoenix.example.test",
+      SENTRY_DSN: "https://sentry.example.test",
+      QUAD_CAPABILITY_ALLOWLIST: "quad.chain_verifier,browserbase.read_browser,arize.phoenix,sentry.reliability",
+    });
+    const plan = buildRuntimeToolRoutingPlan({
+      intent: "website_audit",
+      surface: "chat",
+      capabilities,
+    });
+
+    expect(plan.requiredCapabilityIds).toEqual([
+      "quad.company_brain",
+      "browserbase.read_browser",
+      "quad.chain_verifier",
+      "arize.phoenix",
+      "sentry.reliability",
+    ]);
+    expect(plan.eagerTools.map((route) => route.tool.id)).toEqual(
+      expect.arrayContaining(["browserbase.read_browser", "quad.chain_verifier"])
+    );
+    expect(plan.deferredTools.map((route) => route.tool.id)).toEqual(
+      expect.arrayContaining(["arize.phoenix", "sentry.reliability"])
+    );
+    expect(plan.blockedCapabilities.map((capability) => capability.id)).toContain("quad.company_brain");
+  });
+
+  it("routes surface capabilities beside intent tools", () => {
+    const plan = buildRuntimeToolRoutingPlan({
+      intent: "general_chat",
+      surface: "fetch_agent",
+      capabilities: summarizeCapabilities({}),
+    });
+
+    expect(plan.eagerTools.map((route) => route.tool.id)).toContain("fetch.agent_bridge");
+    expect(plan.requiredCapabilityIds).toContain("fetch.agent_bridge");
   });
 });

@@ -1,3 +1,5 @@
+import type { Intent } from "@/lib/types";
+
 export type CapabilityKind =
   | "connector"
   | "publisher"
@@ -52,6 +54,35 @@ export type CapabilitySummary = {
   activeTools: ActiveTool[];
   starterBundle: string[];
   blockers: string[];
+  policy: CapabilityPolicy;
+};
+
+export type RuntimeToolSurface = "dashboard" | "chat" | "voice" | "fetch_agent" | "worker";
+
+export type RuntimeToolLoadMode = "eager" | "deferred";
+
+export type RuntimeToolRoute = {
+  tool: ActiveTool;
+  loadMode: RuntimeToolLoadMode;
+  reason: string;
+};
+
+export type RuntimeToolBlockedCapability = {
+  id: string;
+  reason: string;
+  missingEnv: string[];
+  allowlisted: boolean;
+  disabled: boolean;
+};
+
+export type RuntimeToolRoutingPlan = {
+  intent: Intent;
+  surface: RuntimeToolSurface;
+  requiredCapabilityIds: string[];
+  eagerTools: RuntimeToolRoute[];
+  deferredTools: RuntimeToolRoute[];
+  selectedTools: ActiveTool[];
+  blockedCapabilities: RuntimeToolBlockedCapability[];
   policy: CapabilityPolicy;
 };
 
@@ -332,6 +363,52 @@ export function buildActiveToolCatalog(states: CapabilityInstallState[]): Active
     }));
 }
 
+export function buildRuntimeToolRoutingPlan(input: {
+  intent: Intent;
+  surface: RuntimeToolSurface;
+  env?: Record<string, string | undefined>;
+  orgId?: string;
+  capabilities?: CapabilitySummary;
+  policy?: Partial<CapabilityPolicy>;
+}): RuntimeToolRoutingPlan {
+  const capabilities = input.capabilities ?? summarizeCapabilities(input.env ?? process.env, {
+    orgId: input.orgId,
+    policy: input.policy,
+  });
+  const requiredCapabilityIds = uniqueIds([
+    ...capabilityIdsForIntent(input.intent),
+    ...capabilityIdsForSurface(input.surface),
+  ]);
+  const required = new Set(requiredCapabilityIds);
+  const activeRoutes = capabilities.activeTools
+    .filter((tool) => required.has(tool.id))
+    .map((tool): RuntimeToolRoute => ({
+      tool,
+      loadMode: loadModeForTool(tool, input.intent, input.surface),
+      reason: routeReasonForTool(tool, input.intent, input.surface),
+    }));
+  const blockedCapabilities = capabilities.installed
+    .filter((state) => required.has(state.id) && !capabilities.activeTools.some((tool) => tool.id === state.id))
+    .map((state) => ({
+      id: state.id,
+      reason: state.reason,
+      missingEnv: state.missingEnv,
+      allowlisted: state.allowlisted,
+      disabled: state.disabled,
+    }));
+
+  return {
+    intent: input.intent,
+    surface: input.surface,
+    requiredCapabilityIds,
+    eagerTools: activeRoutes.filter((route) => route.loadMode === "eager"),
+    deferredTools: activeRoutes.filter((route) => route.loadMode === "deferred"),
+    selectedTools: activeRoutes.map((route) => route.tool),
+    blockedCapabilities,
+    policy: capabilities.policy,
+  };
+}
+
 export function getCapability(id: string): CapabilityManifest | undefined {
   return CAPABILITY_CATALOG.find((manifest) => manifest.id === id);
 }
@@ -535,4 +612,70 @@ function parseCapabilityList(value: string | undefined): string[] {
 
 function uniqueIds(ids: string[]): string[] {
   return [...new Set(ids)];
+}
+
+function capabilityIdsForIntent(intent: Intent): string[] {
+  switch (intent) {
+    case "website_audit":
+      return ["quad.company_brain", "browserbase.read_browser", "quad.chain_verifier", "arize.phoenix", "sentry.reliability"];
+    case "audit_follow_up":
+      return ["quad.company_brain", "quad.chain_verifier", "trust_packet.exporter"];
+    case "draft_content":
+      return ["quad.company_brain", "quad.chain_verifier", "cms.publisher"];
+    case "create_task":
+      return ["quad.company_brain", "quad.chain_verifier", "task.publisher"];
+    case "save_memory":
+    case "summarize_meeting":
+      return ["quad.company_brain", "quad.chain_verifier"];
+    case "send_email":
+    case "post_slack":
+    case "update_crm":
+    case "schedule_meeting":
+      return ["quad.company_brain", "quad.chain_verifier"];
+    case "company_question":
+    case "general_chat":
+    default:
+      return ["quad.company_brain", "quad.chain_verifier"];
+  }
+}
+
+function capabilityIdsForSurface(surface: RuntimeToolSurface): string[] {
+  switch (surface) {
+    case "fetch_agent":
+      return ["fetch.agent_bridge"];
+    case "voice":
+      return ["deepgram.voice_memory"];
+    case "worker":
+      return ["redis.event_spine"];
+    case "dashboard":
+    case "chat":
+    default:
+      return [];
+  }
+}
+
+function loadModeForTool(tool: ActiveTool, intent: Intent, surface: RuntimeToolSurface): RuntimeToolLoadMode {
+  if (tool.approvalMode === "human_approval" || tool.approvalMode === "admin_approval") return "deferred";
+  if (tool.id === "arize.phoenix" || tool.id === "sentry.reliability") return "deferred";
+  if (tool.kind === "publisher" && intent !== "audit_follow_up") return "deferred";
+  if (surface === "worker" && tool.id === "redis.event_spine") return "eager";
+  if (surface === "voice" && tool.id === "deepgram.voice_memory") return "eager";
+  if (surface === "fetch_agent" && tool.id === "fetch.agent_bridge") return "eager";
+  return "eager";
+}
+
+function routeReasonForTool(tool: ActiveTool, intent: Intent, surface: RuntimeToolSurface): string {
+  if (tool.approvalMode === "human_approval" || tool.approvalMode === "admin_approval") {
+    return "write-capable capability is deferred until an approval gate opens.";
+  }
+  if (tool.id === "arize.phoenix" || tool.id === "sentry.reliability") {
+    return "observability capability remains deferred until a trace or error event is emitted.";
+  }
+  if (tool.kind === "publisher" && intent !== "audit_follow_up") {
+    return "publisher capability is available but deferred until a draft artifact exists.";
+  }
+  if (surface === "voice" && tool.id === "deepgram.voice_memory") return "voice surface requires live transcription.";
+  if (surface === "fetch_agent" && tool.id === "fetch.agent_bridge") return "external agent surface requires the fetch bridge.";
+  if (surface === "worker" && tool.id === "redis.event_spine") return "worker surface requires the event spine for replay and queue state.";
+  return "capability is hot for this intent and surface.";
 }

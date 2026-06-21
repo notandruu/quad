@@ -44,7 +44,8 @@ export function buildQuadCoreAgentLoop(
   input: { finalMessage?: string; turnBudget?: number } = {}
 ): QuadCoreAgentLoopTrace {
   const toolCalls = [
-    ...context.selectedTools.map((tool) => readyToolCall(tool)),
+    ...context.toolRouting.eagerTools.map((route) => readyToolCall(route.tool, route.reason)),
+    ...context.toolRouting.deferredTools.map((route) => deferredToolCall(route.tool, route.reason)),
     ...context.missingCapabilities.map((tool) => ({
       id: tool.id,
       name: tool.id,
@@ -68,7 +69,7 @@ export function buildQuadCoreAgentLoop(
       kind: "tool_dispatch",
       title: "assemble tool catalog",
       summary: toolCalls.length > 0
-        ? `prepared ${context.selectedTools.length} active tools and ${context.missingCapabilities.length} blocked capabilities.`
+        ? `prepared ${context.toolRouting.eagerTools.length} eager tools, ${context.toolRouting.deferredTools.length} deferred tools, and ${context.missingCapabilities.length} blocked capabilities.`
         : "no external tools were required for this turn.",
       toolCalls,
     },
@@ -141,7 +142,7 @@ export async function saveQuadCoreAgentLoopReceipt(
   return summarizeQuadChainPacket(packet) ?? saved.summary;
 }
 
-function readyToolCall(tool: ActiveTool): QuadCoreAgentToolCall {
+function readyToolCall(tool: ActiveTool, reason = "tool is active for this runtime turn."): QuadCoreAgentToolCall {
   return {
     id: tool.id,
     name: tool.name,
@@ -150,9 +151,20 @@ function readyToolCall(tool: ActiveTool): QuadCoreAgentToolCall {
     approvalMode: tool.approvalMode,
     scopes: tool.scopes,
     sponsor: tool.sponsor,
-    reason: tool.approvalMode === "human_approval" || tool.approvalMode === "admin_approval"
-      ? "write-capable tools require approval before execution."
-      : "tool is active for this runtime turn.",
+    reason,
+  };
+}
+
+function deferredToolCall(tool: ActiveTool, reason: string): QuadCoreAgentToolCall {
+  return {
+    id: tool.id,
+    name: tool.name,
+    kind: tool.kind,
+    status: "skipped",
+    approvalMode: tool.approvalMode,
+    scopes: tool.scopes,
+    sponsor: tool.sponsor,
+    reason,
   };
 }
 

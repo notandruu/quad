@@ -2,7 +2,13 @@ import type { QuadEmployee, Intent, BrainMemory } from "@/lib/types";
 import { retrieveMemoriesWithPackets, type RetrievedMemoryWithPacket } from "@/lib/brain";
 import type { BrainMemoryRequester } from "@/lib/brain/permissions";
 import { getMemoryMetadata } from "@/lib/brain/metadata";
-import { summarizeCapabilities, type ActiveTool, type CapabilitySummary } from "@/lib/metaregistry";
+import {
+  buildRuntimeToolRoutingPlan,
+  summarizeCapabilities,
+  type ActiveTool,
+  type CapabilitySummary,
+  type RuntimeToolRoutingPlan,
+} from "@/lib/metaregistry";
 import {
   createQuadChainPacket,
   type QuadChainEvidenceObligation,
@@ -59,6 +65,7 @@ export type QuadCoreContext = {
   memories: BrainMemory[];
   verifiedContext: QuadChainPacketSummary[];
   capabilities: CapabilitySummary;
+  toolRouting: RuntimeToolRoutingPlan;
   selectedTools: ActiveTool[];
   missingCapabilities: Array<{
     id: string;
@@ -127,10 +134,17 @@ export async function buildQuadCoreContext(input: QuadCoreContextInput): Promise
   });
 
   const capabilities = summarizeCapabilities(input.env ?? process.env, { orgId: input.orgId });
-  const selectedTools = selectToolsForRuntime(intent, input.surface, capabilities.activeTools);
-  const missingCapabilities = missingCapabilitiesForRuntime(intent, input.surface, capabilities);
+  const toolRouting = buildRuntimeToolRoutingPlan({
+    intent,
+    surface: input.surface,
+    capabilities,
+  });
+  const selectedTools = toolRouting.selectedTools;
+  const missingCapabilities = toolRouting.blockedCapabilities;
   await emit("core.capabilities_selected", {
     selectedToolIds: selectedTools.map((tool) => tool.id),
+    eagerToolIds: toolRouting.eagerTools.map((route) => route.tool.id),
+    deferredToolIds: toolRouting.deferredTools.map((route) => route.tool.id),
     missingCapabilityIds: missingCapabilities.map((tool) => tool.id),
   });
 
@@ -152,6 +166,7 @@ export async function buildQuadCoreContext(input: QuadCoreContextInput): Promise
     memories,
     verifiedContext,
     capabilities,
+    toolRouting,
     selectedTools,
     missingCapabilities,
     permission,
@@ -160,8 +175,7 @@ export async function buildQuadCoreContext(input: QuadCoreContextInput): Promise
 }
 
 export function selectToolsForIntent(intent: Intent, activeTools: ActiveTool[]): ActiveTool[] {
-  const desired = desiredCapabilityIds(intent);
-  return activeTools.filter((tool) => desired.includes(tool.id));
+  return selectToolsForRuntime(intent, "chat", activeTools);
 }
 
 export function selectToolsForRuntime(
@@ -169,8 +183,33 @@ export function selectToolsForRuntime(
   surface: QuadCoreSurface,
   activeTools: ActiveTool[]
 ): ActiveTool[] {
-  const desired = new Set([...desiredCapabilityIds(intent), ...desiredSurfaceCapabilityIds(surface)]);
-  return activeTools.filter((tool) => desired.has(tool.id));
+  const plan = buildRuntimeToolRoutingPlan({
+    intent,
+    surface,
+    capabilities: {
+      installed: activeTools.map((tool) => ({
+        id: tool.id,
+        installed: true,
+        status: "available",
+        missingEnv: [],
+        active: true,
+        reason: "Ready.",
+        allowlisted: true,
+        disabled: false,
+        installSource: "default",
+      })),
+      activeTools,
+      starterBundle: [],
+      blockers: [],
+      policy: {
+        allowlist: [],
+        disabled: [],
+        forceInstalled: [],
+        requireWriteAllowlist: true,
+      },
+    },
+  });
+  return plan.selectedTools;
 }
 
 export function createQuadCoreReceipt(input: QuadCoreReceiptInput): QuadChainPacket {
@@ -252,50 +291,7 @@ function missingCapabilitiesForRuntime(
   surface: QuadCoreSurface,
   capabilities: CapabilitySummary
 ): QuadCoreContext["missingCapabilities"] {
-  const desired = new Set([...desiredCapabilityIds(intent), ...desiredSurfaceCapabilityIds(surface)]);
-  const active = new Set(capabilities.activeTools.map((tool) => tool.id));
-  return capabilities.installed
-    .filter((state) => desired.has(state.id) && !active.has(state.id))
-    .map((state) => ({
-      id: state.id,
-      reason: state.reason,
-      missingEnv: state.missingEnv,
-    }));
-}
-
-function desiredCapabilityIds(intent: Intent): string[] {
-  switch (intent) {
-    case "website_audit":
-      return ["quad.company_brain", "browserbase.read_browser", "quad.chain_verifier", "arize.phoenix", "sentry.reliability"];
-    case "audit_follow_up":
-      return ["quad.company_brain", "quad.chain_verifier", "trust_packet.exporter"];
-    case "draft_content":
-      return ["quad.company_brain", "quad.chain_verifier", "cms.publisher"];
-    case "create_task":
-      return ["quad.company_brain", "quad.chain_verifier", "task.publisher"];
-    case "save_memory":
-    case "summarize_meeting":
-      return ["quad.company_brain", "quad.chain_verifier"];
-    case "company_question":
-    case "general_chat":
-    default:
-      return ["quad.company_brain", "quad.chain_verifier"];
-  }
-}
-
-function desiredSurfaceCapabilityIds(surface: QuadCoreSurface): string[] {
-  switch (surface) {
-    case "fetch_agent":
-      return ["fetch.agent_bridge"];
-    case "voice":
-      return ["deepgram.voice_memory"];
-    case "worker":
-      return ["redis.event_spine"];
-    case "dashboard":
-    case "chat":
-    default:
-      return [];
-  }
+  return buildRuntimeToolRoutingPlan({ intent, surface, capabilities }).blockedCapabilities;
 }
 
 function isExecutionCriticalMissingCapability(intent: Intent, capabilityId: string): boolean {

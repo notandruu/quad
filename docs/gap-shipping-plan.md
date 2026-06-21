@@ -310,6 +310,29 @@ Acceptance:
 - durable context candidates create visible memory-candidate task events when tied to a run.
 - captured memory writes are approval-backed proposals, not blind durable writes.
 
+## Gap 2.11: runtime tool routing
+
+Status: shipped v1.
+
+What was missing:
+
+- the metaregistry knew capability health, env requirements, install state, and allowlist state, but the core runtime still kept its own hard-coded intent-to-tool map.
+- runtime traces showed selected tools, but not which tools were eager, deferred, or blocked by policy/env.
+- future dashboard, fetch, cli, and worker surfaces had no direct api for asking what quad would load for a given intent and surface.
+
+Shipped v1:
+
+- `buildRuntimeToolRoutingPlan()` now lives in `src/lib/metaregistry` and returns required capability ids, eager tools, deferred tools, selected tools, blocked capabilities, and active policy.
+- `buildQuadCoreContext()` consumes that routing plan directly, emits eager/deferred/blocked ids in `core.capabilities_selected`, and stores the plan on the runtime context.
+- visible agent-loop traces now distinguish eager hot tools, deferred cold/write/observability tools, and blocked capabilities.
+- `GET /api/metaregistry/runtime-tools` exposes the read-only routing plan for dashboard, fetch, cli, worker, and future specialist-agent surfaces.
+
+Acceptance:
+
+- allowlist, disabled, missing-env, and write-approval policy are applied before a tool reaches the runtime plan.
+- write-capable tools stay deferred until an approval gate exists.
+- observability tools can be installed and active without being stuffed into every prompt as eager context.
+
 ## Gap 3: dry-run publisher workbench
 
 Status: shipped v3.
