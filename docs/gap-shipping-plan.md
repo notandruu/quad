@@ -198,6 +198,14 @@ Acceptance:
 
 Status: partial.
 
+Shipped v1:
+
+- hosted artifact list and detail payloads use preview data by default.
+- preview data recursively redacts sensitive keys such as secret, token, credential, password, private, and internal.
+- preview data summarizes raw-ish fields such as evidence, source, content, findings, transcripts, memory, output, raw, and quotes instead of copying their text.
+- raw artifact detail access is opt-in with `?raw=1` and requires hosted secret auth.
+- unauthenticated or demo-fallback artifact links remain booth-safe and shareable.
+
 Build:
 
 - enforce org-scoped access on durable run reads.

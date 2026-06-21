@@ -21,7 +21,19 @@ export async function GET(
     return NextResponse.json(requestAuthError(auth), { status: auth.status });
   }
 
-  const artifact = getHostedArtifactDetail(snapshot, params.artifactId);
+  const includeRawData = new URL(request.url).searchParams.get("raw") === "1";
+  if (includeRawData && auth.mode !== "secret") {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Raw artifact access requires hosted API secret auth.",
+        code: "raw_artifact_requires_secret",
+      },
+      { status: 403 }
+    );
+  }
+
+  const artifact = getHostedArtifactDetail(snapshot, params.artifactId, { includeRawData });
   if (!artifact) {
     return NextResponse.json({ ok: false, error: "artifact not found" }, { status: 404 });
   }

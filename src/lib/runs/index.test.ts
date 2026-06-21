@@ -306,6 +306,7 @@ describe("run ledger", () => {
 
     const detail = buildHostedRunDetail(snapshot);
     const artifactDetail = getHostedArtifactDetail(snapshot, artifact.id);
+    const rawArtifactDetail = getHostedArtifactDetail(snapshot, artifact.id, { includeRawData: true });
     const taskDetail = getHostedTaskDetail(snapshot, task.id);
 
     expect(detail.links).toEqual({
@@ -318,21 +319,36 @@ describe("run ledger", () => {
       href: `/api/runs/${run.id}/artifacts/${artifact.id}`,
       dataPreview: {
         claim: "sso enabled",
-        evidence: ["admin screenshot"],
-        internalNotes: "only visible in artifact detail",
+        evidence: "[1 items]",
+        internalNotes: "[redacted]",
       },
     });
     expect(artifactDetail).toMatchObject({
       id: artifact.id,
       data: {
         claim: "sso enabled",
-        evidence: ["admin screenshot"],
-        internalNotes: "only visible in artifact detail",
+        evidence: "[1 items]",
       },
+      dataPreview: {
+        claim: "sso enabled",
+        evidence: "[1 items]",
+      },
+      rawDataIncluded: false,
       links: {
         self: `/api/runs/${run.id}/artifacts/${artifact.id}`,
         run: `/api/runs/${run.id}`,
       },
+    });
+    expect(JSON.stringify(artifactDetail)).not.toContain("only visible in artifact detail");
+    expect(JSON.stringify(artifactDetail)).not.toContain("admin screenshot");
+    expect(rawArtifactDetail).toMatchObject({
+      id: artifact.id,
+      data: {
+        claim: "sso enabled",
+        evidence: ["admin screenshot"],
+        internalNotes: "only visible in artifact detail",
+      },
+      rawDataIncluded: true,
     });
     expect(taskDetail).toMatchObject({
       id: task.id,

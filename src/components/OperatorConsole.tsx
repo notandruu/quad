@@ -66,6 +66,8 @@ type HostedArtifactPayload = {
     hash: string;
     createdAt: string;
     data: unknown;
+    dataPreview?: unknown;
+    rawDataIncluded?: boolean;
     links: {
       self: string;
       run: string;
@@ -704,9 +706,16 @@ function ArtifactData({
         {detailStatus === "loading" && "loading hosted payload..."}
         {detailStatus === "error" && "hosted payload unavailable"}
         {detailStatus === "ready" && (
-          <pre className="whitespace-pre-wrap break-words">
-            {JSON.stringify(detail?.artifact?.data ?? detail?.detail ?? null, null, 2)}
-          </pre>
+          <>
+            {detail?.artifact?.rawDataIncluded === false && (
+              <div className="mb-2 rounded border border-amber-300/25 bg-amber-950/20 px-2 py-1 text-[9px] text-amber-100">
+                preview only. raw artifact data requires secret auth.
+              </div>
+            )}
+            <pre className="whitespace-pre-wrap break-words">
+              {JSON.stringify(detail?.artifact?.data ?? detail?.detail ?? null, null, 2)}
+            </pre>
+          </>
         )}
         {detailStatus === "idle" && "select data to load the hosted payload"}
       </div>

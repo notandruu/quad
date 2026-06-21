@@ -155,7 +155,10 @@ export type HostedRunDetail = {
   };
 };
 
-export type HostedArtifactDetail = WorkflowArtifactRecord & {
+export type HostedArtifactDetail = Omit<WorkflowArtifactRecord, "data"> & {
+  data: unknown;
+  dataPreview: unknown;
+  rawDataIncluded: boolean;
   run: Pick<WorkflowRunRecord, "id" | "orgId" | "title" | "status" | "targetUrl">;
   links: {
     self: string;
@@ -625,12 +628,21 @@ export function buildShipTrail(snapshot: RunLedgerSnapshot): ShipTrailStep[] {
 
 export function getHostedArtifactDetail(
   snapshot: RunLedgerSnapshot,
-  artifactId: string
+  artifactId: string,
+  input: { includeRawData?: boolean } = {}
 ): HostedArtifactDetail | null {
   const artifact = snapshot.artifacts.find((item) => item.id === artifactId);
   if (!artifact) return null;
   return {
-    ...artifact,
+    id: artifact.id,
+    runId: artifact.runId,
+    kind: artifact.kind,
+    title: artifact.title,
+    hash: artifact.hash,
+    createdAt: artifact.createdAt,
+    data: input.includeRawData ? artifact.data : previewArtifactData(artifact.data),
+    dataPreview: previewArtifactData(artifact.data),
+    rawDataIncluded: Boolean(input.includeRawData),
     run: runReference(snapshot.run),
     links: {
       self: `/api/runs/${snapshot.run.id}/artifacts/${artifact.id}`,
@@ -1033,8 +1045,40 @@ function verificationStatus(snapshot: RunLedgerSnapshot, artifactId: string): Sh
 }
 
 function previewArtifactData(data: unknown): unknown {
-  if (data === null || typeof data !== "object") return data;
-  if (Array.isArray(data)) return data.slice(0, 3);
-  const entries = Object.entries(data as Record<string, unknown>).slice(0, 8);
+  return redactPreviewValue(data, 0);
+}
+
+function redactPreviewValue(value: unknown, depth: number): unknown {
+  if (value === null || typeof value !== "object") return value;
+  if (depth >= 3) return "[truncated]";
+  if (Array.isArray(value)) {
+    return value.slice(0, 3).map((item) => redactPreviewValue(item, depth + 1));
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>)
+    .slice(0, 8)
+    .map(([key, item]) => [
+      key,
+      isSensitivePreviewKey(key)
+        ? "[redacted]"
+        : isRawPreviewKey(key)
+          ? summarizeRawPreviewValue(item)
+          : redactPreviewValue(item, depth + 1),
+    ]);
   return Object.fromEntries(entries);
+}
+
+function isSensitivePreviewKey(key: string): boolean {
+  return /secret|token|credential|password|private|internal/i.test(key);
+}
+
+function isRawPreviewKey(key: string): boolean {
+  return /evidence|source|content|finding|transcript|memory|output|raw|quote/i.test(key);
+}
+
+function summarizeRawPreviewValue(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.length} items]`;
+  if (value && typeof value === "object") return "[object]";
+  if (typeof value === "string") return `[${value.length} chars]`;
+  return "[redacted]";
 }
