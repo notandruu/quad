@@ -268,7 +268,7 @@ export function QuadWorkspaceDashboard() {
     addBrowserEvent("session", "browserbase session", `reuse authenticated vendor session · org ${ORG_ID}`, question.id);
     await wait(130);
     if (cancelledRef.current) return;
-    addBrowserEvent("nav", "page.goto", "https://trust.secureflow.com/vendor/acme/security-questionnaire", question.id);
+    addBrowserEvent("nav", "page.goto", "https://trust.secureflow.com/vendor/redcross/security-questionnaire", question.id);
     await wait(160);
     if (cancelledRef.current) return;
     addBrowserEvent("focus", "locator.focus", `[data-question-id="${question.id}"]`, question.id);
@@ -453,8 +453,8 @@ export function QuadWorkspaceDashboard() {
       <aside className={styles.orgPane}>
         <div className={styles.orgTop}>
           <div className={styles.orgChip}>
-            <span className={styles.avatar}>A</span>
-            <span className={styles.orgName}>Acme Software</span>
+            <span className={styles.avatar} style={{ background: "#E11900" }}>✚</span>
+            <span className={styles.orgName}>American Red Cross</span>
             <span className={styles.chevron}>⌄</span>
           </div>
         </div>
@@ -986,7 +986,7 @@ function QuestionnairePanel({
         <span />
         <span />
         <span />
-        <strong>trust.secureflow.com/vendor/acme</strong>
+        <strong>trust.secureflow.com/vendor/redcross</strong>
       </div>
       <section className={styles.browserStream}>
         <div className={styles.browserStreamHead}>
@@ -999,7 +999,7 @@ function QuestionnairePanel({
         <div className={styles.browserViewport}>
           <div className={styles.vendorHeader}>
             <span>secureflow trust portal</span>
-            <b>vendor: acme software</b>
+            <b>vendor: American Red Cross</b>
           </div>
           <div className={styles.browserEventList}>
             {latestEvents.length ? (
