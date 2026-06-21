@@ -186,8 +186,13 @@ Build:
 - Sentry: add a demo reliability view showing errors/logs/traces without secrets.
 - Browserbase: ensure screenshot evidence path is visible in finding cards.
 - Redis: show stream replay/counter status in debug/operator console.
-- Fetch.ai: add `/api/agent/describe` and sample Agentverse payload.
 - Deepgram: make voice essential through the proof interview flow.
+
+Shipped v1:
+
+- Fetch.ai: `GET /api/agent/describe` returns a public, secret-safe agent card with workflows, endpoint urls, protocols, keywords, sponsor alignment, and quadchain trust guarantees.
+- The card points external agent surfaces at `POST /api/agent/run` for the actual enterprise proof or website audit workflow.
+- The descriptor is shaped for Agentverse/ASI messaging: public endpoint, agent chat protocol readiness, a2a readiness, discoverability keywords, and a normalized run contract.
 
 Acceptance:
 

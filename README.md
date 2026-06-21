@@ -113,6 +113,8 @@ npm run canary:worker # run the hosted worker canary and verify jobs health
 
 Set `QUAD_WORKER_SECRET` for protected worker processing calls. When it is configured, `POST /api/jobs/process` requires the same bearer/api-key auth shape as the rest of the hosted API. Set `QUAD_WORKER_ENABLED=true` on hosted environments that expect a long-running worker; backend readiness will stay degraded until a fresh heartbeat appears. Worker claims use a short Redis-backed lease so duplicate queue ids or multiple worker processes do not execute the same job at once; tune it with `QUAD_WORKER_JOB_LEASE_SECONDS`.
 
+`GET /api/agent/describe` exposes Quad as a public external-agent card for Fetch.ai/Agentverse-style discovery. The descriptor includes workflows, endpoints, protocol readiness, keywords, sponsor alignment, and quadchain receipt guarantees, but deliberately omits raw env keys, secrets, and tenant data. External agent surfaces should call `POST /api/agent/run` after discovery.
+
 For Vercel plus Railway:
 
 1. Deploy the Next.js app on Vercel with the shared app env.

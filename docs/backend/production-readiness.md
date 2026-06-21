@@ -7,6 +7,7 @@ Quad can run with zero keys for demos, but the production backend is only green 
 ## What exists now
 
 - Next.js API routes for audits, chat, voice transcription, agent runs, workflow runs, approvals, trust packets, quadchain packets, jobs, security, and backend health.
+- Public agent discovery at `GET /api/agent/describe`, with no secret values or raw tenant data.
 - Redis-backed job queue with memory fallback.
 - Long-running worker command for Railway: `npm run worker`.
 - Worker canary route: `POST /api/jobs/canary`.
@@ -165,6 +166,7 @@ Backend readiness and security packets only expose token labels, scopes, counts,
 
 ## Backend ownership map
 
+- external agent descriptor: `src/lib/agent/describe.ts` and `src/app/api/agent/describe/route.ts`
 - durable workflow ledger: `src/lib/runs`
 - worker queue and canary: `src/lib/jobs`
 - worker runtime command: `scripts/worker.ts`
