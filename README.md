@@ -67,6 +67,8 @@ Hosted API routes accept `Authorization: Bearer $QUAD_API_SECRET` or `x-quad-api
 
 High-risk mutation routes are protected by org-scoped rate limits and optional `Idempotency-Key` replay. Configure `QUAD_MUTATION_RATE_LIMIT`, `QUAD_MUTATION_RATE_WINDOW_SECONDS`, and `QUAD_IDEMPOTENCY_TTL_SECONDS` for hosted deployments.
 
+`POST /api/security/data` supports protected deletion dry-runs and execution receipts for org-scoped or run-scoped data. Execute mode requires the confirmation string returned by the dry-run receipt, such as `delete:demo_org:run_123`.
+
 ## Verification
 
 ```bash

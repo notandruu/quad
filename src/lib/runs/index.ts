@@ -226,6 +226,42 @@ export async function listRunSnapshots(input: {
   return listMemoryRunSnapshots(input, limit);
 }
 
+export async function deleteRunSnapshots(input: { orgId: string; runId?: string }): Promise<number> {
+  const memoryRuns = [...ledger.values()].filter((snapshot) =>
+    snapshot.run.orgId === input.orgId && (!input.runId || snapshot.run.id === input.runId)
+  );
+  for (const snapshot of memoryRuns) {
+    ledger.delete(snapshot.run.id);
+  }
+
+  const db = getRunLedgerClient();
+  if (!db) return memoryRuns.length;
+
+  try {
+    const runIds = input.runId
+      ? [input.runId]
+      : ((await db.from("workflow_runs").select("id").eq("org_id", input.orgId)).data ?? [])
+          .map((row) => String((row as { id: unknown }).id));
+    if (runIds.length === 0) {
+      await db.from("workflow_run_snapshots").delete().eq("org_id", input.orgId);
+      return memoryRuns.length;
+    }
+
+    let snapshotDelete = db.from("workflow_run_snapshots").delete().eq("org_id", input.orgId);
+    if (input.runId) snapshotDelete = snapshotDelete.eq("id", input.runId);
+    await snapshotDelete;
+
+    let runDelete = db.from("workflow_runs").delete().eq("org_id", input.orgId);
+    if (input.runId) runDelete = runDelete.eq("id", input.runId);
+    const { error } = await runDelete;
+    if (error) return memoryRuns.length;
+
+    return Math.max(memoryRuns.length, runIds.length);
+  } catch {
+    return memoryRuns.length;
+  }
+}
+
 function listMemoryRunSnapshots(
   input: { orgId?: string; status?: WorkflowRunStatus },
   limit: number

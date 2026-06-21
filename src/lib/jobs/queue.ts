@@ -249,6 +249,34 @@ export async function listJobs(input: {
     .map(cloneJob);
 }
 
+export async function deleteJobs(input: { orgId: string; runId?: string }): Promise<number> {
+  const jobs = [...memoryJobs.values()].filter((job) =>
+    job.orgId === input.orgId && (!input.runId || job.runId === input.runId)
+  );
+  for (const job of jobs) {
+    memoryJobs.delete(job.id);
+  }
+  if (jobs.length > 0) {
+    const deletedIds = new Set(jobs.map((job) => job.id));
+    for (let index = memoryQueue.length - 1; index >= 0; index -= 1) {
+      if (deletedIds.has(memoryQueue[index])) memoryQueue.splice(index, 1);
+    }
+  }
+
+  const redis = getRedis();
+  if (redis) {
+    for (const job of jobs) {
+      try {
+        await redis.del(jobKey(job.id));
+      } catch {
+        // Memory deletion is still authoritative for fallback mode.
+      }
+    }
+  }
+
+  return jobs.length;
+}
+
 async function loadRedisJob(jobId: string): Promise<QuadJob | null> {
   const redis = getRedis();
   if (!redis) return null;

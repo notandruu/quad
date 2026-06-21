@@ -211,6 +211,7 @@ hard constraints:
 - [x] add security rows to operator panel for tenant isolation, telemetry redaction, connector scopes, and model routing
 - [ ] add validation checks for unsafe telemetry env/config where practical
 - [x] add security packet for quad itself: what data is sent to models, what is stored, what is redacted, what can be deleted
+- [x] add protected deletion dry-run and execution receipts for org/run data
 
 ## next build plan
 

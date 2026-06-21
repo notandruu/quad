@@ -127,6 +127,49 @@ export async function getLatestQuadChainPacket(input: GetQuadChainPacketsInput):
   return packet ?? null;
 }
 
+export async function deleteQuadChainPackets(input: {
+  orgId: string;
+  runId?: string;
+  sourceId?: string;
+}): Promise<number> {
+  const memoryMatches = filterMemoryPackets(input);
+  for (const packet of memoryMatches) {
+    memoryPackets.delete(packet.id);
+  }
+
+  const redis = getRedis();
+  if (redis && input.runId) {
+    try {
+      const ids = await redis.lrange<string>(redisRunKey(input.runId), 0, 500);
+      for (const id of [...new Set(ids)]) {
+        const packet = await redis.get<QuadChainPacket>(redisPacketKey(id));
+        if (!isQuadChainPacket(packet)) continue;
+        if (packet.orgId !== input.orgId) continue;
+        if (input.sourceId && !packet.sources.some((source) => source.id === input.sourceId)) continue;
+        await redis.del(redisPacketKey(id));
+      }
+      await redis.del(redisRunKey(input.runId));
+    } catch {
+      // Redis packet deletion is best-effort.
+    }
+  }
+
+  const db = getClient();
+  if (!db) return memoryMatches.length;
+
+  try {
+    const before = await countDurablePackets(input);
+    let query = db.from("quadchain_packets").delete().eq("org_id", input.orgId);
+    if (input.runId) query = query.eq("run_id", input.runId);
+    if (input.sourceId) query = query.contains("source_ids", [input.sourceId]);
+    const { error } = await query;
+    if (error) return memoryMatches.length;
+    return Math.max(memoryMatches.length, before);
+  } catch {
+    return memoryMatches.length;
+  }
+}
+
 export function summarizeQuadChainPackets(packets: QuadChainPacket[]): {
   total: number;
   accepted: number;
@@ -155,6 +198,24 @@ function filterMemoryPackets(input: GetQuadChainPacketsInput): QuadChainPacket[]
     .filter((packet) => !input.type || packet.type === input.type)
     .filter((packet) => !input.sourceId || packet.sources.some((source) => source.id === input.sourceId))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+async function countDurablePackets(input: {
+  orgId: string;
+  runId?: string;
+  sourceId?: string;
+}): Promise<number> {
+  const db = getClient();
+  if (!db) return 0;
+  let query = db
+    .from("quadchain_packets")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", input.orgId);
+  if (input.runId) query = query.eq("run_id", input.runId);
+  if (input.sourceId) query = query.contains("source_ids", [input.sourceId]);
+  const { count, error } = await query;
+  if (error) return 0;
+  return count ?? 0;
 }
 
 async function saveRedisPacket(packet: QuadChainPacket): Promise<void> {

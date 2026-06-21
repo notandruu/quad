@@ -245,10 +245,14 @@ export function buildSecurityPacket(input: {
     deletion: {
       configured: retentionDays !== null,
       retentionDays,
-      supportedToday: ["in-memory demo reset", "ttl-backed audit events", "manual database deletion by org id"],
+      supportedToday: [
+        "protected dry-run deletion receipts",
+        "protected org/run deletion execution",
+        "ttl-backed audit events",
+        "in-memory demo reset",
+      ],
       missing: [
         "self-serve org data export",
-        "self-serve run deletion endpoint",
         "connector token revocation endpoint",
       ],
     },
