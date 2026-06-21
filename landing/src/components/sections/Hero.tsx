@@ -240,7 +240,7 @@ export default function Hero() {
 
             <button
               data-h="cta"
-              className="mt-9 flex w-full max-w-[514px] items-center justify-center bg-cream lg:ml-9 py-4 text-[12px] font-medium tracking-[0.01em] text-ink transition-colors hover:bg-paper-2"
+              className="dashboard-cta mt-9 flex w-full max-w-[514px] items-center justify-center lg:ml-9 py-4 text-[12px] font-medium tracking-[0.01em] transition-colors"
               style={{ clipPath: CHAMFER }}
             >
               <HoverText text="Open Dashboard" />

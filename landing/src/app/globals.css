@@ -140,6 +140,15 @@ a {
   transform: translateY(-3px);
 }
 
+.dashboard-cta {
+  background: var(--color-flame);
+  color: var(--color-ink);
+}
+.dashboard-cta:hover {
+  background: var(--color-flame-2);
+  color: var(--color-ink);
+}
+
 /* nav link underline-grow */
 .navlink {
   position: relative;

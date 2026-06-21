@@ -64,7 +64,7 @@ export default function FAQ() {
               approval, and a receipt.
             </p>
             <button
-              className="flex items-center bg-cream px-6 py-3 text-[11px] font-medium uppercase tracking-[0.1em] text-ink transition-colors hover:bg-cream-2"
+              className="dashboard-cta flex items-center px-6 py-3 text-[11px] font-medium uppercase tracking-[0.1em] transition-colors"
               style={{
                 clipPath:
                   "polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)",
