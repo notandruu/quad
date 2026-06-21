@@ -270,10 +270,15 @@ Shipped v4:
 - the health check fails on stale canary receipts, failed canaries, or dead-lettered jobs.
 - the README documents the Vercel app plus Railway worker deployment path.
 
+Shipped v5:
+
+- `POST /api/jobs/canary?scheduled=1&minIntervalSeconds=300` supports cron-style worker canary checks.
+- scheduled calls use the latest canary receipt and a short scheduler lock so overlapping monitors do not double-run the probe.
+- scheduled responses expose `scheduled`, `skipped`, `reason`, and `nextAllowedAt` for external uptime tools.
+
 Next:
 
-- run the canary from a scheduled monitor after deploy.
-- add an uptime dashboard or Railway cron that calls the same canary script.
+- add an uptime dashboard that graphs latest scheduled canary age and duration.
 
 ## Gap 5: voice-led enterprise proof interview
 
@@ -423,7 +428,7 @@ Next:
 
 ## Recommended next shipping order
 
-1. scheduled worker canary after deploy.
+1. uptime dashboard for worker canary age and duration.
 2. richer connector-specific publish payloads.
 3. sponsor proof fixtures and demo script.
 4. memory refresh actions for stale context.

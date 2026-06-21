@@ -123,6 +123,20 @@ test.describe("api contracts", () => {
     });
   });
 
+  test("supports scheduled worker canary calls for cron monitors", async ({ request }) => {
+    const response = await request.post("/api/jobs/canary?orgId=org_brightpath&scheduled=1&minIntervalSeconds=300");
+
+    expect(response.ok()).toBe(true);
+    const json = await response.json();
+    expect(json).toMatchObject({
+      ok: true,
+      scheduled: true,
+      skipped: expect.any(Boolean),
+      reason: expect.stringMatching(/ran|recent|locked/),
+    });
+    expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+  });
+
   test("returns a 404 for unknown approval decisions", async ({ request }) => {
     const response = await request.post("/api/approvals/missing/decision", {
       data: {

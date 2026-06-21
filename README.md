@@ -117,6 +117,8 @@ npm run canary:worker # run the hosted worker canary and verify jobs health
 
 `POST /api/jobs` queues a website audit or enterprise proof run, `GET /api/jobs` lists queued/running/completed jobs, `GET /api/jobs/:jobId` inspects a job, `POST /api/jobs/process` processes one job for cron-style or protected worker calls, and `POST /api/jobs/canary` enqueues, claims, and processes a synthetic worker canary. Redis is used when configured; local demos fall back to in-memory jobs.
 
+For hosted monitors or cron, call `POST /api/jobs/canary?scheduled=1&minIntervalSeconds=300`. Scheduled mode skips safely when a fresh canary receipt already exists and returns `scheduled`, `skipped`, `reason`, and `nextAllowedAt` for uptime tooling.
+
 Set `QUAD_WORKER_SECRET` for protected worker processing calls. When it is configured, `POST /api/jobs/process` requires the same bearer/api-key auth shape as the rest of the hosted API. Set `QUAD_WORKER_ENABLED=true` on hosted environments that expect a long-running worker; backend readiness will stay degraded until a fresh heartbeat appears. Worker claims use a short Redis-backed lease so duplicate queue ids or multiple worker processes do not execute the same job at once; tune it with `QUAD_WORKER_JOB_LEASE_SECONDS`.
 
 `GET /api/agent/describe` exposes Quad as a public external-agent card for Fetch.ai/Agentverse-style discovery. The descriptor includes workflows, endpoints, protocol readiness, keywords, sponsor alignment, and quadchain receipt guarantees, but deliberately omits raw env keys, secrets, and tenant data. External agent surfaces should call `POST /api/agent/run` after discovery.
