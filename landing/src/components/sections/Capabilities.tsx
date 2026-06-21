@@ -2,7 +2,6 @@
 
 import Panel from "@/components/Panel";
 import Reveal from "@/components/Reveal";
-import MemoryGraph from "@/components/MemoryGraph";
 
 const STEPS = [
   { n: "01", t: "Connect", b: "Plug into helpdesk, CRM, docs, and code." },
@@ -31,7 +30,13 @@ export default function Capabilities() {
             </div>
             <span className="font-mono text-[11px] text-tan/55">8,600 verified memories</span>
           </div>
-          <MemoryGraph className="h-auto w-full" />
+          <iframe
+            src="/memory-orb.html"
+            title="Company brain"
+            loading="lazy"
+            className="block h-[460px] w-full"
+            style={{ border: 0, pointerEvents: "none" }}
+          />
         </div>
       </Reveal>
 

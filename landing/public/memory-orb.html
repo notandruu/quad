@@ -1,0 +1,3516 @@
+<!-- Memory Orb by Madison Zhan - MIT - https://github.com/madisonzhan/memory-orb -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Memory Orb</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2a1f33;
+    --ink-soft: #6b5a7c;
+    --ink-faint: #b0a2c0;
+    --line: rgba(180, 160, 200, 0.28);
+    --accent: #8a6ab0;
+    --accent-soft: #d8c8e6;
+    --gold: #c89c5c;
+    --rose: #c4707b;
+    --serif: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    background:
+      radial-gradient(ellipse 100% 70% at 50% 0%, #fff0e4 0%, transparent 60%),
+      linear-gradient(165deg,
+        #ffe6ec 0%,
+        #ffeed4 18%,
+        #fff8e8 38%,
+        #f4e6f4 62%,
+        #e0d0ee 85%,
+        #d4c8e8 100%);
+    position: relative;
+    min-height: 100vh;
+    transition: background 0.6s ease, color 0.6s ease;
+  }
+  body.dark {
+    color: #f0eaff;
+    background:
+      radial-gradient(ellipse 100% 70% at 50% 0%, #1a0f2e 0%, transparent 60%),
+      linear-gradient(165deg,
+        #0a0418 0%,
+        #100828 22%,
+        #1a0f30 50%,
+        #221038 78%,
+        #150a25 100%);
+  }
+  body.dark .atmosphere {
+    background:
+      radial-gradient(ellipse 70% 50% at 25% 30%, rgba(120, 60, 130, 0.4), transparent 65%),
+      radial-gradient(ellipse 60% 50% at 75% 75%, rgba(60, 40, 130, 0.35), transparent 65%),
+      radial-gradient(ellipse 50% 40% at 50% 50%, rgba(80, 50, 100, 0.3), transparent 70%);
+  }
+  body.dark .clouds::before, body.dark .clouds::after, body.dark .clouds > div {
+    background: radial-gradient(ellipse, rgba(120, 80, 180, 0.25), transparent 70%);
+  }
+  body.dark .stars > div {
+    background: rgba(255, 255, 255, 0.55);
+    box-shadow: 0 0 2px 0.5px rgba(255, 255, 255, 0.25);
+  }
+  body.dark .actions button {
+    background: transparent;
+    color: #f0eaff;
+  }
+  body.dark .actions button:hover {
+    color: #d8c4f8;
+    background: transparent;
+  }
+  body.dark .brand { color: #c0aedc; }
+  body.dark .brand .count { color: #d8c4f8; }
+  body.dark .hint { color: rgba(200, 180, 230, 0.6); }
+  body.dark .empty-orb .title { color: #f0eaff; text-shadow: 0 1px 12px rgba(120, 80, 180, 0.6); }
+  body.dark .empty-orb .sub { color: #b8a4d0; text-shadow: 0 1px 8px rgba(80, 40, 120, 0.6); }
+  body.dark .capture {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+  body.dark .capture textarea { color: #f0eaff; }
+  body.dark .capture textarea::placeholder { color: rgba(200, 180, 230, 0.5); }
+  body.dark .meta-chip {
+    background: transparent;
+    color: #d8c4f8;
+  }
+  body.dark .meta-chip:hover { color: #f0eaff; background: transparent; }
+  body.dark .panel, body.dark .patterns {
+    background: rgba(30, 18, 50, 0.78);
+    border-color: rgba(180, 150, 220, 0.3);
+    color: #f0eaff;
+  }
+  body.dark .panel .when, body.dark .patterns .sub { color: #b8a4d0; }
+  body.dark .panel .body, body.dark .patterns h3, body.dark .patterns-content { color: #f0eaff; }
+  body.dark .panel .meta-line { color: #d8c4f8; }
+  body.dark .panel-actions button { color: #d8c4f8; background: rgba(180, 150, 220, 0.15); }
+  body.dark .panel-actions button:hover { color: #f0eaff; background: rgba(180, 150, 220, 0.28); }
+  body.dark .related-item { color: #d8c4f8; border-color: rgba(180, 150, 220, 0.2); }
+  body.dark .library {
+    background: rgba(30, 18, 50, 0.95);
+    border-color: rgba(180, 150, 220, 0.3);
+  }
+  body.dark .library-head h2, body.dark .entry .text { color: #f0eaff; }
+  body.dark .library-head input { color: #f0eaff; border-color: rgba(180, 150, 220, 0.3); }
+  body.dark .entry:hover { background: rgba(80, 50, 120, 0.25); }
+  body.dark .entry .meta { color: #b8a4d0; }
+  body.dark .entry-thumb { background: linear-gradient(135deg, #4a2a6e, #2a1a4a); }
+
+  /* atmospheric layers */
+  .atmosphere, .clouds, .stars {
+    position: fixed; inset: 0; pointer-events: none;
+  }
+  .atmosphere {
+    background:
+      radial-gradient(ellipse 70% 50% at 25% 30%, rgba(255, 180, 210, 0.55), transparent 65%),
+      radial-gradient(ellipse 60% 50% at 75% 75%, rgba(200, 180, 250, 0.55), transparent 65%),
+      radial-gradient(ellipse 50% 40% at 50% 50%, rgba(255, 220, 170, 0.45), transparent 70%),
+      radial-gradient(ellipse 40% 30% at 80% 20%, rgba(255, 200, 230, 0.5), transparent 65%);
+    animation: atmosphere-shift 90s ease-in-out infinite;
+  }
+  @keyframes atmosphere-shift {
+    0%, 100% { transform: scale(1) translate(0, 0); }
+    33% { transform: scale(1.08) translate(2%, -1%); }
+    66% { transform: scale(0.96) translate(-1%, 2%); }
+  }
+
+  .clouds::before, .clouds::after, .clouds > div {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(255,255,255,0.55), transparent 70%);
+    filter: blur(50px);
+  }
+  .clouds::before { width: 50%; height: 30%; top: 8%; left: -8%; animation: cloud1 100s linear infinite; }
+  .clouds::after  { width: 60%; height: 35%; top: 65%; right: -15%; animation: cloud2 120s linear infinite; }
+  .clouds > .c3   { width: 40%; height: 25%; top: 35%; left: 60%; animation: cloud3 90s ease-in-out infinite; }
+  @keyframes cloud1 { 0% { transform: translateX(-30%); } 100% { transform: translateX(60vw); } }
+  @keyframes cloud2 { 0% { transform: translateX(30%); } 100% { transform: translateX(-60vw); } }
+  @keyframes cloud3 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-10%, 5%); } }
+
+  /* tiny sparkle particles — many, faint, very slow wink.
+     Masked so stars sitting behind the orb fade out — only the surrounding sky shows them. */
+  .stars {
+    z-index: 2;
+    -webkit-mask: radial-gradient(circle at center,
+      transparent 0,
+      transparent 36vmin,
+      rgba(0,0,0,0.4) 44vmin,
+      black 60vmin);
+            mask: radial-gradient(circle at center,
+      transparent 0,
+      transparent 36vmin,
+      rgba(0,0,0,0.4) 44vmin,
+      black 60vmin);
+  }
+  .stars > div {
+    position: absolute;
+    width: 2px; height: 2px; border-radius: 50%;
+    background: rgba(150, 110, 180, 0.8);
+    box-shadow: 0 0 3px 1px rgba(180, 150, 210, 0.4);
+  }
+  body.dark .stars > div {
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 0 3px 1px rgba(255, 255, 255, 0.5);
+  }
+  @keyframes twinkle {
+    0%   { opacity: 0;   transform: scale(0.4); }
+    40%  { opacity: 0.5; transform: scale(1.0); }
+    60%  { opacity: 0.5; transform: scale(1.0); }
+    100% { opacity: 0;   transform: scale(0.4); }
+  }
+
+  /* aura behind the orb — driven by JS each frame to follow camera */
+  .aura {
+    position: fixed;
+    top: 50%; left: 50%;
+    width: 52vmin; height: 52vmin;
+    border-radius: 50%;
+    pointer-events: none;
+    filter: blur(50px) hue-rotate(var(--aura-hue, 0deg));
+    background: conic-gradient(
+      from 0deg,
+      rgba(255, 170, 200, 0.85),
+      rgba(255, 200, 150, 0.8),
+      rgba(255, 240, 180, 0.85),
+      rgba(190, 235, 200, 0.8),
+      rgba(170, 210, 250, 0.85),
+      rgba(210, 180, 240, 0.85),
+      rgba(255, 170, 200, 0.85));
+    opacity: 0.95;
+    z-index: 1;
+  }
+
+  /* canvas */
+  #orb-canvas {
+    position: fixed; inset: 0;
+    width: 100vw; height: 100vh;
+    cursor: grab;
+    touch-action: none;
+    z-index: 5;
+  }
+  #orb-canvas.dragging { cursor: grabbing; }
+
+  /* header */
+  header {
+    position: fixed; top: 22px; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 26px;
+    z-index: 20;
+    pointer-events: none;
+  }
+  header > * { pointer-events: auto; }
+  .brand {
+    font-family: var(--serif);
+    font-size: 13px; letter-spacing: 4px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    font-style: italic;
+  }
+  .brand .count {
+    font-style: normal;
+    margin-left: 10px;
+    color: var(--accent);
+    font-weight: 500;
+    letter-spacing: 1px;
+  }
+  .actions {
+    display: flex; gap: 4px;
+  }
+  .actions button {
+    background: transparent;
+    border: 0;
+    color: var(--ink);
+    padding: 7px 13px;
+    border-radius: 999px;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: color 0.2s, transform 0.2s;
+    font-family: var(--sans);
+  }
+  .actions button:hover {
+    color: var(--accent);
+    transform: translateY(-1px);
+  }
+
+  /* hint — centered on the orb, fades out after 10 seconds */
+  .hint {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: #000;
+    font-size: 11px; letter-spacing: 1.8px;
+    pointer-events: none;
+    z-index: 10;
+    text-align: center;
+    transition: opacity 1.5s ease;
+    opacity: 1;
+  }
+  body.dark .hint { color: #000; }
+  .hint.fade { opacity: 0; }
+
+  /* empty state */
+  .empty-orb {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    z-index: 8;
+    color: var(--ink);
+    transition: opacity 0.5s;
+  }
+  .empty-orb.gone { opacity: 0; }
+  .empty-orb .title {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-style: italic;
+    color: var(--ink);
+    margin-bottom: 8px;
+    text-shadow: 0 1px 12px rgba(255, 255, 255, 0.7);
+  }
+  .empty-orb .sub {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--ink-soft);
+    text-transform: lowercase;
+    text-shadow: 0 1px 8px rgba(255, 255, 255, 0.6);
+  }
+
+  /* capture bar */
+  .capture {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%);
+    width: min(620px, 92vw);
+    background: transparent;
+    border: 0;
+    padding: 0;
+    z-index: 25;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .capture textarea {
+    width: 100%;
+    background: transparent;
+    border: 0; outline: 0; resize: none;
+    font-family: var(--serif);
+    font-size: 16px; line-height: 1.5;
+    color: var(--ink);
+    min-height: 24px;
+    overflow: hidden;
+    text-align: center;
+  }
+  .capture textarea::placeholder { color: var(--ink-faint); font-style: italic; }
+  .capture-meta {
+    display: flex; gap: 14px; align-items: center; margin-top: 4px;
+    justify-content: center;
+    width: 100%;
+  }
+  .meta-chip {
+    background: transparent;
+    border: 0;
+    padding: 5px 8px;
+    font-size: 11px; color: var(--ink-soft);
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px;
+    transition: color 0.15s, transform 0.15s;
+    font-family: var(--sans);
+  }
+  .meta-chip:hover { color: var(--accent); transform: translateY(-1px); }
+  .meta-chip.active { color: var(--accent); }
+  .meta-chip svg { width: 11px; height: 11px; flex-shrink: 0; }
+  .capture-save {
+    margin-left: 6px;
+    background: transparent;
+    color: var(--accent);
+    border: 0;
+    padding: 6px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: opacity 0.2s, transform 0.2s, color 0.2s;
+    font-family: var(--sans);
+    font-weight: 500;
+  }
+  .capture-save:disabled { opacity: 0.35; cursor: default; color: var(--ink-faint); }
+  .capture-save:not(:disabled):hover { transform: translateY(-1px); color: var(--ink); }
+  body.dark .capture-save { color: #d8c4f8; }
+  body.dark .capture-save:not(:disabled):hover { color: #f0eaff; }
+  body.dark .capture-save:disabled { color: rgba(220,200,240,0.35); }
+  .capture-extras {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s ease;
+  }
+  .capture-extras.open { max-height: 280px; }
+  .extras-row {
+    display: flex; gap: 8px; align-items: center;
+    margin-top: 8px;
+  }
+  .extras-row input[type="text"] {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid rgba(180, 150, 220, 0.2);
+    padding: 6px 4px;
+    font-size: 13px;
+    outline: 0;
+    color: var(--ink);
+    font-family: var(--sans);
+    text-align: center;
+  }
+  .extras-row input[type="text"]:focus { border-bottom-color: var(--accent); }
+  body.dark .extras-row input[type="text"] { color: #f0eaff; border-bottom-color: rgba(220,200,240,0.25); }
+  body.dark .extras-row input[type="text"]:focus { border-bottom-color: #c8a8f0; }
+  .photo-preview-wrap {
+    margin-top: 8px; position: relative;
+    display: none;
+  }
+  .photo-preview-wrap.shown { display: block; }
+  .photo-preview {
+    max-height: 100px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    box-shadow: 0 4px 12px -4px rgba(80, 60, 100, 0.25);
+  }
+  .photo-clear {
+    position: absolute; top: -6px; left: 90px;
+    background: rgba(40,30,50,0.85); color: white;
+    border: 0; width: 18px; height: 18px;
+    border-radius: 50%; cursor: pointer;
+    font-size: 12px; line-height: 1;
+  }
+
+  /* memory detail panel */
+  .panel {
+    position: fixed; top: 70px; right: 24px;
+    width: min(380px, 90vw); max-height: calc(100vh - 180px);
+    background: rgba(255, 252, 250, 0.78);
+    backdrop-filter: blur(26px);
+    -webkit-backdrop-filter: blur(26px);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 22px;
+    box-shadow: 0 26px 70px -20px rgba(80, 60, 100, 0.4);
+    padding: 24px;
+    overflow-y: auto;
+    z-index: 30;
+    transform: translateX(440px);
+    opacity: 0;
+    transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s;
+  }
+  .panel.open { transform: translateX(0); opacity: 1; }
+  .panel-close {
+    position: absolute; top: 14px; right: 16px;
+    background: transparent; border: 0; color: var(--ink-faint);
+    font-size: 22px; cursor: pointer; line-height: 1; padding: 2px;
+  }
+  .panel-close:hover { color: var(--ink); }
+  .panel .when {
+    font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--ink-faint); margin-bottom: 12px;
+  }
+  .panel .photo {
+    width: 100%; border-radius: 14px; margin-bottom: 14px;
+    box-shadow: 0 12px 28px -10px rgba(80, 60, 100, 0.4);
+    display: block;
+  }
+  .panel .body {
+    font-family: var(--serif); font-size: 16px; line-height: 1.6;
+    color: var(--ink); white-space: pre-wrap; margin-bottom: 14px;
+  }
+  .panel .meta-line {
+    font-size: 12px; color: var(--ink-soft);
+    display: flex; align-items: center; gap: 8px;
+    margin: 6px 0;
+    font-family: var(--sans);
+  }
+  .panel .meta-line svg { width: 13px; height: 13px; flex-shrink: 0; color: var(--accent); }
+  .panel .meta-line a { color: var(--accent); text-decoration: none; word-break: break-all; }
+  .panel .meta-line a:hover { text-decoration: underline; }
+  .panel-actions {
+    display: flex; gap: 8px; margin-top: 18px;
+    padding-top: 14px; border-top: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .panel-actions button {
+    background: transparent; border: 0;
+    color: var(--ink-soft); font-size: 11px;
+    padding: 6px 8px; cursor: pointer;
+    letter-spacing: 0.3px;
+    font-family: var(--sans);
+    transition: color 0.15s;
+  }
+  .panel-actions button:hover { color: var(--accent); }
+  .panel-actions button.danger:hover { color: var(--rose); }
+  .related-section {
+    margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line);
+  }
+  .related-label {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--ink-faint); margin-bottom: 8px;
+  }
+  .related-item {
+    font-family: var(--serif); font-size: 13px; line-height: 1.5;
+    color: var(--ink-soft); cursor: pointer;
+    padding: 6px 0; border-bottom: 1px solid var(--line);
+    transition: color 0.15s;
+  }
+  .related-item:last-child { border-bottom: 0; }
+  .related-item:hover { color: var(--accent); }
+
+  /* patterns panel */
+  .patterns {
+    position: fixed; top: 70px; left: 24px;
+    width: min(420px, 90vw); max-height: calc(100vh - 180px);
+    background: rgba(255, 250, 242, 0.85);
+    backdrop-filter: blur(26px);
+    -webkit-backdrop-filter: blur(26px);
+    border: 1px solid rgba(255, 240, 220, 0.8);
+    border-radius: 22px;
+    box-shadow: 0 26px 70px -20px rgba(150, 110, 70, 0.35);
+    padding: 24px;
+    overflow-y: auto;
+    z-index: 30;
+    transform: translateX(-440px);
+    opacity: 0;
+    transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s;
+  }
+  .patterns.open { transform: translateX(0); opacity: 1; }
+  .patterns h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 17px;
+    margin: 0 0 4px;
+    color: var(--ink);
+  }
+  .patterns .sub {
+    font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 18px;
+  }
+  .patterns-content {
+    font-family: var(--serif); font-size: 14px; line-height: 1.65;
+    color: var(--ink); white-space: pre-wrap;
+  }
+  .patterns-loading {
+    display: flex; align-items: center; gap: 10px;
+    color: var(--ink-faint); font-size: 13px; font-style: italic;
+    font-family: var(--serif);
+  }
+  .loading-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent); animation: pulse-dot 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50%      { opacity: 1; transform: scale(1.3); }
+  }
+  .patterns-empty {
+    color: var(--ink-faint); font-style: italic; font-family: var(--serif);
+    font-size: 14px; line-height: 1.6;
+  }
+
+  /* floating actions panel for the hovered orb (galaxy view) */
+  .orb-actions-panel {
+    position: fixed;
+    top: 70px; left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    align-items: center;
+    gap: 18px;
+    z-index: 30;
+    font-family: var(--sans);
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    color: rgba(220, 200, 240, 0.8);
+    pointer-events: auto;
+  }
+  body.galaxy-view .orb-actions-panel.show { display: flex; }
+  .orb-actions-panel .orb-actions-name {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 14px;
+    color: rgba(255,255,255,0.95);
+  }
+  .orb-actions-panel a {
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .orb-actions-panel a:hover { color: #f0eaff; }
+  .orb-actions-panel a.danger:hover { color: #ff8aa0; }
+
+  /* inline rename input for galaxy orbs (works without browser prompt) */
+  .orb-rename-input {
+    position: fixed;
+    background: rgba(20, 12, 35, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(180, 150, 220, 0.4);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 17px;
+    color: #f0eaff;
+    outline: 0;
+    z-index: 100;
+    display: none;
+    text-align: center;
+    min-width: 200px;
+    box-shadow: 0 12px 32px -10px rgba(0,0,0,0.6);
+  }
+  .orb-rename-input.show { display: block; }
+  .orb-rename-actions {
+    position: fixed;
+    z-index: 100;
+    display: none;
+    gap: 10px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-family: var(--sans);
+  }
+  .orb-rename-actions.show { display: flex; }
+  .orb-rename-actions a {
+    color: rgba(220, 200, 240, 0.7);
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .orb-rename-actions a:hover { color: #f0eaff; }
+  .orb-rename-actions a.danger:hover { color: #ff8aa0; }
+
+  /* galaxy 3D view — hide orb-mode UI AND the hazy atmosphere layers (which glitch on dark bg) */
+  body.galaxy-view .capture,
+  body.galaxy-view .aura,
+  body.galaxy-view .atmosphere,
+  body.galaxy-view .clouds,
+  body.galaxy-view .size-controls,
+  body.galaxy-view .hint,
+  body.galaxy-view .memory-display,
+  body.galaxy-view .panel,
+  body.galaxy-view .patterns,
+  body.galaxy-view .themes-menu,
+  body.galaxy-view .constellation-toggle,
+  body.galaxy-view #btn-themes,
+  body.galaxy-view #btn-ambient,
+  body.galaxy-view #btn-patterns,
+  body.galaxy-view #btn-constellations,
+  body.galaxy-view #btn-browse,
+  body.galaxy-view #btn-export,
+  body.galaxy-view #btn-import {
+    display: none !important;
+  }
+  /* Galaxy view bg = pure deep void with just the slow-twinkling stars */
+  body.galaxy-view .stars {
+    -webkit-mask: none;
+            mask: none;
+  }
+  body.galaxy-view #btn-galaxy::before { content: "← "; }
+  .galaxy-floating-new {
+    position: fixed;
+    bottom: 56px; left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 14px;
+    color: rgba(220, 200, 240, 0.7);
+    cursor: pointer;
+    z-index: 30;
+    transition: color 0.2s, transform 0.15s;
+    display: none;
+    letter-spacing: 0.3px;
+  }
+  body.galaxy-view .galaxy-floating-new { display: block; }
+  .galaxy-floating-new:hover { color: #f0eaff; transform: translateX(-50%) translateY(-1px); }
+  .galaxy-hint {
+    position: fixed;
+    bottom: 28px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: rgba(220, 200, 240, 0.4);
+    z-index: 30;
+    display: none;
+    pointer-events: none;
+    text-align: center;
+    font-family: var(--sans);
+  }
+  body.galaxy-view .galaxy-hint { display: block; }
+
+  /* galaxy menu — clean vertical strip on the left */
+  .galaxy-menu {
+    position: fixed;
+    left: 28px; top: 50%;
+    transform: translateY(-50%);
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+    z-index: 28;
+    background: transparent;
+    align-items: flex-start;
+  }
+  .galaxy-menu.open { display: flex; }
+  body.ambient .galaxy-menu { display: none !important; }
+  .galaxy-list { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+  .galaxy-item {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 14px;
+    color: rgba(220, 200, 240, 0.7);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: color 0.2s, transform 0.15s;
+    letter-spacing: 0.3px;
+  }
+  .galaxy-item:hover { color: #f0eaff; transform: translateX(2px); }
+  .galaxy-item.active { color: #f0eaff; }
+  .galaxy-item .name { min-width: 100px; }
+  .galaxy-item .count {
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: rgba(220, 200, 240, 0.45);
+    font-style: normal;
+  }
+  .galaxy-item .actions-mini {
+    opacity: 0;
+    display: flex;
+    gap: 6px;
+    transition: opacity 0.15s;
+  }
+  .galaxy-item:hover .actions-mini { opacity: 1; }
+  .galaxy-item .mini-btn {
+    background: transparent; border: 0;
+    color: rgba(220, 200, 240, 0.5);
+    font-size: 10px;
+    cursor: pointer;
+    padding: 0 2px;
+    font-family: var(--sans);
+  }
+  .galaxy-item .mini-btn:hover { color: #f0eaff; }
+  .galaxy-new {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 14px;
+    color: rgba(220, 200, 240, 0.55);
+    cursor: pointer;
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(180, 150, 220, 0.15);
+    transition: color 0.2s, transform 0.15s;
+    letter-spacing: 0.3px;
+  }
+  .galaxy-new:hover { color: #f0eaff; transform: translateX(2px); }
+
+  /* themes menu — clean vertical strip on the right */
+  .themes-menu {
+    position: fixed;
+    right: 28px; top: 50%;
+    transform: translateY(-50%);
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+    z-index: 28;
+    background: transparent;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    max-height: none;
+    overflow: visible;
+    align-items: flex-end;
+  }
+  .themes-menu.open { display: flex; }
+  body.ambient .themes-menu { display: none !important; }
+
+  .themes-list { display: flex; flex-direction: column; gap: 12px; align-items: flex-end; }
+  .theme-item {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 14px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: color 0.2s, transform 0.15s;
+    letter-spacing: 0.3px;
+  }
+  .theme-item:hover { color: var(--accent); transform: translateX(-2px); }
+  .theme-item.active { color: var(--ink); }
+  .theme-item-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  body.dark .theme-item { color: rgba(220, 200, 240, 0.7); }
+  body.dark .theme-item:hover { color: #f0eaff; }
+  body.dark .theme-item.active { color: #f0eaff; }
+
+  /* customize sub-panel — under the theme list */
+  .custom-controls {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(180, 150, 220, 0.15);
+    width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .custom-title {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--ink-faint); font-family: var(--sans);
+    text-align: right;
+  }
+  body.dark .custom-title { color: rgba(220,200,240,0.55); }
+  .hue-row { display: flex; align-items: center; gap: 10px; }
+  .hue-row .hue-label {
+    width: 12px; height: 12px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .hue-row input[type="range"] {
+    flex: 1; height: 3px;
+    background: linear-gradient(to right,
+      hsl(0,80%,60%), hsl(60,80%,60%), hsl(120,80%,60%),
+      hsl(180,80%,60%), hsl(240,80%,60%), hsl(300,80%,60%), hsl(360,80%,60%));
+    border-radius: 999px; outline: 0; appearance: none; -webkit-appearance: none;
+    cursor: pointer;
+  }
+  .hue-row input[type="range"]::-webkit-slider-thumb {
+    appearance: none; -webkit-appearance: none;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: white; cursor: pointer; border: 0;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.2);
+  }
+  .hue-row input[type="range"]::-moz-range-thumb {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: white; cursor: pointer; border: 0;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.2);
+  }
+  body.dark .hue-row input[type="range"]::-webkit-slider-thumb,
+  body.dark .hue-row input[type="range"]::-moz-range-thumb {
+    background: #f0eaff; box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
+  }
+
+  /* constellation cycling toggle bar — centered horizontally near the bottom */
+  .constellation-toggle {
+    position: fixed;
+    bottom: 110px; left: 50%;
+    transform: translateX(-50%) translateY(12px);
+    display: none;
+    align-items: center;
+    gap: 18px;
+    padding: 10px 18px;
+    z-index: 28;
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  .constellation-toggle.open {
+    display: flex;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .ct-arrow {
+    background: transparent;
+    border: 0;
+    color: var(--ink);
+    font-size: 28px;
+    line-height: 1;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: color 0.2s, transform 0.15s;
+    font-family: var(--sans);
+  }
+  .ct-arrow:hover { color: var(--accent); transform: scale(1.15); }
+  .ct-label { text-align: center; min-width: 160px; pointer-events: none; }
+  .ct-name {
+    font-family: var(--serif);
+    font-size: 17px;
+    font-style: italic;
+    color: var(--ink);
+    letter-spacing: 0.3px;
+  }
+  .ct-shell {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-top: 3px;
+    font-family: var(--sans);
+  }
+  .ct-close {
+    background: transparent; border: 0;
+    color: var(--ink-faint);
+    font-size: 18px; cursor: pointer;
+    line-height: 1; padding: 4px 6px;
+    margin-left: 6px;
+  }
+  .ct-close:hover { color: var(--accent); }
+  body.dark .ct-arrow { color: #f0eaff; }
+  body.dark .ct-name { color: #f0eaff; }
+  body.dark .ct-shell { color: #b8a4d0; }
+  body.dark .ct-close { color: #b8a4d0; }
+  body.ambient .constellation-toggle { display: none !important; }
+
+  /* theme toggle slightly bigger to match icon glyph weight */
+  .actions #btn-theme {
+    font-size: 14px;
+    padding: 4px 10px;
+  }
+
+  /* Memory text floating in the orb when a star is clicked */
+  .memory-display {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(440px, 70vw);
+    text-align: center;
+    pointer-events: none;
+    color: rgba(255, 255, 255, 0.95);
+    font-family: var(--serif);
+    font-size: 18px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    z-index: 12;
+  }
+  .memory-display.show { opacity: 1; }
+  .memory-display .when {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 12px;
+    font-family: var(--sans);
+  }
+  .memory-display .memory-body {
+    color: rgba(255, 255, 255, 0.95);
+  }
+  .memory-display .meta {
+    display: block;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 14px;
+    font-family: var(--sans);
+    letter-spacing: 0.4px;
+  }
+  .memory-display .memory-photo {
+    display: block;
+    max-width: 100%;
+    max-height: 240px;
+    margin: 0 auto 14px;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px -8px rgba(0,0,0,0.5);
+  }
+
+  /* browse overlay */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(40, 30, 50, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: none;
+    align-items: flex-start; justify-content: center;
+    padding: 56px 20px;
+    z-index: 50;
+    overflow-y: auto;
+  }
+  .overlay.open { display: flex; }
+  .library {
+    background: rgba(255, 252, 250, 0.95);
+    border-radius: 22px;
+    width: 100%; max-width: 640px;
+    box-shadow: 0 30px 80px -20px rgba(40, 30, 50, 0.4);
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+  }
+  .library-head {
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--line);
+    display: flex; gap: 14px; align-items: center;
+  }
+  .library-head h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 17px; margin: 0;
+    white-space: nowrap;
+  }
+  .library-head input {
+    flex: 1;
+    background: transparent;
+    border: 0; outline: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 4px 0;
+    font-size: 13px; color: var(--ink);
+    font-family: var(--sans);
+  }
+  .library-head input:focus { border-color: var(--accent); }
+  .library-list { padding: 4px 0; max-height: 60vh; overflow-y: auto; }
+  .entry {
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--line);
+    transition: background 0.15s;
+    cursor: pointer;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .entry:last-child { border-bottom: 0; }
+  .entry:hover { background: rgba(220, 200, 240, 0.15); }
+  .entry-thumb {
+    width: 44px; height: 44px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent-soft), #ffe4d8);
+    flex-shrink: 0;
+    object-fit: cover;
+  }
+  .entry-body { flex: 1; min-width: 0; }
+  .entry .meta {
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--ink-faint); margin-bottom: 4px;
+  }
+  .entry .text {
+    font-family: var(--serif); font-size: 14px; color: var(--ink);
+    line-height: 1.5;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .empty-state {
+    padding: 60px 22px; text-align: center;
+    color: var(--ink-faint); font-style: italic; font-size: 13px;
+    font-family: var(--serif);
+  }
+
+  /* size sliders — bottom-left corner, stacked */
+  .size-controls {
+    position: fixed;
+    left: 22px;
+    bottom: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 22;
+    opacity: 0.85;
+    transition: opacity 0.3s;
+    user-select: none;
+  }
+  .size-controls:hover { opacity: 1; }
+  body.ambient .size-controls { display: none; }
+  .size-slider {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+  .size-slider:hover { opacity: 1; }
+  .size-slider .label {
+    font-size: 10px;
+    color: var(--ink-soft);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: var(--sans);
+  }
+  .size-slider input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 110px; height: 4px;
+    background: rgba(150, 120, 180, 0.35);
+    border-radius: 999px;
+    outline: 0;
+    cursor: pointer;
+  }
+  .size-slider input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px 2px rgba(138, 106, 176, 0.4), 0 1px 4px rgba(80,60,100,0.3);
+    cursor: pointer; border: 0;
+  }
+  .size-slider input[type="range"]::-moz-range-thumb {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px 2px rgba(138, 106, 176, 0.4), 0 1px 4px rgba(80,60,100,0.3);
+    cursor: pointer; border: 0;
+  }
+  body.dark .size-slider .label { color: #b8a4d0; }
+  body.dark .size-slider input[type="range"] {
+    background: rgba(180, 150, 220, 0.3);
+  }
+  body.dark .size-slider input[type="range"]::-webkit-slider-thumb,
+  body.dark .size-slider input[type="range"]::-moz-range-thumb {
+    background: #c8a8f0;
+    box-shadow: 0 0 10px 2px rgba(220, 200, 240, 0.5);
+  }
+  body.ambient .size-slider { display: none; }
+
+  /* ambient mode — hide all UI, just the orb */
+  body.ambient header,
+  body.ambient .capture,
+  body.ambient .hint,
+  body.ambient .panel,
+  body.ambient .patterns,
+  body.ambient .overlay,
+  body.ambient .size-slider,
+  body.ambient .constellation-toggle,
+  body.ambient .toast {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transition: opacity 0.6s ease;
+  }
+  body.ambient header *,
+  body.ambient .capture *,
+  body.ambient .panel *,
+  body.ambient .patterns *,
+  body.ambient .size-slider *,
+  body.ambient .constellation-toggle * {
+    pointer-events: none !important;
+  }
+  .ambient-exit {
+    position: fixed;
+    top: 22px; right: 22px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: rgba(140, 100, 170, 0.55);
+    box-shadow: 0 0 8px 2px rgba(180, 140, 220, 0.35);
+    border: 0;
+    cursor: pointer;
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease, transform 0.2s ease;
+  }
+  .ambient-exit:hover { transform: scale(1.2); }
+  body.ambient .ambient-exit { pointer-events: auto; }
+  body.ambient.show-exit .ambient-exit { opacity: 0.7; }
+  body.dark .ambient-exit { background: rgba(220, 200, 240, 0.45); box-shadow: 0 0 8px 2px rgba(220, 200, 240, 0.3); }
+
+  /* toast */
+  .toast {
+    position: fixed; bottom: 110px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(40,30,50,0.92); color: #f4eee5;
+    padding: 8px 16px; border-radius: 999px;
+    font-size: 12px; letter-spacing: 0.3px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+    z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+<style id="quad-embed">header,.hint,.capture,.size-slider{display:none!important}</style>
+</head>
+<body>
+
+<div class="atmosphere"></div>
+<div class="clouds"><div class="c3"></div></div>
+<div class="stars" id="stars"></div>
+<div class="aura"></div>
+
+<canvas id="orb-canvas"></canvas>
+
+<header>
+  <div class="brand">memory orb<span class="count" id="count">·</span></div>
+  <div class="actions">
+    <button id="btn-galaxy">galaxy</button>
+    <button id="btn-themes">themes</button>
+    <button id="btn-ambient" title="ambient mode (hide UI)">ambient</button>
+    <button id="btn-patterns">find patterns</button>
+    <button id="btn-constellations">constellations</button>
+    <button id="btn-browse">browse</button>
+    <button id="btn-export">export</button>
+    <button id="btn-import">import</button>
+    <input type="file" id="file-import" accept="application/json" style="display:none" />
+  </div>
+</header>
+
+<div class="hint" id="hint">drag or scroll to rotate · pinch to zoom · click a node</div>
+
+<!-- Capture -->
+<div class="capture">
+  <textarea id="cap-text" placeholder="leave a thought..." rows="1"></textarea>
+  <div class="capture-meta">
+    <button class="meta-chip" id="chip-photo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="m3 17 5-4 4 3 5-5 4 4"/></svg>
+      photo
+    </button>
+    <button class="meta-chip" id="chip-place">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s7-7 7-13a7 7 0 0 0-14 0c0 6 7 13 7 13z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      place
+    </button>
+    <button class="meta-chip" id="chip-song">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      song
+    </button>
+    <button class="capture-save" id="cap-save" disabled>save</button>
+  </div>
+  <div class="capture-extras" id="cap-extras">
+    <div class="extras-row" id="row-place" style="display:none;">
+      <input type="text" id="cap-place" placeholder="where? (e.g. Berkeley rooftop, sunset)" />
+    </div>
+    <div class="extras-row" id="row-song" style="display:none;">
+      <input type="text" id="cap-song" placeholder="paste a Spotify, Apple Music, or YouTube link" />
+    </div>
+    <div class="extras-row" id="row-photo" style="display:none;">
+      <input type="file" id="cap-photo" accept="image/*" />
+    </div>
+    <div class="photo-preview-wrap" id="photo-wrap">
+      <img class="photo-preview" id="photo-preview" alt="" />
+      <button class="photo-clear" id="photo-clear" title="remove">&times;</button>
+    </div>
+  </div>
+</div>
+
+<!-- Memory detail -->
+<aside class="panel" id="panel">
+  <button class="panel-close" id="panel-close">&times;</button>
+  <div id="panel-body"></div>
+</aside>
+
+<!-- Patterns -->
+<aside class="patterns" id="patterns-panel">
+  <button class="panel-close" id="patterns-close">&times;</button>
+  <h3>patterns in the orb</h3>
+  <div class="sub">a synthesis</div>
+  <div id="patterns-content"></div>
+</aside>
+
+<!-- Galaxy menu (left-side vertical strip — list of orbs) -->
+<aside class="galaxy-menu" id="galaxy-panel">
+  <div id="galaxy-list" class="galaxy-list"></div>
+  <div class="galaxy-new" id="galaxy-new">+ new orb</div>
+</aside>
+
+<!-- Themes menu (right-side vertical strip) -->
+<aside class="themes-menu" id="themes-panel">
+  <div id="themes-grid" class="themes-list"></div>
+  <div id="custom-controls" class="custom-controls" style="display:none;">
+    <div class="custom-title">customize</div>
+    <div id="custom-sliders"></div>
+  </div>
+</aside>
+
+<!-- Constellation cycling toggle -->
+<div class="constellation-toggle" id="constellation-toggle">
+  <button class="ct-arrow" id="ct-prev" title="previous constellation">‹</button>
+  <div class="ct-label">
+    <div class="ct-name" id="ct-name">Big Dipper</div>
+    <div class="ct-shell" id="ct-shell">outer</div>
+  </div>
+  <button class="ct-arrow" id="ct-next" title="next constellation">›</button>
+  <button class="ct-close" id="ct-close" title="exit constellations" style="display:none">&times;</button>
+</div>
+
+<!-- Memory text overlay (centered in orb) -->
+<div class="memory-display" id="memory-display"></div>
+
+<!-- Browse overlay -->
+<div class="overlay" id="overlay">
+  <div class="library">
+    <div class="library-head">
+      <h2>All thoughts</h2>
+      <input id="search" type="text" placeholder="search..." />
+      <button class="panel-close" id="overlay-close" style="position:static;">&times;</button>
+    </div>
+    <div class="library-list" id="library-list"></div>
+  </div>
+</div>
+
+<div class="size-controls">
+  <div class="size-slider" title="adjust halo radius">
+    <div class="label">halo</div>
+    <input type="range" id="halo-input" min="0.6" max="2.0" step="0.02" value="1" />
+  </div>
+  <div class="size-slider" title="adjust aura size">
+    <div class="label">aura</div>
+    <input type="range" id="aura-input" min="0.4" max="1.6" step="0.02" value="1" />
+  </div>
+</div>
+
+<div class="galaxy-floating-new" id="galaxy-floating-new" title="create a new orb">+ new orb</div>
+<div class="galaxy-hint">click an orb to enter · drag to rotate</div>
+<div class="orb-actions-panel" id="orb-actions-panel">
+  <span class="orb-actions-name" id="orb-actions-name"></span>
+  <a id="orb-actions-rename">✎ rename</a>
+  <a id="orb-actions-delete" class="danger">× delete</a>
+</div>
+<input class="orb-rename-input" id="orb-rename-input" maxlength="40" />
+<div class="orb-rename-actions" id="orb-rename-actions">
+  <a id="orb-rename-edit">✎ rename</a>
+  <a id="orb-rename-delete" class="danger">× delete</a>
+</div>
+
+<button class="ambient-exit" id="ambient-exit" title="exit ambient mode"></button>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+  "use strict";
+
+  // ============================================================
+  // GALAXY (multiple orbs)
+  // ============================================================
+  const ORB_LIST_KEY = "memory-orb.galaxy.list";
+  const ACTIVE_ORB_KEY = "memory-orb.galaxy.active";
+  const MIGRATION_KEY = "memory-orb.galaxy.migrated.v1";
+
+  // Initialize galaxy: existing data lives under "v3" namespace as the first orb
+  let orbList = (function() {
+    try { return JSON.parse(localStorage.getItem(ORB_LIST_KEY)) || []; } catch (e) { return []; }
+  })();
+  if (orbList.length === 0) {
+    orbList = [{ id: "v3", name: "first orb", created: Date.now() }];
+    localStorage.setItem(ORB_LIST_KEY, JSON.stringify(orbList));
+  }
+  let activeOrbId = localStorage.getItem(ACTIVE_ORB_KEY);
+  if (!activeOrbId || !orbList.some(o => o.id === activeOrbId)) {
+    activeOrbId = orbList[0].id;
+    localStorage.setItem(ACTIVE_ORB_KEY, activeOrbId);
+  }
+
+  // One-time migration: old global theme/halo/aura/custom keys → namespaced under v3
+  if (!localStorage.getItem(MIGRATION_KEY)) {
+    const moves = [
+      ["memory-orb.color-theme", "memory-orb.v3.color-theme"],
+      ["memory-orb.custom-theme", "memory-orb.v3.custom-theme"],
+      ["memory-orb.halo", "memory-orb.v3.halo"],
+      ["memory-orb.aura", "memory-orb.v3.aura"]
+    ];
+    for (const [oldK, newK] of moves) {
+      const v = localStorage.getItem(oldK);
+      if (v && !localStorage.getItem(newK)) localStorage.setItem(newK, v);
+    }
+    localStorage.setItem(MIGRATION_KEY, "1");
+  }
+
+  // ============================================================
+  // STORAGE (namespaced by activeOrbId)
+  // ============================================================
+  const STORAGE_KEY = `memory-orb.${activeOrbId}.entries`;
+  const POS_KEY     = `memory-orb.${activeOrbId}.positions`;
+  const SEEN_KEY    = `memory-orb.${activeOrbId}.seen`;
+
+  function safeParse(raw, fallback) {
+    try { return raw ? JSON.parse(raw) : fallback; } catch (e) { return fallback; }
+  }
+  function load() { return safeParse(localStorage.getItem(STORAGE_KEY), []); }
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }
+  function loadPositions() { return safeParse(localStorage.getItem(POS_KEY), {}); }
+  function savePositions() { localStorage.setItem(POS_KEY, JSON.stringify(positions)); }
+  function loadSeen() { return safeParse(localStorage.getItem(SEEN_KEY), {}); }
+  function saveSeen() { localStorage.setItem(SEEN_KEY, JSON.stringify(seen)); }
+
+  // One-time clear of all saved memories (runs once per browser, then never again)
+  const CLEAR_FLAG = "memory-orb.cleared.20260506-1";
+  if (!localStorage.getItem(CLEAR_FLAG)) {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(POS_KEY);
+    localStorage.removeItem(SEEN_KEY);
+    localStorage.setItem(CLEAR_FLAG, "1");
+  }
+
+  let entries = load();
+  let positions = loadPositions();
+  let seen = loadSeen();
+  let edges = [];
+  // Pattern constellations — set after running "find patterns"
+  // Each: { name, observation, ids: [entryIds], hue }
+  let constellations = [];
+
+  // ============================================================
+  // 3D MATH
+  // ============================================================
+  function hashStr(s) {
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return Math.abs(h);
+  }
+  function fract(x) { return x - Math.floor(x); }
+  function rand01(seed, k) {
+    return fract(Math.sin(seed * 12.9898 + k * 78.233) * 43758.5453);
+  }
+
+  function positionFor(id) {
+    if (positions[id]) return positions[id];
+    const h = hashStr(id);
+    const u = rand01(h, 1);
+    const v = rand01(h, 2);
+    // Uniform on sphere
+    const phi = u * Math.PI * 2;
+    const cosTheta = 2 * v - 1;
+    const sinTheta = Math.sqrt(1 - cosTheta * cosTheta);
+    const r = 1.0 + rand01(h, 3) * 0.15;
+    const p = {
+      x: r * sinTheta * Math.cos(phi),
+      y: r * cosTheta,
+      z: r * sinTheta * Math.sin(phi)
+    };
+    positions[id] = p;
+    savePositions();
+    return p;
+  }
+
+  // Camera — starts zoomed out, intro animates in while spinning
+  const cam = { yaw: 0.3, pitch: -0.2, distance: 9.5 };
+  let momentum = { yaw: 0.012, pitch: 0 };
+  let camAnim = null;
+  let intro = { startTime: performance.now(), duration: 5500, fromD: 9.5, toD: 1.85, done: false };
+
+  function spinToFace(p, duration) {
+    duration = duration || 800;
+    // Rotate the orb so this 3D point faces the camera (smallest z = closest)
+    const targetYaw = Math.atan2(-p.x, -p.z);
+    const targetPitch = Math.atan2(-p.y, Math.hypot(p.x, p.z));
+    const TAU = Math.PI * 2;
+    let dYaw = targetYaw - cam.yaw;
+    dYaw = ((dYaw + Math.PI) % TAU + TAU) % TAU - Math.PI;
+    let dPitch = targetPitch - cam.pitch;
+    dPitch = ((dPitch + Math.PI) % TAU + TAU) % TAU - Math.PI;
+    camAnim = {
+      startYaw: cam.yaw,
+      startPitch: cam.pitch,
+      dYaw, dPitch,
+      startTime: performance.now(),
+      duration
+    };
+  }
+
+  function project(p, vw, vh) {
+    const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+    const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+    let x1 = p.x * cy - p.z * sy;
+    let z1 = p.x * sy + p.z * cy;
+    let y2 = p.y * cp - z1 * sp;
+    let z2 = p.y * sp + z1 * cp;
+    const f = Math.min(vw, vh) * 0.42;
+    const d = cam.distance;
+    const scale = f / (z2 + d);
+    return {
+      x: vw / 2 + x1 * scale,
+      y: vh / 2 + y2 * scale,
+      z: z2,
+      scale: scale
+    };
+  }
+
+  // ============================================================
+  // CONTEXT WEB (similarity-based edges)
+  // ============================================================
+  const STOP = new Set(("the a an and or but is are was were be been being i you he she it we they me him her us them my your his hers its our their this that these those not no nor do does did doing have has had having will would should could can may might must just like so as if by from of in on at to for with up out about into through over under again more most other some such own same than too very also then when where why how what who whom which all any both each few only own here there now").split(" "));
+  function tokenize(t) {
+    return (t.toLowerCase().match(/\b[a-z][a-z']{2,}\b/g) || []).filter(w => !STOP.has(w));
+  }
+  function sim(a, b) {
+    const sa = new Set(tokenize(a));
+    const sb = new Set(tokenize(b));
+    if (!sa.size || !sb.size) return 0;
+    let inter = 0;
+    for (const w of sa) if (sb.has(w)) inter++;
+    return inter / (sa.size + sb.size - inter);
+  }
+  function computeEdges() {
+    const set = new Set();
+    const out = [];
+    for (let i = 0; i < entries.length; i++) {
+      const sims = [];
+      for (let j = 0; j < entries.length; j++) {
+        if (i === j) continue;
+        const s = sim(entries[i].text, entries[j].text);
+        if (s > 0.06) sims.push({ j, s });
+      }
+      sims.sort((a, b) => b.s - a.s);
+      for (const { j, s } of sims.slice(0, 3)) {
+        const k = [entries[i].id, entries[j].id].sort().join("|");
+        if (!set.has(k)) {
+          set.add(k);
+          out.push({ a: entries[i].id, b: entries[j].id, s });
+        }
+      }
+    }
+    edges = out;
+  }
+  function relatedTo(id, n) {
+    return edges
+      .filter(e => e.a === id || e.b === id)
+      .map(e => e.a === id ? e.b : e.a)
+      .map(rid => entries.find(en => en.id === rid))
+      .filter(Boolean)
+      .slice(0, n);
+  }
+
+  // ============================================================
+  // CANVAS
+  // ============================================================
+  const canvas = document.getElementById("orb-canvas");
+  const ctx = canvas.getContext("2d");
+  let DPR = Math.min(window.devicePixelRatio || 1, 2);
+  let vw = window.innerWidth, vh = window.innerHeight;
+
+  function resize() {
+    vw = window.innerWidth; vh = window.innerHeight;
+    canvas.width = vw * DPR; canvas.height = vh * DPR;
+    canvas.style.width = vw + "px"; canvas.style.height = vh + "px";
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  let activeId = null;
+  let hoverId = null;
+  let projectedCache = [];
+
+  // 4-pointed sparkle — soft hue-tinted glows, less white overall
+  function drawSparkle(x, y, size, hue, opacity, full) {
+    const rayLen = size * (full ? 2.6 : 1.8);
+    const rayWidth = size * 0.55;
+    ctx.save();
+    ctx.translate(x, y);
+
+    // Vertical ray — hue-tinted radial gradient
+    ctx.save();
+    ctx.scale(1, rayLen / rayWidth);
+    const vg = ctx.createRadialGradient(0, 0, 0, 0, 0, rayWidth);
+    vg.addColorStop(0,   `hsla(${hue}, 75%, 90%, ${opacity * 0.55})`);
+    vg.addColorStop(0.4, `hsla(${hue}, 85%, 86%, ${opacity * 0.22})`);
+    vg.addColorStop(1,   `hsla(${hue}, 85%, 84%, 0)`);
+    ctx.fillStyle = vg;
+    ctx.beginPath(); ctx.arc(0, 0, rayWidth, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // Horizontal ray
+    ctx.save();
+    ctx.scale(rayLen / rayWidth, 1);
+    const hg = ctx.createRadialGradient(0, 0, 0, 0, 0, rayWidth);
+    hg.addColorStop(0,   `hsla(${hue}, 75%, 90%, ${opacity * 0.55})`);
+    hg.addColorStop(0.4, `hsla(${hue}, 85%, 86%, ${opacity * 0.22})`);
+    hg.addColorStop(1,   `hsla(${hue}, 85%, 84%, 0)`);
+    ctx.fillStyle = hg;
+    ctx.beginPath(); ctx.arc(0, 0, rayWidth, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // Soft colored aura under everything
+    if (full) {
+      const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 2.4);
+      glow.addColorStop(0, `hsla(${hue}, 90%, 88%, ${opacity * 0.4})`);
+      glow.addColorStop(1, `hsla(${hue}, 90%, 84%, 0)`);
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(0, 0, size * 2.4, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Hue-tinted core — barely white, mostly the star's own color
+    const core = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 1.2);
+    core.addColorStop(0,   `hsla(${hue}, 60%, 95%, ${opacity * 0.7})`);
+    core.addColorStop(0.4, `hsla(${hue}, 70%, 90%, ${opacity * 0.4})`);
+    core.addColorStop(0.7, `hsla(${hue}, 75%, 86%, ${opacity * 0.15})`);
+    core.addColorStop(1,   `hsla(${hue}, 75%, 84%, 0)`);
+    ctx.fillStyle = core;
+    ctx.beginPath(); ctx.arc(0, 0, size * 1.2, 0, Math.PI * 2); ctx.fill();
+
+    ctx.restore();
+  }
+
+  // Color attractors — warm rose/pink dominant, cool tones as occasional accents.
+  // Multiple warm attractors with high weights cluster the orb in pink/peach/rose,
+  // while cyan/gold/lavender appear as smaller pockets.
+  const ATTRACTORS = [
+    { x:  0.55, y:  0.25, z:  0.35, hue: 348, w: 1.8 },  // rose (dominant)
+    { x: -0.20, y:  0.55, z:  0.40, hue: 332, w: 1.6 },  // pink (dominant)
+    { x:  0.30, y: -0.40, z:  0.55, hue:   8, w: 1.4 },  // warm rose
+    { x: -0.55, y: -0.30, z: -0.20, hue:  28, w: 1.2 },  // peach (medium)
+    { x:  0.10, y:  0.10, z: -0.75, hue: 195, w: 0.55 }, // cyan (accent)
+    { x: -0.40, y:  0.45, z: -0.40, hue: 280, w: 0.50 }, // lavender (accent)
+    { x:  0.40, y: -0.55, z: -0.20, hue:  46, w: 0.45 }  // gold (accent)
+  ];
+
+  // Hue from a 3D point — circular mean of attractors weighted by 1/d^4 for blob falloff
+  function hueAt(p) {
+    let sx = 0, sy = 0;
+    for (const a of ATTRACTORS) {
+      const dx = p.x - a.x, dy = p.y - a.y, dz = p.z - a.z;
+      const d2 = dx*dx + dy*dy + dz*dz + 0.05;
+      const w = a.w / (d2 * d2);
+      const r = a.hue * Math.PI / 180;
+      sx += w * Math.cos(r);
+      sy += w * Math.sin(r);
+    }
+    let h = Math.atan2(sy, sx) * 180 / Math.PI;
+    return ((h % 360) + 360) % 360;
+  }
+
+  // Saturation/lightness near attractors is higher; in-between is softer
+  function colorAt(p) {
+    let sx = 0, sy = 0, peakW = 0;
+    for (const a of ATTRACTORS) {
+      const dx = p.x - a.x, dy = p.y - a.y, dz = p.z - a.z;
+      const d2 = dx*dx + dy*dy + dz*dz + 0.05;
+      const w = a.w / (d2 * d2);
+      peakW = Math.max(peakW, w);
+      const r = a.hue * Math.PI / 180;
+      sx += w * Math.cos(r);
+      sy += w * Math.sin(r);
+    }
+    const total = Math.hypot(sx, sy);
+    const concentration = total === 0 ? 0 : Math.min(1, peakW / total);
+    let h = Math.atan2(sy, sx) * 180 / Math.PI;
+    return {
+      hue: ((h % 360) + 360) % 360,
+      sat: 55 + concentration * 25,           // 55..80
+      light: 80 + (1 - concentration) * 8     // 80..88
+    };
+  }
+
+  // Real constellation patterns — 2D star coords + edge lists
+  const CONSTELLATION_PATTERNS = [
+    { name: "Big Dipper",
+      stars: [[0,0],[0.75,0.15],[0.85,-0.45],[0.10,-0.50],[-0.65,0.30],[-1.20,0.50],[-1.65,0.35]],
+      edges: [[0,1],[1,2],[2,3],[3,0],[0,4],[4,5],[5,6]] },
+    { name: "Orion",
+      stars: [[-0.6,0.8],[0.6,0.7],[-0.3,0.05],[0,0],[0.3,-0.05],[-0.7,-0.7],[0.7,-0.8],[0,-0.4]],
+      edges: [[0,2],[0,1],[1,4],[2,3],[3,4],[2,5],[4,6],[5,6],[3,7]] },
+    { name: "Cassiopeia",
+      stars: [[-1,0],[-0.5,0.55],[0,0.05],[0.5,0.6],[1,-0.05]],
+      edges: [[0,1],[1,2],[2,3],[3,4]] },
+    { name: "Cygnus",
+      stars: [[0,0.95],[0,0],[0,-0.95],[-0.85,0.15],[0.85,0.20]],
+      edges: [[0,1],[1,2],[3,1],[1,4]] },
+    { name: "Lyra",
+      stars: [[0,0.6],[-0.4,0],[0.4,0],[-0.4,-0.5],[0.4,-0.5]],
+      edges: [[0,1],[0,2],[1,3],[2,4],[3,4]] },
+    { name: "Crux",
+      stars: [[0,0.65],[0,-0.7],[-0.55,0.05],[0.5,-0.05]],
+      edges: [[0,1],[2,3]] },
+    { name: "Pegasus",
+      stars: [[-0.55,0.55],[0.55,0.5],[0.5,-0.55],[-0.5,-0.5]],
+      edges: [[0,1],[1,2],[2,3],[3,0]] },
+    { name: "Scorpius",
+      stars: [[-1.0,0.55],[-0.6,0.4],[-0.3,0.2],[0,-0.05],[0.3,-0.35],[0.6,-0.55],[0.9,-0.55],[1.05,-0.25]],
+      edges: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7]] },
+    { name: "Leo",
+      stars: [[-0.55,0.7],[-0.3,0.4],[-0.1,0.55],[0.1,0.3],[0.6,0.0],[0.85,-0.4]],
+      edges: [[0,1],[1,2],[2,3],[3,4],[4,5]] },
+    { name: "Aquila",
+      stars: [[0,0.8],[0,0],[0,-0.8],[-0.6,0.15],[0.6,0.20]],
+      edges: [[0,1],[1,2],[3,1],[1,4]] },
+    { name: "Ursa Minor",
+      stars: [[0,0],[0.5,0.1],[0.55,-0.3],[0.05,-0.35],[-0.45,0.2],[-0.85,0.3],[-1.15,0.15]],
+      edges: [[0,1],[1,2],[2,3],[3,0],[0,4],[4,5],[5,6]] },
+    { name: "Sagittarius",
+      stars: [[-0.55,0.3],[-0.55,-0.3],[-0.25,0.5],[0.3,0.5],[0.5,0.15],[0.3,-0.35],[-0.25,-0.5]],
+      edges: [[0,1],[0,2],[2,3],[3,4],[4,5],[5,6],[6,1]] },
+    { name: "Bootes",
+      stars: [[0,0.85],[-0.35,0.4],[0.35,0.4],[-0.5,-0.1],[0.5,-0.1],[0,-0.7]],
+      edges: [[0,1],[0,2],[1,3],[2,4],[3,5],[4,5]] },
+    { name: "Gemini",
+      stars: [[-0.5,0.6],[0.5,0.65],[-0.5,0.0],[0.5,0.05],[-0.5,-0.6],[0.5,-0.55]],
+      edges: [[0,2],[2,4],[1,3],[3,5],[0,1]] }
+  ];
+
+  // Place a 2D constellation pattern onto a sphere of given radius (default 1.0)
+  function placeConstellation(pattern, lon, lat, rot, scale, radius) {
+    radius = radius == null ? 1.0 : radius;
+    const cosLat = Math.cos(lat), sinLat = Math.sin(lat);
+    const cosLon = Math.cos(lon), sinLon = Math.sin(lon);
+    const ccx = cosLat * cosLon, ccy = sinLat, ccz = cosLat * sinLon;
+    const ex = -sinLon, ey = 0, ez = cosLon;
+    const nx = -sinLat * cosLon, ny = cosLat, nz = -sinLat * sinLon;
+    const cosR = Math.cos(rot), sinR = Math.sin(rot);
+    return pattern.stars.map(([px, py]) => {
+      const rx = px * cosR - py * sinR;
+      const ry = px * sinR + py * cosR;
+      const tx = rx * scale, ty = ry * scale;
+      let x = ccx + tx * ex + ty * nx;
+      let y = ccy + tx * ey + ty * ny;
+      let z = ccz + tx * ez + ty * nz;
+      const len = Math.sqrt(x*x + y*y + z*z) || 1;
+      return { x: (x/len) * radius, y: (y/len) * radius, z: (z/len) * radius };
+    });
+  }
+
+  // Build the sky: place real constellations across multiple shells (depth!) + scattered field stars
+  const stardust = [];
+  const stardustEdges = [];
+  // Track each placement so the user can browse them
+  // Each entry: { name, shell, starIndices, edgeIndices }
+  const placedConstellations = [];
+  (function buildSky() {
+    function placePattern(pattern, radius, scaleMin, scaleMax, brightness, shell) {
+      const lon = Math.random() * Math.PI * 2;
+      const lat = (Math.random() - 0.5) * Math.PI * 0.92;
+      const rot = Math.random() * Math.PI * 2;
+      const scale = scaleMin + Math.random() * (scaleMax - scaleMin);
+      const placed = placeConstellation(pattern, lon, lat, rot, scale, radius);
+      const starStart = stardust.length;
+      const edgeStart = stardustEdges.length;
+      for (const pos of placed) {
+        const c = colorAt(pos);
+        stardust.push({
+          x: pos.x, y: pos.y, z: pos.z,
+          b: brightness * (0.85 + Math.random() * 0.3),
+          ph: Math.random() * Math.PI * 2,
+          hue: c.hue, sat: c.sat, light: c.light,
+          named: true
+        });
+      }
+      for (const [i, j] of pattern.edges) {
+        stardustEdges.push([starStart + i, starStart + j]);
+      }
+      placedConstellations.push({
+        name: pattern.name,
+        shell,
+        starIndices: placed.map((_, i) => starStart + i),
+        edgeIndices: pattern.edges.map((_, i) => edgeStart + i),
+        radius
+      });
+    }
+
+    // Outer shell — every canonical constellation (radius ~1.0)
+    for (const pattern of CONSTELLATION_PATTERNS) {
+      placePattern(pattern, 0.95 + Math.random() * 0.10, 0.18, 0.28, 0.85, "outer");
+    }
+
+    // Mid shell — 10 randomly chosen constellations at radius ~0.65-0.80
+    for (let i = 0; i < 10; i++) {
+      const pattern = CONSTELLATION_PATTERNS[Math.floor(Math.random() * CONSTELLATION_PATTERNS.length)];
+      placePattern(pattern, 0.65 + Math.random() * 0.15, 0.14, 0.22, 0.7, "mid");
+    }
+
+    // Inner shell — 6 smaller constellations at radius ~0.40-0.55, deep inside the orb
+    for (let i = 0; i < 6; i++) {
+      const pattern = CONSTELLATION_PATTERNS[Math.floor(Math.random() * CONSTELLATION_PATTERNS.length)];
+      placePattern(pattern, 0.40 + Math.random() * 0.15, 0.10, 0.18, 0.55, "inner");
+    }
+
+    // Field stars throughout the volume (more sparse near center)
+    let attempts = 0;
+    while (stardust.length < 280 && attempts < 3000) {
+      attempts++;
+      const x = Math.random() * 2 - 1;
+      const y = Math.random() * 2 - 1;
+      const z = Math.random() * 2 - 1;
+      const r2 = x*x + y*y + z*z;
+      if (r2 > 1 || r2 < 0.04) continue;
+      const c = colorAt({ x, y, z });
+      stardust.push({
+        x, y, z,
+        b: 0.25 + Math.random() * 0.55,
+        ph: Math.random() * Math.PI * 2,
+        hue: c.hue, sat: c.sat, light: c.light,
+        named: false
+      });
+    }
+  })();
+
+  // (constellation edges are built above directly from real patterns)
+
+  // ============================================================
+  // GALAXY VIEW — multiple orbs as spheres in 3D space
+  // ============================================================
+  let viewMode = "orb"; // "orb" | "galaxy"
+  const galaxyCam = { yaw: 0.3, pitch: -0.15, distance: 5.0 };
+  let galaxyHoverId = null;
+
+  function hashStrLocal(s) {
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return Math.abs(h);
+  }
+
+  function ensureGalaxyPositions() {
+    let changed = false;
+    for (const o of orbList) {
+      if (!o.galaxyPos) {
+        const seed = hashStrLocal(o.id);
+        const phi = ((seed % 10000) / 10000) * Math.PI * 2;
+        const cosTheta = (((seed >> 14) % 10000) / 10000) * 1.5 - 0.75;
+        const sinTheta = Math.sqrt(Math.max(0, 1 - cosTheta * cosTheta));
+        const r = 1.6 + (((seed >> 22) % 1000) / 1000) * 0.6;
+        o.galaxyPos = {
+          x: r * sinTheta * Math.cos(phi),
+          y: r * cosTheta,
+          z: r * sinTheta * Math.sin(phi)
+        };
+        changed = true;
+      }
+    }
+    if (changed) saveOrbList();
+  }
+  ensureGalaxyPositions();
+
+  function projectGalaxy(p) {
+    const cy = Math.cos(galaxyCam.yaw), sy = Math.sin(galaxyCam.yaw);
+    const cp = Math.cos(galaxyCam.pitch), sp = Math.sin(galaxyCam.pitch);
+    let x1 = p.x * cy - p.z * sy;
+    let z1 = p.x * sy + p.z * cy;
+    let y2 = p.y * cp - z1 * sp;
+    let z2 = p.y * sp + z1 * cp;
+    const f = Math.min(vw, vh) * 0.42;
+    const d = galaxyCam.distance;
+    const scale = f / (z2 + d);
+    return { x: vw / 2 + x1 * scale, y: vh / 2 + y2 * scale, z: z2, scale };
+  }
+
+  let galaxyProjectedCache = [];
+
+  function renderGalaxy() {
+    ctx.clearRect(0, 0, vw, vh);
+
+    // Slow auto-rotate when not dragging
+    if (!dragging) galaxyCam.yaw += 0.0008;
+
+    const projected = orbList.map(o => ({ orb: o, pr: projectGalaxy(o.galaxyPos) }));
+    projected.sort((a, b) => b.pr.z - a.pr.z);
+    galaxyProjectedCache = projected;
+
+    // Larger base size when there's just one orb so it doesn't feel lonely / atomic
+    const baseR = Math.min(vw, vh) * (orbList.length === 1 ? 0.07 : 0.05);
+    const t = performance.now() * 0.001;
+
+    for (const { orb, pr } of projected) {
+      const haloHue = getOrbHaloHue(orb.id);
+      const r0 = Math.max(10, baseR * (pr.scale / (Math.min(vw, vh) * 0.42 / galaxyCam.distance)));
+      // Each orb breathes on its own phase (derived from id)
+      const phase = (hashStrLocal(orb.id) % 1000) / 1000 * Math.PI * 2;
+      const breath = 1 + Math.sin(t * 0.7 + phase) * 0.04;
+      const r = r0 * breath;
+      const isHover = orb.id === galaxyHoverId;
+
+      // Far halo — very wide, very soft, gives ethereal presence
+      const farR = r * (isHover ? 5.5 : 4.5);
+      const far = ctx.createRadialGradient(pr.x, pr.y, r * 1.2, pr.x, pr.y, farR);
+      far.addColorStop(0, `hsla(${haloHue}, 80%, 75%, ${isHover ? 0.20 : 0.12})`);
+      far.addColorStop(0.5, `hsla(${haloHue}, 75%, 70%, ${isHover ? 0.08 : 0.05})`);
+      far.addColorStop(1, `hsla(${haloHue}, 70%, 60%, 0)`);
+      ctx.fillStyle = far;
+      ctx.beginPath(); ctx.arc(pr.x, pr.y, farR, 0, Math.PI * 2); ctx.fill();
+
+      // Mid aura
+      const auraR = r * (isHover ? 2.6 : 2.2);
+      const aura = ctx.createRadialGradient(pr.x, pr.y, 0, pr.x, pr.y, auraR);
+      aura.addColorStop(0, `hsla(${haloHue}, 88%, 82%, ${isHover ? 0.65 : 0.48})`);
+      aura.addColorStop(0.5, `hsla(${haloHue}, 82%, 74%, ${isHover ? 0.28 : 0.20})`);
+      aura.addColorStop(1, `hsla(${haloHue}, 70%, 60%, 0)`);
+      ctx.fillStyle = aura;
+      ctx.beginPath(); ctx.arc(pr.x, pr.y, auraR, 0, Math.PI * 2); ctx.fill();
+
+      // Inner glow
+      const inner = ctx.createRadialGradient(pr.x, pr.y, 0, pr.x, pr.y, r * 1.1);
+      inner.addColorStop(0, `hsla(${haloHue}, 95%, 96%, 0.88)`);
+      inner.addColorStop(0.4, `hsla(${haloHue}, 92%, 87%, 0.55)`);
+      inner.addColorStop(1, `hsla(${haloHue}, 80%, 70%, 0)`);
+      ctx.fillStyle = inner;
+      ctx.beginPath(); ctx.arc(pr.x, pr.y, r * 1.1, 0, Math.PI * 2); ctx.fill();
+
+      // Bright luminous core
+      const core = ctx.createRadialGradient(pr.x, pr.y, 0, pr.x, pr.y, r * 0.45);
+      core.addColorStop(0, `rgba(255, 255, 255, 0.98)`);
+      core.addColorStop(0.5, `hsla(${haloHue}, 95%, 95%, 0.5)`);
+      core.addColorStop(1, `hsla(${haloHue}, 90%, 92%, 0)`);
+      ctx.fillStyle = core;
+      ctx.beginPath(); ctx.arc(pr.x, pr.y, r * 0.45, 0, Math.PI * 2); ctx.fill();
+
+      // Tiny bright pinpoint at center
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.85 + Math.sin(t * 1.3 + phase) * 0.1})`;
+      ctx.beginPath(); ctx.arc(pr.x, pr.y, Math.max(1.5, r * 0.08), 0, Math.PI * 2); ctx.fill();
+
+      // Name + count label, just below the orb's glow
+      const labelY = pr.y + r * 1.8;
+      const labelOpacity = isHover ? 0.95 : 0.7;
+      ctx.fillStyle = `rgba(240, 234, 255, ${labelOpacity})`;
+      ctx.font = `italic ${Math.max(13, r * 0.35)}px "Iowan Old Style", "Palatino Linotype", Georgia, serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText(orb.name, pr.x, labelY);
+      const cnt = countOrbEntries(orb.id);
+      ctx.fillStyle = `rgba(220, 200, 240, ${labelOpacity * 0.5})`;
+      ctx.font = `${Math.max(10, r * 0.22)}px -apple-system, BlinkMacSystemFont, sans-serif`;
+      ctx.fillText(cnt + " " + (cnt === 1 ? "memory" : "memories"), pr.x, labelY + Math.max(16, r * 0.5));
+    }
+
+    requestAnimationFrame(renderGalaxy);
+  }
+
+  function pickGalaxyAt(x, y) {
+    let best = null, bestD = 40;
+    for (const { orb, pr } of galaxyProjectedCache) {
+      const d = Math.hypot(pr.x - x, pr.y - y);
+      if (d < bestD) { best = orb.id; bestD = d; }
+    }
+    return best;
+  }
+
+  function enterGalaxyMode() {
+    viewMode = "galaxy";
+    document.body.classList.add("galaxy-view");
+    galaxyPanel.classList.remove("open");
+    renderGalaxy();
+  }
+
+  function exitGalaxyMode() {
+    viewMode = "orb";
+    document.body.classList.remove("galaxy-view");
+    document.getElementById("orb-actions-panel").classList.remove("show");
+    // Replay the intro: zoom in from far while spinning
+    intro = { startTime: performance.now(), duration: 3500, fromD: 9.5, toD: 1.85, done: false };
+    cam.distance = 9.5;
+    momentum.yaw = 0.012;
+    render();
+  }
+
+  function render() {
+    if (viewMode === "galaxy") return; // galaxy renders its own loop
+    ctx.clearRect(0, 0, vw, vh);
+
+    if (intro && !intro.done) {
+      const t = Math.min(1, (performance.now() - intro.startTime) / intro.duration);
+      // ease out cubic for distance
+      const eased = 1 - Math.pow(1 - t, 3);
+      cam.distance = intro.fromD - eased * (intro.fromD - intro.toD);
+      // Spin both axes — yaw is continuous, pitch oscillates gently then settles
+      const slowdown = 1 - eased * 0.6;
+      cam.yaw += 0.012 * slowdown;
+      cam.pitch += 0.005 * Math.cos(t * Math.PI * 2.5) * slowdown;
+      if (t >= 1) {
+        intro.done = true;
+        cam.distance = intro.toD;
+        cam.pitch = -0.2;
+        momentum.yaw = 0.003;
+      }
+    } else if (camAnim) {
+      const elapsed = performance.now() - camAnim.startTime;
+      const t = Math.min(1, elapsed / camAnim.duration);
+      // ease out cubic
+      const e = 1 - Math.pow(1 - t, 3);
+      cam.yaw = camAnim.startYaw + camAnim.dYaw * e;
+      cam.pitch = camAnim.startPitch + camAnim.dPitch * e;
+      momentum.yaw = 0;
+      momentum.pitch = 0;
+      if (t >= 1) camAnim = null;
+    } else if (!dragging) {
+      cam.yaw += momentum.yaw;
+      cam.pitch += momentum.pitch;
+      momentum.yaw *= 0.96;
+      momentum.pitch *= 0.96;
+      // bias toward gentle auto-rotate; slightly faster when ambient mode is on
+      const targetYaw = ambientMode ? 0.0030 : 0.0016;
+      momentum.yaw += (targetYaw - momentum.yaw) * 0.02;
+    }
+    // Wrap angles so scroll can rotate forever in any direction
+    const TAU = Math.PI * 2;
+    cam.yaw = ((cam.yaw % TAU) + TAU) % TAU;
+    cam.pitch = ((cam.pitch + Math.PI) % TAU + TAU) % TAU - Math.PI;
+
+    // Project all entry nodes
+    const projected = entries.map(e => {
+      const p = positionFor(e.id);
+      return { entry: e, pr: project(p, vw, vh) };
+    });
+    projectedCache = projected;
+
+    // sphere center
+    const cx = vw / 2, cy = vh / 2;
+    // baseR is the reference unit. The two sliders independently scale
+    //   sphereR — the inner sphere body (cyan ring, core, blob clip, specular)
+    //   haloOuterR — the pink halo extent
+    const baseR = Math.min(vw, vh) * 0.24;
+    const sphereR = baseR * orbRadiusFactor;
+    const haloOuterR = baseR * 1.22 * haloRadiusFactor;
+
+    // Very subtle ambient drift — barely-there, not the main color source.
+    const drift = Math.sin(cam.yaw * 0.5) * 8 + Math.sin(cam.pitch * 0.5) * 4;
+    document.documentElement.style.setProperty("--aura-hue", drift.toFixed(1) + "deg");
+
+    // Aura follows the camera's yaw (rotation only; centered always)
+    if (auraEl) {
+      const auraRot = (cam.yaw * 60) % 360;
+      auraEl.style.transform = `translate(-50%, -50%) rotate(${auraRot.toFixed(2)}deg)`;
+    }
+
+    // === CONCENTRIC STRUCTURE matching the reference photo ===
+
+    // 1. Halo — color set by the current theme's haloHue (custom-controllable)
+    const haloAlpha = isDark ? 0.32 : 0.46;
+    const haloR = haloOuterR;
+    const haloHue = currentHaloHue;
+    const haloHue2 = (currentHaloHue + 350) % 360;
+    const zoomFactor = Math.max(1.0, 3.6 / cam.distance);
+    const innerBoost = Math.min(1.6, 1 + (zoomFactor - 1) * 0.5);
+    const wideHalo = ctx.createRadialGradient(cx, cy, 0, cx, cy, haloR);
+    wideHalo.addColorStop(0,    `hsla(${haloHue + drift}, 70%, 84%, ${haloAlpha * 0.18 * innerBoost})`);
+    wideHalo.addColorStop(0.35, `hsla(${haloHue + drift}, 72%, 82%, ${haloAlpha * 0.30 * innerBoost})`);
+    wideHalo.addColorStop(0.55, `hsla(${haloHue + drift}, 75%, 80%, ${haloAlpha * 0.55 * innerBoost})`);
+    wideHalo.addColorStop(0.72, `hsla(${haloHue + drift}, 78%, 78%, ${haloAlpha * 0.90})`);
+    wideHalo.addColorStop(0.83, `hsla(${haloHue + drift}, 80%, 76%, ${haloAlpha})`);
+    wideHalo.addColorStop(0.93, `hsla(${haloHue2 + drift}, 75%, 78%, ${haloAlpha * 0.5})`);
+    wideHalo.addColorStop(1,    `hsla(${haloHue2 + drift}, 70%, 80%, 0)`);
+    ctx.fillStyle = wideHalo;
+    ctx.beginPath(); ctx.arc(cx, cy, haloR, 0, Math.PI * 2); ctx.fill();
+
+    // 2. Inner cyan/blue ring — barely-there hint of cool color
+    const cyanRing = ctx.createRadialGradient(cx, cy, sphereR * 0.08, cx, cy, sphereR * 0.7);
+    cyanRing.addColorStop(0,   "hsla(195, 60%, 80%, 0.01)");
+    cyanRing.addColorStop(0.5, "hsla(195, 70%, 78%, 0.06)");
+    cyanRing.addColorStop(0.85,"hsla(200, 60%, 76%, 0.02)");
+    cyanRing.addColorStop(1,   "hsla(200, 60%, 76%, 0)");
+    ctx.fillStyle = cyanRing;
+    ctx.beginPath(); ctx.arc(cx, cy, sphereR * 0.7, 0, Math.PI * 2); ctx.fill();
+
+    // 3. Tiny luminous center — small bright glint, not a wash
+    const c0 = isDark ? 0.06 : 0.28;
+    const c1 = isDark ? 0.03 : 0.12;
+    const c2 = isDark ? 0.01 : 0.03;
+    const brightCore = ctx.createRadialGradient(cx, cy, 0, cx, cy, sphereR * 0.22);
+    brightCore.addColorStop(0,   `rgba(255, ${isDark ? 245 : 255}, 245, ${c0})`);
+    brightCore.addColorStop(0.3, `rgba(255, ${isDark ? 240 : 252}, 240, ${c1})`);
+    brightCore.addColorStop(0.7, `rgba(255, 240, 230, ${c2})`);
+    brightCore.addColorStop(1,   "rgba(255, 240, 230, 0)");
+    ctx.fillStyle = brightCore;
+    ctx.beginPath(); ctx.arc(cx, cy, sphereR * 0.22, 0, Math.PI * 2); ctx.fill();
+
+    // 4. (rim removed — orb edge defined only by the surrounding soft halo)
+    /*
+    const rim = ctx.createRadialGradient(cx, cy, sphereR * 0.96, cx, cy, sphereR * 1.02);
+    rim.addColorStop(0, "rgba(255, 255, 255, 0)");
+    rim.addColorStop(0.5, "rgba(255, 220, 235, 0.30)");
+    rim.addColorStop(1, "rgba(255, 200, 220, 0)");
+    ctx.fillStyle = rim;
+    ctx.beginPath(); ctx.arc(cx, cy, sphereR * 1.02, 0, Math.PI * 2); ctx.fill();
+    */
+
+    // 5. Specular highlight
+    const highlight = ctx.createRadialGradient(
+      cx - sphereR * 0.4, cy - sphereR * 0.45, 0,
+      cx - sphereR * 0.4, cy - sphereR * 0.45, sphereR * 0.45
+    );
+    const specA0 = isDark ? 0.07 : 0.13;
+    const specA1 = isDark ? 0.025 : 0.05;
+    highlight.addColorStop(0,   `rgba(255, 250, 245, ${specA0})`);
+    highlight.addColorStop(0.4, `rgba(255, 248, 240, ${specA1})`);
+    highlight.addColorStop(1,   "rgba(255, 240, 220, 0)");
+    ctx.save();
+    // clip highlight to inside the sphere
+    ctx.beginPath(); ctx.arc(cx, cy, sphereR, 0, Math.PI * 2); ctx.clip();
+    ctx.fillStyle = highlight;
+    ctx.fillRect(cx - sphereR, cy - sphereR, sphereR * 2, sphereR * 2);
+    ctx.restore();
+
+    // 6. Subtle shadow on opposite rim — completes the sphere illusion (light mode only)
+    if (!isDark) {
+      const innerShadow = ctx.createRadialGradient(
+        cx + sphereR * 0.5, cy + sphereR * 0.5, sphereR * 0.3,
+        cx + sphereR * 0.5, cy + sphereR * 0.5, sphereR * 1.0
+      );
+      innerShadow.addColorStop(0, "rgba(180, 120, 150, 0)");
+      innerShadow.addColorStop(0.65, "rgba(180, 120, 150, 0)");
+      innerShadow.addColorStop(1, "rgba(180, 120, 150, 0.18)");
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, sphereR, 0, Math.PI * 2); ctx.clip();
+      ctx.fillStyle = innerShadow;
+      ctx.fillRect(cx - sphereR, cy - sphereR, sphereR * 2, sphereR * 2);
+      ctx.restore();
+    }
+
+    // Watercolor blobs — no hard clip, the blobs' own radial gradients fade to zero at their edges
+    // so they naturally blend into the surrounding pink halo. Inner blobs are kept reasonably small
+    // so they don't extend far past the sphere.
+    for (const a of ATTRACTORS) {
+      const pr = project(a, vw, vh);
+      const depthN = Math.max(0, Math.min(1, (1.5 - pr.z) / 3));
+      const blobR = sphereR * (0.42 + 0.24 * pr.scale / (Math.min(vw, vh) * 0.42 / cam.distance));
+      const op = (0.14 + depthN * 0.22) * a.w;
+      const grad = ctx.createRadialGradient(pr.x, pr.y, 0, pr.x, pr.y, blobR);
+      grad.addColorStop(0,    `hsla(${a.hue}, 80%, 80%, ${op})`);
+      grad.addColorStop(0.5,  `hsla(${a.hue}, 70%, 84%, ${op * 0.4})`);
+      grad.addColorStop(1,    `hsla(${a.hue}, 70%, 84%, 0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(pr.x, pr.y, blobR, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Real-constellation edges — connect named stars per the canonical figures
+    ctx.lineCap = "round";
+    const highlightedEdgeSet = highlightedConstellationIdx >= 0
+      ? new Set(placedConstellations[highlightedConstellationIdx].edgeIndices)
+      : null;
+    for (let ei = 0; ei < stardustEdges.length; ei++) {
+      const [ai, bi] = stardustEdges[ei];
+      const a = stardust[ai], b = stardust[bi];
+      const ap = project(a, vw, vh), bp = project(b, vw, vh);
+      const avgZ = (ap.z + bp.z) / 2;
+      const depthN = Math.max(0, Math.min(1, (1.5 - avgZ) / 3));
+      const avgHue = (a.hue + b.hue) / 2;
+      const isHighlighted = highlightedEdgeSet && highlightedEdgeSet.has(ei);
+      const baseOp = 0.45 + depthN * 0.50;
+      // Highlighted = brighter & lighter, but same line width (no thick outline)
+      const op = isHighlighted ? Math.min(1.0, baseOp * 1.5) : baseOp;
+      const sat = isHighlighted ? 80 : 55;
+      const light = isHighlighted ? (isDark ? 88 : 70) : (isDark ? 80 : 56);
+      ctx.strokeStyle = `hsla(${avgHue}, ${sat}%, ${light}%, ${op})`;
+      ctx.lineWidth = 0.95;
+      ctx.beginPath();
+      ctx.moveTo(ap.x, ap.y);
+      ctx.lineTo(bp.x, bp.y);
+      ctx.stroke();
+    }
+
+    // Stardust — twinkling sparkles, each with its own stable hue
+    const t = performance.now() * 0.001;
+    const highlightedStarSet = highlightedConstellationIdx >= 0
+      ? new Set(placedConstellations[highlightedConstellationIdx].starIndices)
+      : null;
+    const dustProjected = stardust.map((d, i) => ({ d, pr: project(d, vw, vh), idx: i }))
+      .sort((a, b) => b.pr.z - a.pr.z);
+    for (const { d, pr, idx } of dustProjected) {
+      const depthN = Math.max(0, Math.min(1, (1.5 - pr.z) / 3));
+      const tw = 0.4 + 0.6 * Math.sin(t * 1.8 + d.ph);
+      const baseAlpha = d.named ? 0.85 : 0.65;
+      const isHighlighted = highlightedStarSet && highlightedStarSet.has(idx);
+      const lumBoost = isHighlighted ? 1.8 : 1.0;
+      const op = Math.min(1, (baseAlpha + depthN * 0.4) * d.b * (0.55 + 0.45 * tw) * lumBoost);
+      const szMul = isHighlighted ? 2.4 : (d.named ? 1.9 : 1.6);
+      const sz = Math.max(0.9, szMul * (pr.scale / (Math.min(vw, vh) * 0.42 / cam.distance)));
+      drawSparkle(pr.x, pr.y, sz, d.hue, op, false);
+    }
+
+    // Draw edges (back to front by avg z)
+    const projMap = new Map(projected.map(p => [p.entry.id, p.pr]));
+    const edgeList = edges.map(e => {
+      const a = projMap.get(e.a), b = projMap.get(e.b);
+      if (!a || !b) return null;
+      return { a, b, s: e.s, avgZ: (a.z + b.z) / 2 };
+    }).filter(Boolean).sort((p, q) => q.avgZ - p.avgZ);
+
+    for (const ed of edgeList) {
+      const op = Math.max(0.22, Math.min(0.65, 0.55 - ed.avgZ * 0.08));
+      // Use endpoint hues so the edge belongs to its region
+      const aEntry = entries.find(e => projMap.get(e.id) === ed.a);
+      const bEntry = entries.find(e => projMap.get(e.id) === ed.b);
+      const ah = aEntry ? hueAt(positionFor(aEntry.id)) : 320;
+      const bh = bEntry ? hueAt(positionFor(bEntry.id)) : 320;
+      const grad = ctx.createLinearGradient(ed.a.x, ed.a.y, ed.b.x, ed.b.y);
+      grad.addColorStop(0,   `hsla(${ah}, 55%, 60%, ${op})`);
+      grad.addColorStop(0.5, `hsla(${(ah + bh) / 2}, 60%, 75%, ${op * 1.3})`);
+      grad.addColorStop(1,   `hsla(${bh}, 55%, 60%, ${op})`);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 1.0 + ed.s * 1.8;
+      ctx.beginPath();
+      ctx.moveTo(ed.a.x, ed.a.y);
+      ctx.lineTo(ed.b.x, ed.b.y);
+      ctx.stroke();
+    }
+
+    // Constellation lines — pattern threads identified by Claude
+    if (constellations.length) {
+      for (const c of constellations) {
+        const pts = c.ids.map(id => projMap.get(id)).filter(Boolean);
+        if (pts.length < 2) continue;
+        const avgZ = pts.reduce((s, p) => s + p.z, 0) / pts.length;
+        const op = Math.max(0.45, Math.min(0.85, 0.75 - avgZ * 0.08));
+        // Connect each star to the next forming a chain, plus close the loop
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = `hsla(${c.hue}, 80%, 75%, ${op * 0.8})`;
+        ctx.strokeStyle = `hsla(${c.hue}, 75%, 70%, ${op})`;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.lineTo(pts[0].x, pts[0].y); // close the constellation loop
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    // Sort nodes back to front
+    const sorted = projected.slice().sort((a, b) => b.pr.z - a.pr.z);
+
+    for (const { entry, pr } of sorted) {
+      const baseSize = 4.5;
+      const size = Math.max(2.2, baseSize * (pr.scale / (Math.min(vw, vh) * 0.42 / cam.distance)));
+      const depthN = Math.max(0, Math.min(1, (1.5 - pr.z) / 3));
+      const opacity = 0.55 + depthN * 0.45;
+      const isActive = entry.id === activeId;
+      const isHover = entry.id === hoverId;
+
+      // Stable hue from this memory's 3D position
+      const orig = positionFor(entry.id);
+      const nodeHue = hueAt(orig);
+
+      // 4-pointed sparkle — bigger when active or hovered
+      const sparkleSize = size * (isActive ? 1.4 : isHover ? 1.15 : 1.0);
+      drawSparkle(pr.x, pr.y, sparkleSize, nodeHue, opacity, true);
+
+      // (no extra ring for photo-bearing nodes — kept clean)
+
+      // Active = brighter sparkle only, no extra ring
+    }
+
+    // === Always-visible anchor sparkles at attractor positions ===
+    const anchorBeads = ATTRACTORS.map(a => ({ a, pr: project(a, vw, vh) }))
+      .sort((x, y) => y.pr.z - x.pr.z);
+    for (const { a, pr } of anchorBeads) {
+      const depthN = Math.max(0, Math.min(1, (1.5 - pr.z) / 3));
+      const opacity = 0.45 + depthN * 0.45;
+      const size = Math.max(1.4, 2.8 * (pr.scale / (Math.min(vw, vh) * 0.42 / cam.distance)));
+      drawSparkle(pr.x, pr.y, size, a.hue, opacity, true);
+    }
+
+    requestAnimationFrame(render);
+  }
+
+  // ============================================================
+  // INTERACTION
+  // ============================================================
+  let dragging = false;
+  let dragStart = null;
+  let lastPt = null;
+
+  function getPt(e) {
+    if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  canvas.addEventListener("pointerdown", (e) => {
+    dragging = true;
+    canvas.classList.add("dragging");
+    const p = getPt(e);
+    lastPt = p;
+    dragStart = { x: p.x, y: p.y, t: Date.now() };
+    canvas.setPointerCapture(e.pointerId);
+    camAnim = null;
+    if (intro) intro.done = true;
+  });
+
+  // Floating actions panel — bound to the last hovered orb so user has time to move to it
+  const orbActionsPanel = document.getElementById("orb-actions-panel");
+  const orbActionsName = document.getElementById("orb-actions-name");
+  let orbActionsTargetId = null;
+  let orbActionsHideTimer = null;
+
+  function showOrbActions(orbId) {
+    const o = orbList.find(x => x.id === orbId);
+    if (!o) return;
+    orbActionsTargetId = orbId;
+    orbActionsName.textContent = o.name;
+    orbActionsPanel.classList.add("show");
+    if (orbActionsHideTimer) { clearTimeout(orbActionsHideTimer); orbActionsHideTimer = null; }
+  }
+  function scheduleHideOrbActions() {
+    if (orbActionsHideTimer) clearTimeout(orbActionsHideTimer);
+    orbActionsHideTimer = setTimeout(() => {
+      orbActionsPanel.classList.remove("show");
+      orbActionsTargetId = null;
+    }, 2200);
+  }
+  // Keep panel visible while hovered
+  orbActionsPanel.addEventListener("pointerenter", () => {
+    if (orbActionsHideTimer) { clearTimeout(orbActionsHideTimer); orbActionsHideTimer = null; }
+  });
+  orbActionsPanel.addEventListener("pointerleave", scheduleHideOrbActions);
+  document.getElementById("orb-actions-rename").addEventListener("click", () => {
+    if (orbActionsTargetId) renameOrb(orbActionsTargetId);
+  });
+  document.getElementById("orb-actions-delete").addEventListener("click", () => {
+    if (orbActionsTargetId) deleteOrb(orbActionsTargetId);
+  });
+
+  function pointerMoveGalaxy(p) {
+    if (dragging) {
+      const dx = p.x - lastPt.x;
+      const dy = p.y - lastPt.y;
+      galaxyCam.yaw += dx * 0.005;
+      galaxyCam.pitch -= dy * 0.005;
+      galaxyCam.pitch = Math.max(-1.4, Math.min(1.4, galaxyCam.pitch));
+      lastPt = p;
+    } else {
+      const id = pickGalaxyAt(p.x, p.y);
+      if (id !== galaxyHoverId) {
+        galaxyHoverId = id;
+        canvas.style.cursor = id ? "pointer" : "grab";
+        if (id) {
+          showOrbActions(id);
+        } else {
+          scheduleHideOrbActions();
+        }
+      }
+    }
+  }
+  function pointerUpGalaxy(p, mods) {
+    mods = mods || {};
+    const wasDrag = dragStart && (Math.hypot(p.x - dragStart.x, p.y - dragStart.y) > 5);
+    if (!wasDrag) {
+      const id = pickGalaxyAt(p.x, p.y);
+      if (id) {
+        if (mods.shift) {
+          renameOrb(id);
+          return;
+        }
+        if (mods.alt || mods.meta) {
+          deleteOrb(id);
+          return;
+        }
+        if (id === activeOrbId) {
+          exitGalaxyMode();
+        } else {
+          switchToOrb(id);
+        }
+      }
+    }
+  }
+
+  // Right-click an orb in galaxy view to rename it (or delete via shift+right-click)
+  canvas.addEventListener("contextmenu", (e) => {
+    if (viewMode !== "galaxy") return;
+    e.preventDefault();
+    const id = pickGalaxyAt(e.clientX, e.clientY);
+    if (!id) return;
+    if (e.shiftKey) {
+      deleteOrb(id);
+    } else {
+      renameOrb(id);
+    }
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    const p = getPt(e);
+    if (viewMode === "galaxy") { pointerMoveGalaxy(p); return; }
+    if (dragging) {
+      const dx = p.x - lastPt.x;
+      const dy = p.y - lastPt.y;
+      cam.yaw += dx * 0.005;
+      cam.pitch -= dy * 0.005;
+      momentum.yaw = dx * 0.005;
+      momentum.pitch = -dy * 0.005;
+      lastPt = p;
+    } else {
+      // Hover detection
+      const id = pickAt(p.x, p.y);
+      if (id !== hoverId) {
+        hoverId = id;
+        canvas.style.cursor = id ? "pointer" : "grab";
+      }
+    }
+  });
+  canvas.addEventListener("pointerup", (e) => {
+    canvas.classList.remove("dragging");
+    const p = getPt(e);
+    if (viewMode === "galaxy") {
+      pointerUpGalaxy(p, { shift: e.shiftKey, alt: e.altKey, meta: e.metaKey || e.ctrlKey });
+      dragging = false; dragStart = null; return;
+    }
+    const wasDrag = dragStart && (Math.hypot(p.x - dragStart.x, p.y - dragStart.y) > 5);
+    if (!wasDrag) {
+      const id = pickAt(p.x, p.y);
+      if (id) {
+        openMemory(id);
+      } else if (memoryDisplay.classList.contains("show")) {
+        // click empty space → dismiss the floating memory text
+        hideMemoryText();
+      }
+    }
+    dragging = false;
+    dragStart = null;
+  });
+  canvas.addEventListener("pointercancel", () => { dragging = false; canvas.classList.remove("dragging"); });
+
+  canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    if (e.ctrlKey) {
+      // Pinch-to-zoom — bounded so the outermost stars never project past the orb rim.
+      // (Math: with sphere radius ~1.15, max projected radius = r / sqrt(d^2 - r^2).
+      // For that to stay inside sphereR (= 0.905f), we need d >= ~1.8.)
+      cam.distance = Math.max(1.85, Math.min(10, cam.distance + e.deltaY * 0.012));
+    } else {
+      // Scroll rotates the sky — no clamp, infinite rotation
+      cam.yaw   -= e.deltaX * 0.004;
+      cam.pitch -= e.deltaY * 0.004;
+      momentum.yaw = -e.deltaX * 0.004;
+      momentum.pitch = -e.deltaY * 0.004;
+    }
+  }, { passive: false });
+
+  function pickAt(x, y) {
+    let best = null, bestD = 22;
+    for (const { entry, pr } of projectedCache) {
+      const d = Math.hypot(pr.x - x, pr.y - y);
+      if (d < bestD) { best = entry.id; bestD = d; }
+    }
+    return best;
+  }
+
+  // ============================================================
+  // CRUD
+  // ============================================================
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+  function timeAgo(ts) {
+    const d = (Date.now() - ts) / 1000;
+    if (d < 60) return "just now";
+    if (d < 3600) return Math.floor(d / 60) + "m ago";
+    if (d < 86400) return Math.floor(d / 3600) + "h ago";
+    if (d < 86400 * 7) return Math.floor(d / 86400) + "d ago";
+    if (d < 86400 * 30) return Math.floor(d / (86400 * 7)) + "w ago";
+    if (d < 86400 * 365) return Math.floor(d / (86400 * 30)) + "mo ago";
+    return Math.floor(d / (86400 * 365)) + "y ago";
+  }
+  function formatDate(ts) {
+    return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  }
+  function escapeHTML(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, c =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function escapeURL(u) {
+    if (typeof u !== "string") return "";
+    if (!/^https?:\/\//i.test(u)) return "";
+    return u.replace(/[<>"]/g, "");
+  }
+
+  function updateCount() {
+    const n = entries.length;
+    document.getElementById("count").textContent = n === 0 ? "·" : "· " + n;
+    const eo = document.getElementById("empty-orb");
+    if (eo) eo.classList.toggle("gone", n > 0);
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(t._t);
+    t._t = setTimeout(() => t.classList.remove("show"), 1800);
+  }
+
+  // ============================================================
+  // CAPTURE
+  // ============================================================
+  const capText = document.getElementById("cap-text");
+  const capSave = document.getElementById("cap-save");
+  const capExtras = document.getElementById("cap-extras");
+  const capPlace = document.getElementById("cap-place");
+  const capSong = document.getElementById("cap-song");
+  const capPhoto = document.getElementById("cap-photo");
+  const photoPreview = document.getElementById("photo-preview");
+  const photoWrap = document.getElementById("photo-wrap");
+  const photoClear = document.getElementById("photo-clear");
+
+  let pendingPhoto = null;
+
+  function autoresize() {
+    capText.style.height = "auto";
+    capText.style.height = Math.max(24, capText.scrollHeight) + "px";
+  }
+  capText.addEventListener("input", () => {
+    capSave.disabled = !capText.value.trim();
+    autoresize();
+  });
+  capText.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      doSave();
+    }
+  });
+
+  function toggleChip(chip, rowId) {
+    chip.classList.toggle("active");
+    const row = document.getElementById(rowId);
+    const open = chip.classList.contains("active");
+    row.style.display = open ? "flex" : "none";
+    refreshExtrasOpen();
+    if (open) setTimeout(() => row.querySelector("input")?.focus(), 50);
+  }
+  function refreshExtrasOpen() {
+    const anyOpen = document.querySelectorAll(".meta-chip.active").length > 0 || photoWrap.classList.contains("shown");
+    capExtras.classList.toggle("open", anyOpen);
+  }
+  document.getElementById("chip-photo").addEventListener("click", () => {
+    if (pendingPhoto) {
+      // toggling off clears the photo
+      pendingPhoto = null;
+      photoWrap.classList.remove("shown");
+      document.getElementById("chip-photo").classList.remove("active");
+      refreshExtrasOpen();
+    } else {
+      capPhoto.click();
+    }
+  });
+  document.getElementById("chip-place").addEventListener("click", function () { toggleChip(this, "row-place"); });
+  document.getElementById("chip-song").addEventListener("click",  function () { toggleChip(this, "row-song"); });
+
+  capPhoto.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await compressImage(file, 720, 0.72);
+      pendingPhoto = dataUrl;
+      photoPreview.src = dataUrl;
+      photoWrap.classList.add("shown");
+      document.getElementById("chip-photo").classList.add("active");
+      refreshExtrasOpen();
+    } catch (err) {
+      showToast("couldn't read that image");
+    }
+    capPhoto.value = "";
+  });
+  photoClear.addEventListener("click", () => {
+    pendingPhoto = null;
+    photoWrap.classList.remove("shown");
+    document.getElementById("chip-photo").classList.remove("active");
+    refreshExtrasOpen();
+  });
+
+  async function compressImage(file, maxDim, quality) {
+    const dataUrl = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+    const img = await new Promise((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = rej;
+      i.src = dataUrl;
+    });
+    let w = img.width, h = img.height;
+    if (Math.max(w, h) > maxDim) {
+      if (w >= h) { h = Math.round(h * maxDim / w); w = maxDim; }
+      else        { w = Math.round(w * maxDim / h); h = maxDim; }
+    }
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    c.getContext("2d").drawImage(img, 0, 0, w, h);
+    return c.toDataURL("image/jpeg", quality);
+  }
+
+  capSave.addEventListener("click", doSave);
+  function doSave() {
+    const text = capText.value.trim();
+    if (!text) return;
+    const entry = {
+      id: uid(),
+      text,
+      ts: Date.now(),
+      photo: pendingPhoto || null,
+      place: capPlace.value.trim() || null,
+      song: capSong.value.trim() || null
+    };
+    try {
+      entries.unshift(entry);
+      save();
+    } catch (err) {
+      // localStorage quota
+      entries.shift();
+      showToast("storage full. try a smaller photo or export + clear.");
+      return;
+    }
+    positionFor(entry.id);
+    computeEdges();
+    capText.value = "";
+    capPlace.value = "";
+    capSong.value = "";
+    pendingPhoto = null;
+    photoWrap.classList.remove("shown");
+    document.querySelectorAll(".meta-chip.active").forEach(c => c.classList.remove("active"));
+    document.getElementById("row-place").style.display = "none";
+    document.getElementById("row-song").style.display = "none";
+    capExtras.classList.remove("open");
+    capSave.disabled = true;
+    autoresize();
+    updateCount();
+    showToast("held.");
+    // Briefly highlight the new node
+    activeId = entry.id;
+    setTimeout(() => { if (activeId === entry.id) activeId = null; }, 2400);
+  }
+
+  // ============================================================
+  // MEMORY DETAIL PANEL
+  // ============================================================
+  const panel = document.getElementById("panel");
+  const panelBody = document.getElementById("panel-body");
+
+  function openMemory(id) {
+    const entry = entries.find(e => e.id === id);
+    if (!entry) return;
+    activeId = id;
+    seen[id] = (seen[id] || 0) + 1;
+    saveSeen();
+    // Spin the orb so this memory comes to front
+    spinToFace(positionFor(entry.id), 750);
+    showMemoryText(entry);
+  }
+
+  // Floating in-orb memory text (no panel, no background)
+  const memoryDisplay = document.getElementById("memory-display");
+  function showMemoryText(entry) {
+    const parts = [];
+    parts.push('<span class="when">' + escapeHTML(formatDate(entry.ts)) + ' · ' + escapeHTML(timeAgo(entry.ts)) + '</span>');
+    if (entry.photo) {
+      parts.push('<img class="memory-photo" src="' + escapeHTML(entry.photo) + '" alt="" />');
+    }
+    parts.push('<div class="memory-body">' + escapeHTML(entry.text) + '</div>');
+    const meta = [];
+    if (entry.place) meta.push(escapeHTML(entry.place));
+    if (entry.song) meta.push("♪ " + escapeHTML(entry.song.replace(/^https?:\/\//i, "").slice(0, 40)));
+    if (meta.length) parts.push('<span class="meta">' + meta.join(" · ") + '</span>');
+    memoryDisplay.innerHTML = parts.join("");
+    memoryDisplay.classList.add("show");
+  }
+  function hideMemoryText() {
+    memoryDisplay.classList.remove("show");
+    activeId = null;
+  }
+  function closePanel() { panel.classList.remove("open"); activeId = null; }
+
+  function renderPanel(entry) {
+    const related = relatedTo(entry.id, 4);
+    const songEmbed = entry.song ? songLinkHTML(entry.song) : "";
+    const placeHTML = entry.place ? `
+      <div class="meta-line">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s7-7 7-13a7 7 0 0 0-14 0c0 6 7 13 7 13z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        <span>${escapeHTML(entry.place)}</span>
+      </div>` : "";
+    const photoHTML = entry.photo ? `<img class="photo" src="${escapeHTML(entry.photo)}" alt="" />` : "";
+    const relatedHTML = related.length ? `
+      <div class="related-section">
+        <div class="related-label">connected memories</div>
+        ${related.map(r => `<div class="related-item" data-id="${r.id}">${escapeHTML(r.text.slice(0, 120))}${r.text.length > 120 ? "…" : ""}</div>`).join("")}
+      </div>` : "";
+
+    panelBody.innerHTML = `
+      <div class="when">${escapeHTML(formatDate(entry.ts))} · ${escapeHTML(timeAgo(entry.ts))}</div>
+      ${photoHTML}
+      <div class="body">${escapeHTML(entry.text)}</div>
+      ${placeHTML}
+      ${songEmbed}
+      <div class="panel-actions">
+        <button data-act="surface">surface</button>
+        <button data-act="edit">edit text</button>
+        <button data-act="delete" class="danger">release</button>
+      </div>
+      ${relatedHTML}
+    `;
+    panelBody.querySelectorAll(".related-item").forEach(el => {
+      el.addEventListener("click", () => openMemory(el.dataset.id));
+    });
+    panelBody.querySelectorAll(".panel-actions button").forEach(btn => {
+      btn.addEventListener("click", () => handlePanelAction(btn.dataset.act, entry));
+    });
+  }
+
+  function songLinkHTML(url) {
+    const safe = escapeURL(url);
+    if (!safe) return "";
+    return `
+      <div class="meta-line">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        <a href="${safe}" target="_blank" rel="noopener">${escapeHTML(safe)}</a>
+      </div>`;
+  }
+
+  function handlePanelAction(act, entry) {
+    if (act === "delete") {
+      if (confirm("Release this memory?")) {
+        entries = entries.filter(e => e.id !== entry.id);
+        delete positions[entry.id]; savePositions();
+        delete seen[entry.id]; saveSeen();
+        save();
+        computeEdges();
+        updateCount();
+        closePanel();
+        showToast("released.");
+      }
+    } else if (act === "edit") {
+      const t = prompt("edit text", entry.text);
+      if (t != null && t.trim()) {
+        entry.text = t.trim();
+        save();
+        computeEdges();
+        renderPanel(entry);
+        showToast("updated.");
+      }
+    } else if (act === "surface") {
+      // smooth spin to face this memory
+      spinToFace(positionFor(entry.id), 750);
+      closePanel();
+      setTimeout(() => { activeId = entry.id; setTimeout(() => activeId = null, 2200); }, 50);
+    }
+  }
+
+  document.getElementById("panel-close").addEventListener("click", closePanel);
+
+  // ============================================================
+  // PATTERNS (askClaude)
+  // ============================================================
+  const patternsPanel = document.getElementById("patterns-panel");
+  const patternsContent = document.getElementById("patterns-content");
+
+  document.getElementById("btn-patterns").addEventListener("click", openPatterns);
+  document.getElementById("patterns-close").addEventListener("click", () => patternsPanel.classList.remove("open"));
+
+  // ========== CONSTELLATION CYCLING TOGGLE ==========
+  const constellationToggle = document.getElementById("constellation-toggle");
+  const ctName = document.getElementById("ct-name");
+  const ctShell = document.getElementById("ct-shell");
+  let highlightedConstellationIdx = -1;
+
+  function travelTo(idx) {
+    if (!placedConstellations.length) return;
+    // Wrap index
+    const n = placedConstellations.length;
+    idx = ((idx % n) + n) % n;
+    highlightedConstellationIdx = idx;
+    const c = placedConstellations[idx];
+    // Centroid
+    let sx = 0, sy = 0, sz = 0;
+    for (const si of c.starIndices) {
+      sx += stardust[si].x; sy += stardust[si].y; sz += stardust[si].z;
+    }
+    const k = c.starIndices.length;
+    spinToFace({ x: sx/k, y: sy/k, z: sz/k }, 900);
+    ctName.textContent = c.name;
+    ctShell.textContent = c.shell + " · " + (idx + 1) + " / " + n;
+  }
+
+  function openConstellationToggle() {
+    constellationToggle.classList.add("open");
+    travelTo(highlightedConstellationIdx >= 0 ? highlightedConstellationIdx : 0);
+  }
+  function closeConstellationToggle() {
+    constellationToggle.classList.remove("open");
+    highlightedConstellationIdx = -1;
+  }
+
+  document.getElementById("btn-constellations").addEventListener("click", () => {
+    if (constellationToggle.classList.contains("open")) closeConstellationToggle();
+    else openConstellationToggle();
+  });
+  document.getElementById("ct-prev").addEventListener("click", () => travelTo(highlightedConstellationIdx - 1));
+  document.getElementById("ct-next").addEventListener("click", () => travelTo(highlightedConstellationIdx + 1));
+  document.getElementById("ct-close").addEventListener("click", closeConstellationToggle);
+
+  // Arrow keys cycle when toggle is open
+  document.addEventListener("keydown", (e) => {
+    if (!constellationToggle.classList.contains("open")) return;
+    if (document.activeElement === capText) return;
+    if (e.key === "ArrowLeft") { e.preventDefault(); travelTo(highlightedConstellationIdx - 1); }
+    if (e.key === "ArrowRight") { e.preventDefault(); travelTo(highlightedConstellationIdx + 1); }
+  });
+
+  async function openPatterns() {
+    patternsPanel.classList.add("open");
+    if (entries.length < 3) {
+      patternsContent.innerHTML = '<div class="patterns-empty">leave a few more thoughts and the orb will start to see threads connecting them.</div>';
+      return;
+    }
+    patternsContent.innerHTML = '<div class="patterns-loading"><div class="loading-dot"></div>looking across the orb...</div>';
+    try {
+      const indexed = entries.slice(0, 80).map((e, i) => ({
+        i,
+        when: new Date(e.ts).toISOString().slice(0, 10),
+        text: e.text,
+        place: e.place || null
+      }));
+      const prompt =
+"Read these memory-orb entries from one person. Each has an `i` index. " +
+"Identify 3 to 5 recurring threads, tensions, or themes that connect different entries. " +
+"Return ONLY valid JSON, no other text, in this exact shape:\n" +
+'{"patterns":[{"name":"short evocative 2-4 word name","observation":"2-3 sentences of warm observant prose","entry_indices":[0,3,7]}]}\n' +
+"Each pattern must list at least 2 entry_indices that weave into it. " +
+"Speak gently and reflectively, like a close friend speaking back to the person.";
+
+      let resp;
+      if (window.cowork && typeof window.cowork.askClaude === "function") {
+        resp = await window.cowork.askClaude(prompt, indexed);
+      } else {
+        throw new Error("askClaude unavailable");
+      }
+      const parsed = parsePatternResponse(resp);
+      if (!parsed || !parsed.patterns || !parsed.patterns.length) throw new Error("no patterns parsed");
+
+      // Build constellations from the parsed patterns
+      const palette = [350, 28, 195, 282, 48, 318];
+      constellations = parsed.patterns.map((p, i) => ({
+        name: p.name,
+        observation: p.observation,
+        ids: (p.entry_indices || []).map(idx => entries[idx]?.id).filter(Boolean),
+        hue: palette[i % palette.length]
+      })).filter(c => c.ids.length >= 2);
+
+      // Render the prose with hue-tinted pattern names
+      patternsContent.innerHTML = '<div class="patterns-content">' +
+        constellations.map(c =>
+          `<div class="pattern-block" style="margin-bottom:18px;">
+             <div class="pattern-name" style="color:hsl(${c.hue},65%,50%);font-family:var(--serif);font-size:15px;font-style:italic;margin-bottom:6px;">${escapeHTML(c.name)}</div>
+             <div>${escapeHTML(c.observation)}</div>
+             <div style="font-size:11px;color:var(--ink-faint);margin-top:6px;letter-spacing:0.5px;">${c.ids.length} stars connected</div>
+           </div>`).join("") +
+        '<div style="margin-top:14px;font-size:11px;color:var(--ink-faint);letter-spacing:0.5px;border-top:1px solid var(--line);padding-top:10px;">the orb has drawn the constellations onto your sky</div>' +
+        '</div>';
+    } catch (err) {
+      patternsContent.innerHTML =
+        '<div class="patterns-empty">the deeper layer is quiet right now. here is a surface read instead:</div>' +
+        '<div class="patterns-content" style="margin-top:14px;">' + escapeHTML(localPatterns()) + '</div>';
+    }
+  }
+
+  function parsePatternResponse(resp) {
+    if (!resp) return null;
+    if (typeof resp === "object" && resp.patterns) return resp;
+    if (typeof resp !== "string") return null;
+    // Try direct parse
+    try { return JSON.parse(resp); } catch {}
+    // Try to extract JSON block
+    const m = resp.match(/\{[\s\S]*\}/);
+    if (m) {
+      try { return JSON.parse(m[0]); } catch {}
+    }
+    return null;
+  }
+
+  function localPatterns() {
+    const counts = {};
+    for (const e of entries) {
+      for (const w of new Set(tokenize(e.text))) {
+        counts[w] = (counts[w] || 0) + 1;
+      }
+    }
+    const top = Object.entries(counts)
+      .filter(([, n]) => n >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([w]) => w);
+    if (!top.length) return "Still gathering. The orb needs more memories to find threads.";
+    return "Words you keep returning to: " + top.join(", ") + ".\n\nNotice which ones surprise you. The threads they trace are the ones the orb is holding onto.";
+  }
+
+  // ============================================================
+  // BROWSE
+  // ============================================================
+  const overlay = document.getElementById("overlay");
+  const libraryList = document.getElementById("library-list");
+  const searchInput = document.getElementById("search");
+
+  document.getElementById("btn-browse").addEventListener("click", openBrowse);
+  document.getElementById("overlay-close").addEventListener("click", () => overlay.classList.remove("open"));
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.classList.remove("open"); });
+  searchInput.addEventListener("input", () => renderBrowse(searchInput.value));
+
+  function openBrowse() {
+    overlay.classList.add("open");
+    searchInput.value = "";
+    renderBrowse("");
+    setTimeout(() => searchInput.focus(), 40);
+  }
+  function renderBrowse(filter) {
+    const f = (filter || "").trim().toLowerCase();
+    const filtered = f
+      ? entries.filter(e =>
+          e.text.toLowerCase().includes(f) ||
+          (e.place && e.place.toLowerCase().includes(f)))
+      : entries;
+    if (!filtered.length) {
+      libraryList.innerHTML = '<div class="empty-state">' +
+        (f ? "Nothing matches “" + escapeHTML(f) + "”" : "No memories yet.") +
+        '</div>';
+      return;
+    }
+    libraryList.innerHTML = filtered.map(e =>
+      '<div class="entry" data-id="' + e.id + '">' +
+        (e.photo
+          ? '<img class="entry-thumb" src="' + escapeHTML(e.photo) + '" />'
+          : '<div class="entry-thumb"></div>') +
+        '<div class="entry-body">' +
+          '<div class="meta">' + escapeHTML(formatDate(e.ts)) + ' · ' + escapeHTML(timeAgo(e.ts)) +
+            (e.place ? ' · ' + escapeHTML(e.place) : '') +
+          '</div>' +
+          '<div class="text">' + escapeHTML(e.text) + '</div>' +
+        '</div>' +
+      '</div>'
+    ).join("");
+    libraryList.querySelectorAll(".entry").forEach(el => {
+      el.addEventListener("click", () => {
+        overlay.classList.remove("open");
+        setTimeout(() => openMemory(el.dataset.id), 150);
+      });
+    });
+  }
+
+  // ============================================================
+  // EXPORT / IMPORT
+  // ============================================================
+  document.getElementById("btn-export").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify({ entries, positions, exportedAt: new Date().toISOString() }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "memory-orb-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("exported.");
+  });
+  document.getElementById("btn-import").addEventListener("click", () => document.getElementById("file-import").click());
+  document.getElementById("file-import").addEventListener("change", (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const data = JSON.parse(r.result);
+        const incoming = Array.isArray(data) ? data : data.entries;
+        if (!Array.isArray(incoming)) throw 0;
+        const existing = new Set(entries.map(x => x.id));
+        let added = 0;
+        for (const it of incoming) {
+          if (it && it.id && it.text && it.ts && !existing.has(it.id)) {
+            entries.push(it); added++;
+          }
+        }
+        entries.sort((a, b) => b.ts - a.ts);
+        if (data.positions && typeof data.positions === "object") {
+          for (const k in data.positions) {
+            if (!positions[k]) positions[k] = data.positions[k];
+          }
+          savePositions();
+        }
+        save();
+        computeEdges();
+        updateCount();
+        showToast("imported " + added + ".");
+      } catch {
+        showToast("couldn't read that file.");
+      }
+      e.target.value = "";
+    };
+    r.readAsText(f);
+  });
+
+  // ============================================================
+  // KEYBOARD
+  // ============================================================
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (overlay.classList.contains("open")) overlay.classList.remove("open");
+      else if (constellationToggle.classList.contains("open")) closeConstellationToggle();
+      else if (patternsPanel.classList.contains("open")) patternsPanel.classList.remove("open");
+      else if (memoryDisplay.classList.contains("show")) hideMemoryText();
+      else if (panel.classList.contains("open")) closePanel();
+      else if (ambientMode) {
+        ambientMode = false;
+        localStorage.setItem(AMBIENT_KEY, "0");
+        applyAmbient();
+      }
+    }
+    if (e.key === "/" && document.activeElement !== capText && !overlay.classList.contains("open")) {
+      e.preventDefault();
+      openBrowse();
+    }
+  });
+
+  // ============================================================
+  // SIZE SLIDERS (halo + aura) — core is locked at 0.5
+  // ============================================================
+  const HALO_KEY = `memory-orb.${activeOrbId}.halo`;
+  const AURA_KEY = `memory-orb.${activeOrbId}.aura`;
+  const orbRadiusFactor = 0.5;
+  let haloRadiusFactor = parseFloat(localStorage.getItem(HALO_KEY));
+  if (!isFinite(haloRadiusFactor)) haloRadiusFactor = 1.0;
+  let auraRadiusFactor = parseFloat(localStorage.getItem(AURA_KEY));
+  if (!isFinite(auraRadiusFactor)) auraRadiusFactor = 1.0;
+
+  const haloInput = document.getElementById("halo-input");
+  haloInput.value = haloRadiusFactor;
+  haloInput.addEventListener("input", () => {
+    haloRadiusFactor = parseFloat(haloInput.value) || 1.0;
+    localStorage.setItem(HALO_KEY, haloRadiusFactor.toString());
+  });
+
+  const auraEl = document.querySelector(".aura");
+  const auraInput = document.getElementById("aura-input");
+  // Cap aura slider's max at whatever the user currently has saved.
+  // If nothing is saved, fall back to 1.6.
+  auraInput.max = (isFinite(auraRadiusFactor) ? auraRadiusFactor : 1.6).toString();
+  function applyAuraSize() {
+    if (auraEl) {
+      const size = (52 * auraRadiusFactor).toFixed(1);
+      auraEl.style.width = size + "vmin";
+      auraEl.style.height = size + "vmin";
+    }
+  }
+  auraInput.value = auraRadiusFactor;
+  auraInput.addEventListener("input", () => {
+    auraRadiusFactor = parseFloat(auraInput.value) || 1.0;
+    localStorage.setItem(AURA_KEY, auraRadiusFactor.toString());
+    applyAuraSize();
+  });
+  applyAuraSize();
+
+  // ============================================================
+  // COLOR THEMES
+  // ============================================================
+  const THEMES = {
+    Maddy: {
+      name: "Maddy",
+      attractors: [
+        { hue: 348, w: 1.8 }, { hue: 332, w: 1.6 }, { hue: 8, w: 1.4 },
+        { hue: 28,  w: 1.2 }, { hue: 195, w: 0.65 }, { hue: 280, w: 0.60 },
+        { hue: 46,  w: 0.55 }
+      ],
+      haloHue: 344,
+      aura: [
+        "rgba(255,170,200,0.85)","rgba(255,200,150,0.80)","rgba(255,240,180,0.85)",
+        "rgba(190,235,200,0.80)","rgba(170,210,250,0.85)","rgba(210,180,240,0.85)",
+        "rgba(255,170,200,0.85)"
+      ]
+    },
+    Ember: {
+      name: "Ember",
+      attractors: [
+        { hue: 12, w: 1.7 }, { hue: 35, w: 1.5 }, { hue: 350, w: 1.3 },
+        { hue: 280, w: 0.85 }, { hue: 50, w: 0.95 }, { hue: 200, w: 0.6 },
+        { hue: 165, w: 0.55 }
+      ],
+      haloHue: 18,
+      aura: [
+        "rgba(255,100,50,0.85)","rgba(255,170,70,0.85)","rgba(255,220,90,0.85)",
+        "rgba(180,80,200,0.75)","rgba(255,90,140,0.85)","rgba(80,180,210,0.65)",
+        "rgba(220,60,40,0.85)"
+      ]
+    },
+    Ocean: {
+      name: "Ocean",
+      attractors: [
+        { hue: 195, w: 1.7 }, { hue: 220, w: 1.5 }, { hue: 175, w: 1.3 },
+        { hue: 320, w: 0.85 }, { hue: 45,  w: 0.85 }, { hue: 280, w: 0.65 },
+        { hue: 5,   w: 0.55 }
+      ],
+      haloHue: 200,
+      aura: [
+        "rgba(40,170,210,0.85)","rgba(80,230,220,0.85)","rgba(60,140,210,0.85)",
+        "rgba(255,150,180,0.75)","rgba(255,210,130,0.80)","rgba(180,140,230,0.75)",
+        "rgba(50,100,200,0.85)"
+      ]
+    },
+    Forest: {
+      name: "Forest",
+      attractors: [
+        { hue: 110, w: 1.7 }, { hue: 90, w: 1.5 }, { hue: 130, w: 1.3 },
+        { hue: 25,  w: 0.85 }, { hue: 350, w: 0.80 }, { hue: 60, w: 0.85 },
+        { hue: 280, w: 0.55 }
+      ],
+      haloHue: 100,
+      aura: [
+        "rgba(100,210,110,0.85)","rgba(180,220,80,0.85)","rgba(70,180,150,0.85)",
+        "rgba(220,140,80,0.80)","rgba(220,90,110,0.80)","rgba(255,220,140,0.85)",
+        "rgba(170,140,220,0.70)"
+      ]
+    },
+    Twilight: {
+      name: "Twilight",
+      attractors: [
+        { hue: 290, w: 1.7 }, { hue: 310, w: 1.5 }, { hue: 260, w: 1.3 },
+        { hue: 45,  w: 0.85 }, { hue: 200, w: 0.85 }, { hue: 350, w: 0.75 },
+        { hue: 22,  w: 0.55 }
+      ],
+      haloHue: 295,
+      aura: [
+        "rgba(170,90,210,0.85)","rgba(230,110,200,0.85)","rgba(120,70,210,0.85)",
+        "rgba(255,210,130,0.80)","rgba(110,160,220,0.80)","rgba(255,140,170,0.80)",
+        "rgba(255,160,90,0.75)"
+      ]
+    },
+    Sunset: {
+      name: "Sunset",
+      attractors: [
+        { hue: 20,  w: 1.7 }, { hue: 340, w: 1.5 }, { hue: 50,  w: 1.3 },
+        { hue: 320, w: 1.0 }, { hue: 280, w: 0.85 }, { hue: 200, w: 0.75 },
+        { hue: 165, w: 0.55 }
+      ],
+      haloHue: 18,
+      aura: [
+        "rgba(255,140,80,0.85)","rgba(255,100,140,0.85)","rgba(255,210,110,0.85)",
+        "rgba(220,80,170,0.85)","rgba(160,90,210,0.80)","rgba(110,170,220,0.75)",
+        "rgba(80,200,200,0.65)"
+      ]
+    },
+    Frost: {
+      name: "Frost",
+      attractors: [
+        { hue: 200, w: 1.7 }, { hue: 220, w: 1.4 }, { hue: 180, w: 1.2 },
+        { hue: 320, w: 0.80 }, { hue: 50,  w: 0.75 }, { hue: 280, w: 0.85 },
+        { hue: 145, w: 0.55 }
+      ],
+      haloHue: 210,
+      aura: [
+        "rgba(180,220,250,0.85)","rgba(210,230,255,0.85)","rgba(150,225,225,0.80)",
+        "rgba(255,200,220,0.75)","rgba(255,235,180,0.75)","rgba(200,180,240,0.80)",
+        "rgba(160,230,200,0.70)"
+      ]
+    },
+    Custom: {
+      name: "Custom",
+      attractors: null,
+      haloHue: null,
+      aura: null
+    }
+  };
+
+  const THEME_KEY = `memory-orb.${activeOrbId}.color-theme`;
+  const CUSTOM_KEY = `memory-orb.${activeOrbId}.custom-theme`;
+
+  // The 7 attractor positions are CONSTANT — themes only change hues + weights
+  const ATTRACTOR_POSITIONS = [
+    { x:  0.55, y:  0.25, z:  0.35 },
+    { x: -0.20, y:  0.55, z:  0.40 },
+    { x:  0.30, y: -0.40, z:  0.55 },
+    { x: -0.55, y: -0.30, z: -0.20 },
+    { x:  0.10, y:  0.10, z: -0.75 },
+    { x: -0.40, y:  0.45, z: -0.40 },
+    { x:  0.40, y: -0.55, z: -0.20 }
+  ];
+
+  let currentHaloHue = 344;
+
+  function applyTheme(themeName) {
+    let theme = THEMES[themeName];
+    if (!theme) { themeName = "Maddy"; theme = THEMES.Maddy; }
+    let attrs, aura, haloHue;
+    if (themeName === "Custom") {
+      const saved = JSON.parse(localStorage.getItem(CUSTOM_KEY) || "null");
+      if (saved && saved.attractors) {
+        attrs = saved.attractors;
+        aura = saved.aura;
+        haloHue = (typeof saved.haloHue === "number") ? saved.haloHue : saved.attractors[0].hue;
+      } else {
+        attrs = THEMES.Maddy.attractors.map(a => ({...a}));
+        aura = THEMES.Maddy.aura.slice();
+        haloHue = THEMES.Maddy.haloHue;
+        localStorage.setItem(CUSTOM_KEY, JSON.stringify({attractors: attrs, aura, haloHue}));
+      }
+    } else {
+      attrs = theme.attractors;
+      aura = theme.aura;
+      haloHue = theme.haloHue || theme.attractors[0].hue;
+    }
+    currentHaloHue = haloHue;
+    // Update ATTRACTORS in place (positions stay, hues/weights change)
+    for (let i = 0; i < ATTRACTORS.length; i++) {
+      ATTRACTORS[i].hue = attrs[i].hue;
+      ATTRACTORS[i].w = attrs[i].w;
+    }
+    // Update aura background
+    if (auraEl && aura) {
+      auraEl.style.background = `conic-gradient(from 0deg, ${aura.join(", ")})`;
+    }
+    // Recompute stardust hues
+    for (const d of stardust) {
+      const c = colorAt({ x: d.x, y: d.y, z: d.z });
+      d.hue = c.hue; d.sat = c.sat; d.light = c.light;
+    }
+    localStorage.setItem(THEME_KEY, themeName);
+    document.querySelectorAll(".theme-item").forEach(el => {
+      el.classList.toggle("active", el.dataset.theme === themeName);
+    });
+    document.getElementById("custom-controls").style.display = themeName === "Custom" ? "flex" : "none";
+    if (themeName === "Custom") renderCustomSliders();
+  }
+
+  // Themes menu UI
+  const themesPanel = document.getElementById("themes-panel");
+  const themesGrid = document.getElementById("themes-grid");
+  function renderThemesGrid() {
+    themesGrid.innerHTML = Object.keys(THEMES).map(name => {
+      const t = THEMES[name];
+      let dotHue;
+      if (name === "Custom") {
+        const saved = JSON.parse(localStorage.getItem(CUSTOM_KEY) || "null");
+        dotHue = (saved && saved.attractors) ? saved.attractors[0].hue : THEMES.Maddy.attractors[0].hue;
+      } else {
+        dotHue = t.attractors[0].hue;
+      }
+      return `<div class="theme-item" data-theme="${name}">
+        <span>${t.name.toLowerCase()}</span>
+        <span class="theme-item-dot" style="background:hsl(${dotHue},70%,65%)"></span>
+      </div>`;
+    }).join("");
+    themesGrid.querySelectorAll(".theme-item").forEach(el => {
+      el.addEventListener("click", () => applyTheme(el.dataset.theme));
+    });
+    const current = localStorage.getItem(THEME_KEY) || "Maddy";
+    document.querySelectorAll(".theme-item").forEach(el => {
+      el.classList.toggle("active", el.dataset.theme === current);
+    });
+  }
+
+  function renderCustomSliders() {
+    const saved = JSON.parse(localStorage.getItem(CUSTOM_KEY) || "null") || {
+      attractors: THEMES.Maddy.attractors.map(a => ({...a})),
+      aura: THEMES.Maddy.aura.slice(),
+      haloHue: THEMES.Maddy.haloHue
+    };
+    if (typeof saved.haloHue !== "number") saved.haloHue = saved.attractors[0].hue;
+    const root = document.getElementById("custom-sliders");
+    root.innerHTML = saved.attractors.map((a, i) => `
+      <div class="hue-row">
+        <div class="hue-label" id="hue-label-${i}" style="background:hsl(${a.hue},70%,60%)"></div>
+        <input type="range" min="0" max="360" step="1" value="${a.hue}" data-i="${i}" data-kind="attractor" />
+      </div>
+    `).join("") + `
+      <div style="margin-top:10px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-faint);font-family:var(--sans);text-align:right;">halo</div>
+      <div class="hue-row">
+        <div class="hue-label" id="hue-label-halo" style="background:hsl(${saved.haloHue},70%,60%)"></div>
+        <input type="range" min="0" max="360" step="1" value="${saved.haloHue}" data-kind="halo" />
+      </div>
+    `;
+    root.querySelectorAll("input[type='range']").forEach(input => {
+      input.addEventListener("input", () => {
+        const hue = parseInt(input.value, 10);
+        if (input.dataset.kind === "halo") {
+          saved.haloHue = hue;
+          document.getElementById("hue-label-halo").style.background = `hsl(${hue},70%,60%)`;
+        } else {
+          const i = parseInt(input.dataset.i, 10);
+          saved.attractors[i].hue = hue;
+          saved.aura = saved.attractors.map(a => `hsla(${a.hue},75%,65%,0.85)`);
+          saved.aura.push(saved.aura[0]);
+          document.getElementById("hue-label-" + i).style.background = `hsl(${hue},70%,60%)`;
+        }
+        localStorage.setItem(CUSTOM_KEY, JSON.stringify(saved));
+        applyTheme("Custom");
+      });
+    });
+  }
+
+  document.getElementById("btn-themes").addEventListener("click", () => {
+    if (themesPanel.classList.contains("open")) {
+      themesPanel.classList.remove("open");
+    } else {
+      renderThemesGrid();
+      themesPanel.classList.add("open");
+      const current = localStorage.getItem(THEME_KEY) || "Maddy";
+      document.getElementById("custom-controls").style.display = current === "Custom" ? "flex" : "none";
+      if (current === "Custom") renderCustomSliders();
+    }
+  });
+
+  // Close themes menu when any other action button is clicked
+  ["btn-ambient","btn-patterns","btn-constellations","btn-browse","btn-export","btn-import"].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.addEventListener("click", () => themesPanel.classList.remove("open"));
+  });
+
+  // Apply saved theme on startup
+  applyTheme(localStorage.getItem(THEME_KEY) || "Maddy");
+
+  // ============================================================
+  // GALAXY MENU (orb list, create, switch, rename, delete)
+  // ============================================================
+  const galaxyPanel = document.getElementById("galaxy-panel");
+  const galaxyList = document.getElementById("galaxy-list");
+
+  function saveOrbList() {
+    localStorage.setItem(ORB_LIST_KEY, JSON.stringify(orbList));
+  }
+
+  function countOrbEntries(orbId) {
+    try {
+      const raw = localStorage.getItem(`memory-orb.${orbId}.entries`);
+      return raw ? JSON.parse(raw).length : 0;
+    } catch (e) { return 0; }
+  }
+
+  function getOrbHaloHue(orbId) {
+    // Quick read of the orb's saved theme to determine its dot color
+    const themeName = localStorage.getItem(`memory-orb.${orbId}.color-theme`) || "Maddy";
+    if (themeName === "Custom") {
+      try {
+        const c = JSON.parse(localStorage.getItem(`memory-orb.${orbId}.custom-theme`));
+        if (c && typeof c.haloHue === "number") return c.haloHue;
+        if (c && c.attractors && c.attractors[0]) return c.attractors[0].hue;
+      } catch (e) {}
+      return 344;
+    }
+    return (THEMES[themeName] && THEMES[themeName].haloHue) || 344;
+  }
+
+  function renderGalaxyList() {
+    galaxyList.innerHTML = orbList.map(o => {
+      const isActive = o.id === activeOrbId;
+      const count = countOrbEntries(o.id);
+      const dotHue = getOrbHaloHue(o.id);
+      return `<div class="galaxy-item ${isActive ? "active" : ""}" data-id="${o.id}">
+        <span class="theme-item-dot" style="background:hsl(${dotHue},70%,65%)"></span>
+        <span class="name">${escapeHTML(o.name)}</span>
+        <span class="count">${count}</span>
+        <span class="actions-mini">
+          <button class="mini-btn" data-act="rename">rename</button>
+          ${orbList.length > 1 ? '<button class="mini-btn" data-act="delete">×</button>' : ''}
+        </span>
+      </div>`;
+    }).join("");
+    galaxyList.querySelectorAll(".galaxy-item").forEach(el => {
+      const id = el.dataset.id;
+      el.addEventListener("click", (e) => {
+        if (e.target.closest(".mini-btn")) return;
+        if (id !== activeOrbId) switchToOrb(id);
+      });
+      const renameBtn = el.querySelector('[data-act="rename"]');
+      const deleteBtn = el.querySelector('[data-act="delete"]');
+      if (renameBtn) renameBtn.addEventListener("click", (e) => { e.stopPropagation(); renameOrb(id); });
+      if (deleteBtn) deleteBtn.addEventListener("click", (e) => { e.stopPropagation(); deleteOrb(id); });
+    });
+  }
+
+  function switchToOrb(orbId) {
+    localStorage.setItem(ACTIVE_ORB_KEY, orbId);
+    location.reload();
+  }
+
+  function newOrb() {
+    // Inline name prompt at center of screen
+    renamingOrbId = "_NEW_";
+    renameInput.value = "";
+    renameInput.placeholder = "name this orb…";
+    renameInput.classList.add("show");
+    requestAnimationFrame(() => {
+      const w = renameInput.offsetWidth, h = renameInput.offsetHeight;
+      renameInput.style.left = ((vw - w) / 2) + "px";
+      renameInput.style.top = ((vh - h) / 2) + "px";
+      renameInput.focus();
+    });
+    const newHandler = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault(); e.stopPropagation();
+        renameInput.classList.remove("show");
+        renameInput.placeholder = "";
+        renamingOrbId = null;
+        renameInput.removeEventListener("keydown", newHandler);
+        return;
+      }
+      if (e.key !== "Enter") return;
+      e.preventDefault(); e.stopPropagation();
+      const name = renameInput.value.trim();
+      if (!name) {
+        cancelRename();
+        renameInput.placeholder = "";
+        renameInput.removeEventListener("keydown", newHandler);
+        return;
+      }
+      const id = "orb_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+      orbList.push({ id, name, created: Date.now() });
+      saveOrbList();
+      renameInput.placeholder = "";
+      renameInput.removeEventListener("keydown", newHandler);
+      switchToOrb(id);
+    };
+    renameInput.addEventListener("keydown", newHandler);
+  }
+
+  // Inline rename input (works without browser modals)
+  const renameInput = document.getElementById("orb-rename-input");
+  const renameActions = document.getElementById("orb-rename-actions");
+  let renamingOrbId = null;
+
+  function showRenameInput(orbId, x, y) {
+    const o = orbList.find(x => x.id === orbId);
+    if (!o) return;
+    renamingOrbId = orbId;
+    renameInput.value = o.name;
+    renameInput.classList.add("show");
+    // Position centered on (x, y)
+    requestAnimationFrame(() => {
+      const w = renameInput.offsetWidth;
+      const h = renameInput.offsetHeight;
+      renameInput.style.left = (x - w / 2) + "px";
+      renameInput.style.top = (y - h / 2) + "px";
+      renameInput.focus();
+      renameInput.select();
+    });
+  }
+
+  function commitRename() {
+    if (!renamingOrbId) return;
+    const newName = renameInput.value.trim();
+    const o = orbList.find(x => x.id === renamingOrbId);
+    if (newName && o) {
+      o.name = newName;
+      saveOrbList();
+    }
+    cancelRename();
+  }
+  function cancelRename() {
+    renameInput.classList.remove("show");
+    renamingOrbId = null;
+  }
+  renameInput.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter") { e.preventDefault(); commitRename(); }
+    if (e.key === "Escape") { e.preventDefault(); cancelRename(); }
+  });
+  renameInput.addEventListener("blur", () => { if (renamingOrbId) commitRename(); });
+
+  function renameOrb(orbId) {
+    // Try to position over the orb's current screen location
+    const projected = (galaxyProjectedCache || []).find(p => p.orb && p.orb.id === orbId);
+    const x = projected ? projected.pr.x : vw / 2;
+    const y = projected ? projected.pr.y : vh / 2;
+    showRenameInput(orbId, x, y);
+  }
+
+  function deleteOrb(orbId) {
+    if (orbList.length <= 1) {
+      // Can't delete only orb — flash a quick message instead
+      const hint = document.querySelector(".galaxy-hint");
+      if (hint) {
+        const original = hint.textContent;
+        hint.textContent = "can't delete your only orb";
+        setTimeout(() => { hint.textContent = original; }, 2000);
+      }
+      return;
+    }
+    const o = orbList.find(x => x.id === orbId);
+    if (!o) return;
+    // Show inline confirmation by reusing the rename input as a "type DELETE to confirm" prompt
+    const projected = (galaxyProjectedCache || []).find(p => p.orb && p.orb.id === orbId);
+    const x = projected ? projected.pr.x : vw / 2;
+    const y = projected ? projected.pr.y : vh / 2;
+    renamingOrbId = "_DELETE_" + orbId;
+    renameInput.value = "";
+    renameInput.placeholder = `type DELETE to release "${o.name}"`;
+    renameInput.classList.add("show");
+    requestAnimationFrame(() => {
+      const w = renameInput.offsetWidth, h = renameInput.offsetHeight;
+      renameInput.style.left = (x - w / 2) + "px";
+      renameInput.style.top = (y - h / 2) + "px";
+      renameInput.focus();
+    });
+    const confirmHandler = (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (renameInput.value.trim().toUpperCase() === "DELETE") {
+        const prefix = `memory-orb.${orbId}.`;
+        Object.keys(localStorage).filter(k => k.startsWith(prefix)).forEach(k => localStorage.removeItem(k));
+        orbList = orbList.filter(x => x.id !== orbId);
+        saveOrbList();
+        if (activeOrbId === orbId) {
+          activeOrbId = orbList[0].id;
+          localStorage.setItem(ACTIVE_ORB_KEY, activeOrbId);
+          location.reload();
+        }
+      }
+      renameInput.removeEventListener("keydown", confirmHandler);
+      renameInput.placeholder = "";
+      renamingOrbId = null;
+      renameInput.classList.remove("show");
+    };
+    renameInput.addEventListener("keydown", confirmHandler);
+  }
+
+  document.getElementById("btn-galaxy").addEventListener("click", () => {
+    if (viewMode === "galaxy") {
+      exitGalaxyMode();
+    } else {
+      enterGalaxyMode();
+    }
+  });
+  document.getElementById("galaxy-new").addEventListener("click", newOrb);
+  document.getElementById("galaxy-floating-new").addEventListener("click", newOrb);
+
+  // Close galaxy menu when other action buttons are clicked
+  ["btn-themes","btn-ambient","btn-patterns","btn-constellations","btn-browse","btn-export","btn-import"].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.addEventListener("click", () => galaxyPanel.classList.remove("open"));
+  });
+
+  // ============================================================
+  // AMBIENT MODE
+  // ============================================================
+  const AMBIENT_KEY = "memory-orb.ambient";
+  let ambientMode = localStorage.getItem(AMBIENT_KEY) === "1";
+  let exitTimer = null;
+
+  function applyAmbient() {
+    document.body.classList.toggle("ambient", ambientMode);
+  }
+  applyAmbient();
+
+  document.getElementById("btn-ambient").addEventListener("click", () => {
+    ambientMode = true;
+    localStorage.setItem(AMBIENT_KEY, "1");
+    applyAmbient();
+    showToast("ambient mode · move mouse to exit");
+  });
+  document.getElementById("ambient-exit").addEventListener("click", () => {
+    ambientMode = false;
+    localStorage.setItem(AMBIENT_KEY, "0");
+    applyAmbient();
+    document.body.classList.remove("show-exit");
+  });
+
+  // Reveal exit dot on any pointer movement, fade after 2.5s of stillness
+  document.addEventListener("pointermove", () => {
+    if (!ambientMode) return;
+    document.body.classList.add("show-exit");
+    if (exitTimer) clearTimeout(exitTimer);
+    exitTimer = setTimeout(() => document.body.classList.remove("show-exit"), 2500);
+  });
+
+  // Dark mode is now permanent — light mode removed.
+  const isDark = true;
+  document.body.classList.add("dark");
+
+  // ============================================================
+  // STARS
+  // ============================================================
+  function makeStars(n) {
+    const root = document.getElementById("stars");
+    let html = "";
+    for (let i = 0; i < n; i++) {
+      const x = Math.random() * 100;
+      const y = Math.random() * 100;
+      const dur = (10 + Math.random() * 12).toFixed(2);    // 10-22s, very slow
+      const delay = (-Math.random() * 22).toFixed(2);       // out-of-sync phase offset
+      const s = (0.6 + Math.random() * 1.2).toFixed(2);
+      html += `<div style="left:${x}%;top:${y}%;animation:twinkle ${dur}s ${delay}s ease-in-out infinite;transform:scale(${s})"></div>`;
+    }
+    root.innerHTML = html;
+  }
+  makeStars(180);
+
+  // ============================================================
+  // INIT
+  // ============================================================
+  computeEdges();
+  updateCount();
+  autoresize();
+  render();
+
+  // Hide hint after 10 seconds, or after first interaction (whichever comes first)
+  let hintHidden = false;
+  function hideHint() {
+    if (hintHidden) return;
+    hintHidden = true;
+    document.getElementById("hint").classList.add("fade");
+  }
+  canvas.addEventListener("pointerdown", hideHint, { once: true });
+  capText.addEventListener("focus", hideHint, { once: true });
+  setTimeout(hideHint, 10000);
+})();
+</script>
+</body>
+</html>
