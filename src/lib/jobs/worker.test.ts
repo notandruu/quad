@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { enqueueAuditJob, getJob } from "./queue";
-import { processNextJob } from "./worker";
+import { processNextJob, runWorkerCanary } from "./worker";
 import { runAudit } from "@/lib/tools/auditAnalyzer";
 
 vi.mock("@/lib/tools/auditAnalyzer", () => ({
@@ -90,5 +90,24 @@ describe("job worker", () => {
     expect(finalJob?.status).toBe("dead_letter");
     expect(finalJob?.deadLetteredAt).toBeTruthy();
     expect(finalJob?.errorHistory).toHaveLength(3);
+  });
+
+  it("runs a synthetic worker canary through queue claim and processing", async () => {
+    vi.stubEnv("QUAD_REDIS_REST_URL", "");
+    vi.stubEnv("QUAD_REDIS_REST_TOKEN", "");
+
+    const canary = await runWorkerCanary({ orgId: "org_worker" });
+    const job = await getJob(canary.enqueuedJobId);
+
+    expect(canary.ok).toBe(true);
+    expect(canary.mode).toBe("memory");
+    expect(canary.job).toMatchObject({
+      type: "canary",
+      status: "completed",
+      orgId: "org_worker",
+      attempts: 1,
+    });
+    expect(job?.claimedBy).toBeUndefined();
+    expect(job?.claimExpiresAt).toBeUndefined();
   });
 });

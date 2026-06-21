@@ -133,10 +133,15 @@ Shipped v2:
 - leases release on retry, dead letter, completion, or deletion.
 - `QUAD_WORKER_JOB_LEASE_SECONDS` tunes the duplicate-execution guard.
 
+Shipped v3:
+
+- `canary` job type exercises queue storage, claim lease, and worker processing without browser/model work.
+- `POST /api/jobs/canary` runs the synthetic canary through the protected worker API surface.
+
 Next:
 
 - add deployment docs for Railway env and start command.
-- add a worker canary that creates and processes a tiny synthetic job.
+- show canary status in the operator console and backend readiness response.
 
 ## Gap 5: voice-led enterprise proof interview
 

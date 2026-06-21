@@ -10,7 +10,7 @@ import {
   type WorkflowKind,
 } from "@/lib/runs";
 
-export type JobType = "audit" | "agent_run";
+export type JobType = "audit" | "agent_run" | "canary";
 export type JobStatus = "queued" | "running" | "retrying" | "completed" | "failed" | "dead_letter";
 
 export type AuditJobPayload = {
@@ -24,7 +24,13 @@ export type AgentRunJobPayload = AuditJobPayload & {
   workflow: "website_audit" | "enterprise_proof";
 };
 
-export type QuadJobPayload = AuditJobPayload | AgentRunJobPayload;
+export type CanaryJobPayload = {
+  orgId: string;
+  runId: string;
+  nonce: string;
+};
+
+export type QuadJobPayload = AuditJobPayload | AgentRunJobPayload | CanaryJobPayload;
 
 export type QuadJob = {
   id: string;
@@ -205,6 +211,27 @@ export async function enqueueJob(input: {
   }
 }
 
+export async function enqueueWorkerCanaryJob(input: {
+  orgId?: string;
+  runId?: string;
+  nonce?: string;
+} = {}): Promise<{ job: QuadJob; mode: "redis" | "memory" }> {
+  const orgId = input.orgId ?? DEMO_ORG_ID;
+  const runId = input.runId ?? `canary_${crypto.randomUUID()}`;
+  const nonce = input.nonce ?? crypto.randomUUID();
+  return enqueueJob({
+    type: "canary",
+    orgId,
+    runId,
+    maxAttempts: 1,
+    payload: {
+      orgId,
+      runId,
+      nonce,
+    },
+  });
+}
+
 export async function getJob(jobId: string): Promise<QuadJob | null> {
   const memory = memoryJobs.get(jobId);
   if (memory) return cloneJob(memory);
@@ -225,19 +252,8 @@ export async function claimNextJob(): Promise<QuadJob | null> {
     try {
       const jobId = await redis.rpop<string>(QUEUE_KEY);
       if (jobId) {
-        const job = await getJob(jobId);
-        if (job && isClaimable(job)) {
-          const lease = await acquireJobLease(job.id);
-          if (!lease) return null;
-          return updateJob(job.id, {
-            status: "running",
-            attempts: job.attempts + 1,
-            startedAt: new Date().toISOString(),
-            retryAt: undefined,
-            claimedBy: lease.owner,
-            claimExpiresAt: lease.expiresAt,
-          });
-        }
+        const claimed = await claimJob(jobId);
+        if (claimed) return claimed;
       }
     } catch {
       // fall through to memory queue
@@ -247,21 +263,26 @@ export async function claimNextJob(): Promise<QuadJob | null> {
   while (memoryQueue.length > 0) {
     const jobId = memoryQueue.shift();
     if (!jobId) continue;
-    const job = memoryJobs.get(jobId);
-    if (!job || !isClaimable(job)) continue;
-    const lease = await acquireJobLease(job.id);
-    if (!lease) continue;
-    return updateJob(job.id, {
-      status: "running",
-      attempts: job.attempts + 1,
-      startedAt: new Date().toISOString(),
-      retryAt: undefined,
-      claimedBy: lease.owner,
-      claimExpiresAt: lease.expiresAt,
-    });
+    const claimed = await claimJob(jobId);
+    if (claimed) return claimed;
   }
 
   return null;
+}
+
+export async function claimJob(jobId: string): Promise<QuadJob | null> {
+  const job = await getJob(jobId);
+  if (!job || !isClaimable(job)) return null;
+  const lease = await acquireJobLease(job.id);
+  if (!lease) return null;
+  return updateJob(job.id, {
+    status: "running",
+    attempts: job.attempts + 1,
+    startedAt: new Date().toISOString(),
+    retryAt: undefined,
+    claimedBy: lease.owner,
+    claimExpiresAt: lease.expiresAt,
+  });
 }
 
 export async function retryJob(

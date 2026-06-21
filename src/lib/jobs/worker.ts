@@ -14,17 +14,28 @@ import { cacheReport } from "@/lib/runtime/reportCache";
 import { runAudit } from "@/lib/tools/auditAnalyzer";
 import {
   claimNextJob,
+  claimJob,
   deadLetterJob,
+  enqueueWorkerCanaryJob,
   retryJob,
   updateJob,
   type AgentRunJobPayload,
   type AuditJobPayload,
+  type CanaryJobPayload,
   type QuadJob,
 } from "./queue";
 
 export type ProcessJobResult = {
   processed: boolean;
   job: QuadJob | null;
+};
+
+export type WorkerCanaryResult = {
+  ok: boolean;
+  mode: "redis" | "memory";
+  durationMs: number;
+  enqueuedJobId: string;
+  job: QuadJob;
 };
 
 export async function processNextJob(): Promise<ProcessJobResult> {
@@ -34,9 +45,26 @@ export async function processNextJob(): Promise<ProcessJobResult> {
   return { processed: true, job: completed };
 }
 
+export async function runWorkerCanary(input: { orgId?: string } = {}): Promise<WorkerCanaryResult> {
+  const started = Date.now();
+  const enqueued = await enqueueWorkerCanaryJob({ orgId: input.orgId });
+  const claimed = await claimJob(enqueued.job.id);
+  if (!claimed) throw new Error(`Worker canary job could not be claimed: ${enqueued.job.id}`);
+  const job = await processJob(claimed);
+  return {
+    ok: job.status === "completed",
+    mode: enqueued.mode,
+    durationMs: Date.now() - started,
+    enqueuedJobId: enqueued.job.id,
+    job,
+  };
+}
+
 export async function processJob(job: QuadJob): Promise<QuadJob> {
   try {
-    if (job.type === "agent_run") {
+    if (job.type === "canary") {
+      await runCanaryJob(job.payload as CanaryJobPayload);
+    } else if (job.type === "agent_run") {
       await runAgentJob(job.payload as AgentRunJobPayload);
     } else {
       await runAuditJob(job.payload as AuditJobPayload);
@@ -74,6 +102,10 @@ export async function processJob(job: QuadJob): Promise<QuadJob> {
 
     return failed ?? job;
   }
+}
+
+async function runCanaryJob(payload: CanaryJobPayload) {
+  if (!payload.nonce) throw new Error("Canary nonce is missing.");
 }
 
 async function runAuditJob(payload: AuditJobPayload) {

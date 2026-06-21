@@ -78,6 +78,22 @@ test.describe("api contracts", () => {
     expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
   });
 
+  test("runs a protected worker canary without exposing secrets", async ({ request }) => {
+    const response = await request.post("/api/jobs/canary?orgId=org_brightpath");
+
+    expect(response.ok()).toBe(true);
+    const json = await response.json();
+    expect(json.ok).toBe(true);
+    expect(json.canary.job).toMatchObject({
+      type: "canary",
+      status: "completed",
+      orgId: "org_brightpath",
+      attempts: 1,
+    });
+    expect(json.canary.enqueuedJobId).toMatch(/^job_/);
+    expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+  });
+
   test("returns a 404 for unknown approval decisions", async ({ request }) => {
     const response = await request.post("/api/approvals/missing/decision", {
       data: {

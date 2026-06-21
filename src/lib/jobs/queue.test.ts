@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { getRunSnapshot } from "@/lib/runs";
 import {
+  claimJob,
   claimNextJob,
   enqueueAuditJob,
+  enqueueWorkerCanaryJob,
   getJob,
   getWorkerRuntimeHealth,
   getWorkerQueueHealth,
@@ -137,5 +139,31 @@ describe("job queue", () => {
       processed: 2,
     });
     expect(stale.alive).toBe(false);
+  });
+
+  it("enqueues and directly claims a worker canary job", async () => {
+    vi.stubEnv("QUAD_REDIS_REST_URL", "");
+    vi.stubEnv("QUAD_REDIS_REST_TOKEN", "");
+
+    const enqueued = await enqueueWorkerCanaryJob({
+      orgId: "org_jobs",
+      runId: "canary_queue_1",
+      nonce: "nonce_queue_1",
+    });
+    const claimed = await claimJob(enqueued.job.id);
+
+    expect(enqueued.job.type).toBe("canary");
+    expect(enqueued.job.payload).toMatchObject({
+      orgId: "org_jobs",
+      runId: "canary_queue_1",
+      nonce: "nonce_queue_1",
+    });
+    expect(claimed).toMatchObject({
+      id: enqueued.job.id,
+      type: "canary",
+      status: "running",
+      attempts: 1,
+    });
+    expect(claimed?.claimedBy).toMatch(/^lease_/);
   });
 });
