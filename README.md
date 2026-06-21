@@ -73,6 +73,8 @@ Hosted API routes accept `Authorization: Bearer $QUAD_API_SECRET` or `x-quad-api
 
 `GET /api/security/packet` returns an org-scoped security posture packet: data flows, model routing, storage posture, retention/deletion gaps, connector scopes, redaction guarantees, and warnings. It is protected by the same hosted API guard and never includes raw env secret values.
 
+Public summary routes are covered by secret-leak tests. `src/lib/security/publicPayload.ts` scans nested response payloads against configured secret env values, and the settings, sponsor-proof, and public agent descriptor routes prove they expose statuses and env key names without returning API keys, DSNs, service tokens, connector secrets, or database credentials.
+
 High-risk mutation routes are protected by org-scoped rate limits and optional `Idempotency-Key` replay. Configure `QUAD_MUTATION_RATE_LIMIT`, `QUAD_MUTATION_RATE_WINDOW_SECONDS`, and `QUAD_IDEMPOTENCY_TTL_SECONDS` for hosted deployments.
 
 `GET /api/security/data` returns the org-scoped retention policy, store-by-store deletion behavior, and safe deletion request examples. Configure global retention with `QUAD_RETENTION_DAYS`, and per-org overrides with `QUAD_ORG_RETENTION_DAYS='{"org_enterprise":7}'`. `POST /api/security/data` supports protected deletion dry-runs and execution receipts for org-scoped or run-scoped data. Execute mode requires the confirmation string returned by the dry-run receipt, such as `delete:demo_org:run_123`.

@@ -545,10 +545,16 @@ Shipped v9:
 - chat replies show whether quad learned a company memory, reused verified memory, or needs more human evidence.
 - pure runtime helpers classify enterprise-proof prompts and format the visible brain-growth response for tests and future surfaces.
 
+Shipped v10:
+
+- `src/lib/security/publicPayload.ts` provides a reusable scanner that checks public JSON payloads against configured secret env values.
+- `/api/settings`, `/api/sponsor/proof`, and `/api/agent/describe` now have route tests that seed fake API keys, service tokens, DSNs, and connector secrets, then prove response bodies expose only booleans, statuses, env key names, or safe caveats.
+- the scanner allows public readiness text and missing env key names, but fails if an actual configured secret value appears anywhere in a nested payload.
+
 Build:
 
 - document what stays off-chain/off-registry.
-- add secret leak tests for all public settings and summaries.
+- extend secret leak coverage to future public summary routes as they are added.
 
 Acceptance:
 
