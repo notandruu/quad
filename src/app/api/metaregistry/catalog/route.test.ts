@@ -16,6 +16,8 @@ describe("GET /api/metaregistry/catalog", () => {
     vi.stubEnv("BROWSERBASE_PROJECT_ID", "browserbase_project_secret");
     vi.stubEnv("QUAD_CAPABILITY_ALLOWLIST", "browserbase.write_browser");
     vi.stubEnv("QUAD_CAPABILITY_FORCE_INSTALLED", "browserbase.write_browser");
+    vi.stubEnv("QUAD_CAPABILITY_INSTALLING", "arize.phoenix");
+    vi.stubEnv("QUAD_CAPABILITY_REVOKED", "cms.publisher");
 
     const response = await GET(new NextRequest(`http://localhost/api/metaregistry/catalog?orgId=${DEMO_ORG_ID}&limit=20`));
     const body = await response.json();
@@ -41,6 +43,16 @@ describe("GET /api/metaregistry/catalog", () => {
           id: "browserbase.write_browser",
           stateLabel: "active",
           nextAction: "ready for routing.",
+        }),
+        expect.objectContaining({
+          id: "arize.phoenix",
+          lifecycleState: "installing",
+          stateLabel: "installing",
+        }),
+        expect.objectContaining({
+          id: "cms.publisher",
+          lifecycleState: "revoked",
+          stateLabel: "revoked",
         }),
       ])
     );

@@ -45,7 +45,7 @@ type OperatorCapability = {
   allowlisted?: boolean;
   disabled?: boolean;
   installSource?: string;
-  stateLabel?: "active" | "needs_env" | "needs_install" | "blocked" | "disabled";
+  stateLabel?: "active" | "installing" | "needs_env" | "needs_install" | "blocked" | "disabled" | "revoked";
   nextAction?: string;
   validation?: {
     total: number;
@@ -312,6 +312,8 @@ type OperatorResponse = {
       approvalMode: string;
       credentialRequired: boolean;
       credentialStatus: "not_required" | "missing" | "installed" | "revoked";
+      lifecycleState: "available" | "installing" | "installed" | "allowlisted" | "degraded" | "disabled" | "revoked";
+      capabilityActive: boolean;
       installedCredentialCount: number;
       revokedCredentialCount: number;
       boundPlaybooks: Array<{ id: string; name: string; approvalTier: string }>;
@@ -1727,13 +1729,13 @@ function ConnectorRegistryPanel({
           <div key={entry.id} className="rounded border border-edge bg-panel px-2 py-1" title={entry.nextAction}>
             <div className="flex items-center justify-between gap-2">
               <span className="truncate text-[10px] font-medium text-neutral-200">{entry.sponsor ?? entry.name}</span>
-              <span className={entry.credentialStatus === "installed" || entry.credentialStatus === "not_required" ? "text-[9px] text-accent" : "text-[9px] text-amber-100"}>
-                {entry.credentialStatus.replace("_", " ")}
+              <span className={entry.capabilityActive ? "text-[9px] text-accent" : "text-[9px] text-amber-100"}>
+                {entry.lifecycleState}
               </span>
             </div>
             <div className="mt-0.5 flex items-center justify-between gap-2 text-[9px] text-neutral-600">
               <span>{entry.kind} · {entry.authMode.replace("_", " ")}</span>
-              <span>{entry.risk}</span>
+              <span>{entry.credentialStatus.replace("_", " ")} · {entry.risk}</span>
             </div>
           </div>
         ))}

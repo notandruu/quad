@@ -203,6 +203,30 @@ Acceptance:
 - credentials are summarized as installed/missing/revoked without exposing secret payloads.
 - service-account credential changes are auditable without leaking tokens.
 
+## Gap 2.0.4: capability install lifecycle
+
+Status: shipped v1.
+
+What was missing:
+
+- the metaregistry listed a lifecycle enum, but org policy could not actually put a capability into `installing` or `revoked`.
+- connector registry entries showed credential posture, but not whether the capability itself was routable.
+- readiness and operator surfaces could not count lifecycle blockers beyond disabled, forced, and missing-env states.
+
+Shipped v1:
+
+- `QUAD_CAPABILITY_INSTALLING` and `QUAD_CAPABILITY_REVOKED` now feed the capability policy parser.
+- catalog entries expose lifecycle states for available, installing, installed, allowlisted, degraded, disabled, and revoked capabilities.
+- install previews clear installing/revoked markers for requested capabilities so a planned install shows the post-install route state.
+- connector registry entries include `lifecycleState` and `capabilityActive` beside credential status.
+- backend readiness and `/api/operator` include lifecycle counts for installing and revoked policy markers.
+
+Acceptance:
+
+- operators can tell the difference between missing credentials, in-progress setup, revoked capabilities, disabled policy, and active routing.
+- revoked or installing capabilities cannot be routed by the runtime.
+- lifecycle summaries remain safe: no env values, credential payloads, or secret token material are returned.
+
 ## Gap 2.1: runtime observability receipts
 
 Status: shipped v1.

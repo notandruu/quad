@@ -10,6 +10,14 @@ describe("connector registry", () => {
   it("summarizes connector auth, risk, credentials, and playbook bindings", async () => {
     const registry = await buildConnectorRegistry({
       orgId: "org_registry",
+      env: {
+        QUAD_CAPABILITY_ALLOWLIST: "browserbase.write_browser,cms.publisher,trust_packet.exporter",
+        QUAD_CAPABILITY_FORCE_INSTALLED: "browserbase.write_browser,cms.publisher",
+        QUAD_CAPABILITY_REVOKED: "cms.publisher",
+        BROWSERBASE_API_KEY: "bb",
+        BROWSERBASE_PROJECT_ID: "project",
+        CMS_API_KEY: "cms_secret",
+      },
       credentials: [
         credential({
           capabilityId: "browserbase.write_browser",
@@ -35,12 +43,16 @@ describe("connector registry", () => {
       writes: true,
       approvalMode: "human_approval",
       credentialStatus: "installed",
+      lifecycleState: "allowlisted",
+      capabilityActive: true,
       risk: "high",
       nextAction: "keep writes behind approval receipts.",
     });
     expect(cms).toMatchObject({
       kind: "publisher",
       credentialStatus: "revoked",
+      lifecycleState: "revoked",
+      capabilityActive: false,
       risk: "high",
       nextAction: "install a fresh credential before routing.",
     });
@@ -69,6 +81,8 @@ describe("connector registry", () => {
       kind: "publisher",
       authMode: "api_key",
       credentialStatus: "installed",
+      lifecycleState: "installed",
+      capabilityActive: false,
       boundPlaybooks: expect.arrayContaining([
         expect.objectContaining({ id: "approved_fix.publish" }),
       ]),

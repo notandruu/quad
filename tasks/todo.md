@@ -11,7 +11,7 @@
 
 quad is not a throwaway hackathon build. quad should be designed as a production product that happens to have a hackathon launch/demo deadline.
 
-2026-06-21 update: shipped the next biggest platform gap as the connector registry plus service-account audit logs. quad now has a safe inventory for source systems, publishers, browser actions, voice, observability, internal infrastructure, and agent surfaces with auth mode, scopes, credential state, write risk, approval mode, playbook bindings, `/api/connectors/registry`, `/api/connectors/audit-log`, and operator console posture.
+2026-06-21 update: shipped the next biggest platform gap as the connector registry plus service-account audit logs and lifecycle states. quad now has a safe inventory for source systems, publishers, browser actions, voice, observability, internal infrastructure, and agent surfaces with auth mode, scopes, credential state, install lifecycle, write risk, approval mode, playbook bindings, `/api/connectors/registry`, `/api/connectors/audit-log`, and operator console posture.
 
 the core product is a company-aware ai employee platform: it understands a business goal, retrieves and collects missing context, uses tools, validates its own work, learns only verified knowledge, executes approved actions, and leaves a replayable evidence trail. website audits and security questionnaires are product workflows on top of that runtime, not the whole company.
 
@@ -211,7 +211,7 @@ hard constraints:
 - [x] create static metaregistry catalog for existing services and dry-run publishers
 - [x] derive debug/operator capability rows from the metaregistry instead of hard-coded backend lists
 - [x] derive validation checks from capability manifests where practical
-- [ ] add install states: available, installing, installed, allowlisted, degraded, disabled, revoked
+- [x] add install states: available, installing, installed, allowlisted, degraded, disabled, revoked
 - [x] show one-click install mock for enterprise proof starter bundle
 
 ### phase 5 security and data governance layer

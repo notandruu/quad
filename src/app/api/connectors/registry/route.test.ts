@@ -14,6 +14,7 @@ describe("GET /api/connectors/registry", () => {
     vi.stubEnv("QUAD_ALLOWED_ORGS", DEMO_ORG_ID);
     vi.stubEnv("BROWSERBASE_API_KEY", "bb_live_secret");
     vi.stubEnv("CMS_API_KEY", "cms_secret");
+    vi.stubEnv("QUAD_CAPABILITY_REVOKED", "cms.publisher");
 
     const response = await GET(new NextRequest(`http://localhost/api/connectors/registry?orgId=${DEMO_ORG_ID}`));
     const body = await response.json();
@@ -35,6 +36,13 @@ describe("GET /api/connectors/registry", () => {
           kind: "browser",
           writes: true,
           approvalMode: "human_approval",
+          lifecycleState: expect.any(String),
+          capabilityActive: expect.any(Boolean),
+        }),
+        expect.objectContaining({
+          capabilityId: "cms.publisher",
+          lifecycleState: "revoked",
+          capabilityActive: false,
         }),
       ])
     );

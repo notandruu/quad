@@ -81,7 +81,7 @@ Private raw context, evidence strings, transcripts, screenshots, prompts, respon
 | `GET /api/operator` | Workspace, memory, run, approval, capability, evidence, worker, and usage summary |
 | `POST /api/ingest` | Stage or write company memory with scope and approval metadata |
 | `POST /api/context/capture` | Normalize meeting, voice, chat, docs, or connector events into durable context signals |
-| `GET /api/connectors/registry` | Safe connector registry with auth mode, scopes, credential state, risk, and playbook bindings |
+| `GET /api/connectors/registry` | Safe connector registry with auth mode, scopes, lifecycle state, credential state, risk, and playbook bindings |
 | `GET /api/connectors/audit-log` | Safe service-account audit logs for connector credential installs and revokes |
 | `GET /api/brain/graph` | Safe context graph with freshness, scope, relationship, and receipt summaries |
 | `GET /api/playbooks` | Safe skill/playbook registry with guardrails, evidence requirements, approval tiers, and verifier checks |

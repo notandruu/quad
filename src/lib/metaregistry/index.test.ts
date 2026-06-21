@@ -240,6 +240,8 @@ describe("metaregistry", () => {
       resolveCapabilityPolicy({
         QUAD_CAPABILITY_ALLOWLIST: "quad.chain_verifier, trust_packet.exporter",
         QUAD_CAPABILITY_DISABLED: "sentry.reliability",
+        QUAD_CAPABILITY_INSTALLING: "arize.phoenix",
+        QUAD_CAPABILITY_REVOKED: "cms.publisher",
         QUAD_REQUIRE_WRITE_CAPABILITY_ALLOWLIST: "false",
       })
     ).toEqual({
@@ -247,8 +249,41 @@ describe("metaregistry", () => {
       allowlist: ["quad.chain_verifier", "trust_packet.exporter"],
       disabled: ["sentry.reliability"],
       forceInstalled: [],
+      installing: ["arize.phoenix"],
+      revoked: ["cms.publisher"],
       requireWriteAllowlist: false,
     });
+  });
+
+  it("models installing and revoked lifecycle states before runtime routing", () => {
+    const summary = summarizeCapabilities({
+      QUAD_CAPABILITY_ALLOWLIST: "arize.phoenix,cms.publisher",
+      QUAD_CAPABILITY_FORCE_INSTALLED: "cms.publisher",
+      QUAD_CAPABILITY_INSTALLING: "arize.phoenix",
+      QUAD_CAPABILITY_REVOKED: "cms.publisher",
+      PHOENIX_COLLECTOR_ENDPOINT: "https://phoenix.example.test",
+      CMS_API_KEY: "cms_secret",
+    });
+    const catalog = summarizeCapabilityCatalog(summary);
+    const arize = catalog.entries.find((entry) => entry.id === "arize.phoenix");
+    const cms = catalog.entries.find((entry) => entry.id === "cms.publisher");
+
+    expect(summary.activeTools.map((tool) => tool.id)).not.toEqual(
+      expect.arrayContaining(["arize.phoenix", "cms.publisher"])
+    );
+    expect(arize).toMatchObject({
+      lifecycleState: "installing",
+      stateLabel: "installing",
+      active: false,
+      nextAction: "finish connector setup and health checks.",
+    });
+    expect(cms).toMatchObject({
+      lifecycleState: "revoked",
+      stateLabel: "revoked",
+      active: false,
+      nextAction: "request reinstall before routing.",
+    });
+    expect(JSON.stringify(catalog)).not.toContain("cms_secret");
   });
 
   it("builds a safe install plan for the enterprise proof starter bundle", () => {
@@ -355,6 +390,27 @@ describe("metaregistry", () => {
     expect(plan.knownIds).toEqual(["quad.chain_verifier"]);
     expect(plan.unknownIds).toEqual(["missing.capability"]);
     expect(plan.policyPreview.allowlist).toEqual(["quad.chain_verifier"]);
+  });
+
+  it("clears installing and revoked markers in install previews for requested capabilities", () => {
+    const plan = buildCapabilityInstallPlan({
+      env: {
+        QUAD_CAPABILITY_INSTALLING: "arize.phoenix",
+        QUAD_CAPABILITY_REVOKED: "cms.publisher",
+        QUAD_CAPABILITY_FORCE_INSTALLED: "cms.publisher",
+        PHOENIX_COLLECTOR_ENDPOINT: "https://phoenix.example.test",
+        CMS_API_KEY: "cms_secret",
+      },
+      capabilityIds: ["arize.phoenix", "cms.publisher"],
+      includeWriteTools: true,
+    });
+
+    expect(plan.policyPreview.installing).toEqual([]);
+    expect(plan.policyPreview.revoked).toEqual([]);
+    expect(plan.blockedAfterInstall.map((item) => item.id)).not.toEqual(
+      expect.arrayContaining(["arize.phoenix", "cms.publisher"])
+    );
+    expect(JSON.stringify(plan)).not.toContain("cms_secret");
   });
 
   it("builds runtime routing with eager, deferred, and blocked capabilities", () => {

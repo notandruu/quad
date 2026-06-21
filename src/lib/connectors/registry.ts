@@ -1,4 +1,12 @@
-import { CAPABILITY_CATALOG, type ApprovalMode, type CapabilityManifest } from "@/lib/metaregistry";
+import {
+  CAPABILITY_CATALOG,
+  summarizeCapabilities,
+  type ApprovalMode,
+  type CapabilityInstallState,
+  type CapabilityLifecycleState,
+  type CapabilityManifest,
+  type CapabilitySummary,
+} from "@/lib/metaregistry";
 import type { PlaybookManifest } from "@/lib/playbooks";
 import { PLAYBOOK_CATALOG } from "@/lib/playbooks";
 import { listConnectorCredentials, type ConnectorCredentialSummary } from "./credentials";
@@ -25,6 +33,8 @@ export type ConnectorRegistryEntry = {
   approvalMode: ApprovalMode;
   credentialRequired: boolean;
   credentialStatus: "not_required" | "missing" | "installed" | "revoked";
+  lifecycleState: CapabilityLifecycleState;
+  capabilityActive: boolean;
   installedCredentialCount: number;
   revokedCredentialCount: number;
   boundPlaybooks: Array<Pick<PlaybookManifest, "id" | "name" | "approvalTier">>;
@@ -76,12 +86,16 @@ const AUTH_MODE_BY_CAPABILITY: Record<string, ConnectorAuthMode> = {
 export async function buildConnectorRegistry(input: {
   orgId: string;
   credentials?: ConnectorCredentialSummary[];
+  env?: Record<string, string | undefined>;
+  capabilities?: CapabilitySummary;
 }): Promise<ConnectorRegistrySummary> {
   const credentials = input.credentials ?? await listConnectorCredentials({ orgId: input.orgId });
+  const capabilities = input.capabilities ?? summarizeCapabilities(input.env ?? process.env, { orgId: input.orgId });
+  const capabilityStates = new Map(capabilities.installed.map((state) => [state.id, state]));
   const credentialGroups = groupCredentials(credentials);
   const entries = CAPABILITY_CATALOG
     .filter((capability) => isConnectorRegistryCapability(capability))
-    .map((capability) => buildConnectorRegistryEntry(capability, credentialGroups.get(capability.id) ?? []));
+    .map((capability) => buildConnectorRegistryEntry(capability, credentialGroups.get(capability.id) ?? [], capabilityStates.get(capability.id)));
 
   return {
     orgId: input.orgId,
@@ -97,7 +111,8 @@ export async function buildConnectorRegistry(input: {
 
 export function buildConnectorRegistryEntry(
   capability: CapabilityManifest,
-  credentials: ConnectorCredentialSummary[] = []
+  credentials: ConnectorCredentialSummary[] = [],
+  capabilityState?: CapabilityInstallState
 ): ConnectorRegistryEntry {
   const installedCredentialCount = credentials.filter((credential) => credential.status === "installed").length;
   const revokedCredentialCount = credentials.filter((credential) => credential.status === "revoked").length;
@@ -131,6 +146,8 @@ export function buildConnectorRegistryEntry(
     approvalMode: capability.approvalMode,
     credentialRequired,
     credentialStatus,
+    lifecycleState: capabilityState?.lifecycleState ?? fallbackLifecycleState(capabilityState, credentialStatus),
+    capabilityActive: Boolean(capabilityState?.active),
     installedCredentialCount,
     revokedCredentialCount,
     boundPlaybooks,
@@ -197,4 +214,16 @@ function connectorNextAction(
   if (credentialStatus === "revoked") return "install a fresh credential before routing.";
   if (capability.writes) return "keep writes behind approval receipts.";
   return "ready for read-only routing.";
+}
+
+function fallbackLifecycleState(
+  capabilityState: CapabilityInstallState | undefined,
+  credentialStatus: ConnectorRegistryEntry["credentialStatus"]
+): CapabilityLifecycleState {
+  if (capabilityState?.disabled) return "disabled";
+  if (capabilityState?.missingEnv.length) return "degraded";
+  if (credentialStatus === "revoked") return "revoked";
+  if (credentialStatus === "installed") return "installed";
+  if (credentialStatus === "not_required") return "allowlisted";
+  return "available";
 }

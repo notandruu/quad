@@ -77,6 +77,8 @@ describe("getBackendReadiness", () => {
         allowlistCount: 0,
         disabledCount: 0,
         forceInstalledCount: 0,
+        installingCount: 0,
+        revokedCount: 0,
         requireWriteAllowlist: true,
       },
     });

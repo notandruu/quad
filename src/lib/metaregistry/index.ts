@@ -52,6 +52,7 @@ export type CapabilityInstallState = {
   id: string;
   installed: boolean;
   status: CapabilityStatus;
+  lifecycleState?: CapabilityLifecycleState;
   missingEnv: string[];
   active: boolean;
   reason: string;
@@ -96,7 +97,7 @@ export type CapabilityCatalogEntry = {
   disabled: boolean;
   installSource: CapabilityInstallState["installSource"];
   missingEnvCount: number;
-  stateLabel: "active" | "needs_env" | "needs_install" | "blocked" | "disabled";
+  stateLabel: "active" | "installing" | "needs_env" | "needs_install" | "blocked" | "disabled" | "revoked";
   nextAction: string;
   validation: {
     total: number;
@@ -205,6 +206,8 @@ export type CapabilityPolicy = {
   allowlist: string[];
   disabled: string[];
   forceInstalled: string[];
+  installing: string[];
+  revoked: string[];
   requireWriteAllowlist: boolean;
 };
 
@@ -631,8 +634,15 @@ export function buildCapabilityInstallPlan(input: {
     ...currentPolicy,
     allowlist: uniqueIds([...currentPolicy.allowlist, ...allowlistNeeded]),
     forceInstalled: uniqueIds([...currentPolicy.forceInstalled, ...forceNeeded]),
+    installing: currentPolicy.installing.filter((id) => !knownIds.includes(id)),
+    revoked: currentPolicy.revoked.filter((id) => !knownIds.includes(id)),
   };
-  const preview = summarizeCapabilities(input.env, {
+  const previewEnv = {
+    ...input.env,
+    QUAD_CAPABILITY_INSTALLING: policyPreview.installing.join(","),
+    QUAD_CAPABILITY_REVOKED: policyPreview.revoked.join(","),
+  };
+  const preview = summarizeCapabilities(previewEnv, {
     orgId: input.orgId,
     policy: policyPreview,
   });
@@ -666,17 +676,50 @@ function buildInstallState(
   const missingEnv = manifest.env.filter((key) => !env[key]);
   const manifestFailures = validateCapabilityManifest(manifest);
   const forced = policy.forceInstalled.includes(manifest.id);
+  const installing = policy.installing.includes(manifest.id);
+  const revoked = policy.revoked.includes(manifest.id);
   const disabled = policy.disabled.includes(manifest.id);
   const allowlistConfigured = policy.allowlist.length > 0;
   const allowlisted = !allowlistConfigured || policy.allowlist.includes(manifest.id);
   const installed = manifest.enabledByDefault || forced;
   const installSource = forced ? "forced" : manifest.enabledByDefault ? "default" : "manual";
 
+  if (revoked) {
+    return {
+      id: manifest.id,
+      installed: false,
+      status: "unavailable",
+      lifecycleState: "revoked",
+      missingEnv,
+      active: false,
+      allowlisted,
+      disabled: false,
+      installSource,
+      reason: "Capability was revoked by org policy.",
+    };
+  }
+
+  if (installing) {
+    return {
+      id: manifest.id,
+      installed: false,
+      status: "degraded",
+      lifecycleState: "installing",
+      missingEnv,
+      active: false,
+      allowlisted,
+      disabled: false,
+      installSource,
+      reason: "Capability install is in progress.",
+    };
+  }
+
   if (disabled) {
     return {
       id: manifest.id,
       installed,
       status: "unavailable",
+      lifecycleState: "disabled",
       missingEnv,
       active: false,
       allowlisted,
@@ -691,6 +734,7 @@ function buildInstallState(
       id: manifest.id,
       installed: false,
       status: "unavailable",
+      lifecycleState: "available",
       missingEnv,
       active: false,
       allowlisted,
@@ -705,6 +749,7 @@ function buildInstallState(
       id: manifest.id,
       installed: true,
       status: "unavailable",
+      lifecycleState: "installed",
       missingEnv,
       active: false,
       allowlisted: false,
@@ -719,6 +764,7 @@ function buildInstallState(
       id: manifest.id,
       installed: true,
       status: "unavailable",
+      lifecycleState: "installed",
       missingEnv,
       active: false,
       allowlisted,
@@ -733,6 +779,7 @@ function buildInstallState(
       id: manifest.id,
       installed: false,
       status: "unavailable",
+      lifecycleState: "available",
       missingEnv,
       active: false,
       allowlisted,
@@ -747,6 +794,7 @@ function buildInstallState(
       id: manifest.id,
       installed: true,
       status: "degraded",
+      lifecycleState: "degraded",
       missingEnv,
       active: manifest.env.length === 0,
       allowlisted,
@@ -760,6 +808,7 @@ function buildInstallState(
     id: manifest.id,
     installed: true,
     status: "available",
+    lifecycleState: allowlisted ? "allowlisted" : "installed",
     missingEnv: [],
     active: true,
     allowlisted,
@@ -785,7 +834,7 @@ function buildCatalogEntry(manifest: CapabilityManifest, state: CapabilityInstal
     approvalMode: manifest.approvalMode,
     installed: state.installed,
     status: state.status,
-    lifecycleState: capabilityLifecycleState(state),
+    lifecycleState: state.lifecycleState ?? capabilityLifecycleState(state),
     active: state.active,
     allowlisted: state.allowlisted,
     disabled: state.disabled,
@@ -799,6 +848,8 @@ function buildCatalogEntry(manifest: CapabilityManifest, state: CapabilityInstal
 
 function catalogStateLabel(state: CapabilityInstallState): CapabilityCatalogEntry["stateLabel"] {
   if (state.active) return "active";
+  if (state.lifecycleState === "installing") return "installing";
+  if (state.lifecycleState === "revoked") return "revoked";
   if (state.disabled) return "disabled";
   if (!state.installed) return "needs_install";
   if (!state.allowlisted) return "blocked";
@@ -808,6 +859,8 @@ function catalogStateLabel(state: CapabilityInstallState): CapabilityCatalogEntr
 
 function catalogNextAction(manifest: CapabilityManifest, state: CapabilityInstallState): string {
   if (state.active) return "ready for routing.";
+  if (state.lifecycleState === "installing") return "finish connector setup and health checks.";
+  if (state.lifecycleState === "revoked") return "request reinstall before routing.";
   if (state.disabled) return "remove it from the disabled policy before use.";
   if (!state.installed) return manifest.writes ? "request install and explicit write allowlist." : "request install.";
   if (!state.allowlisted) return "allowlist this capability for the org.";
@@ -817,6 +870,7 @@ function catalogNextAction(manifest: CapabilityManifest, state: CapabilityInstal
 }
 
 function capabilityLifecycleState(state: CapabilityInstallState): CapabilityLifecycleState {
+  if (state.lifecycleState) return state.lifecycleState;
   if (state.disabled) return "disabled";
   if (!state.installed) return "available";
   if (state.missingEnv.length > 0) return "degraded";
@@ -967,6 +1021,14 @@ export function resolveCapabilityPolicy(
     forceInstalled: uniqueIds([
       ...parseCapabilityList(env.QUAD_CAPABILITY_FORCE_INSTALLED),
       ...parseCapabilityList(input.policy?.forceInstalled?.join(",")),
+    ]),
+    installing: uniqueIds([
+      ...parseCapabilityList(env.QUAD_CAPABILITY_INSTALLING),
+      ...parseCapabilityList(input.policy?.installing?.join(",")),
+    ]),
+    revoked: uniqueIds([
+      ...parseCapabilityList(env.QUAD_CAPABILITY_REVOKED),
+      ...parseCapabilityList(input.policy?.revoked?.join(",")),
     ]),
     requireWriteAllowlist: input.policy?.requireWriteAllowlist ?? env.QUAD_REQUIRE_WRITE_CAPABILITY_ALLOWLIST !== "false",
   };

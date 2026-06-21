@@ -49,6 +49,8 @@ export type BackendReadinessReport = {
         allowlistCount: number;
         disabledCount: number;
         forceInstalledCount: number;
+        installingCount: number;
+        revokedCount: number;
         requireWriteAllowlist: boolean;
       };
       blocked: Array<{
@@ -264,6 +266,8 @@ function buildCapabilityReadiness(capabilities: CapabilitySummary): BackendReadi
       allowlistCount: capabilities.policy.allowlist.length,
       disabledCount: capabilities.policy.disabled.length,
       forceInstalledCount: capabilities.policy.forceInstalled.length,
+      installingCount: capabilities.policy.installing.length,
+      revokedCount: capabilities.policy.revoked.length,
       requireWriteAllowlist: capabilities.policy.requireWriteAllowlist,
     },
     blocked: blocked.slice(0, 12),

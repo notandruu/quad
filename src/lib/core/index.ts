@@ -205,6 +205,8 @@ export function selectToolsForRuntime(
         allowlist: [],
         disabled: [],
         forceInstalled: [],
+        installing: [],
+        revoked: [],
         requireWriteAllowlist: true,
       },
     },
