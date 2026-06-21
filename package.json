@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check": "npm run typecheck && npm test && npm run build",
+    "check:full": "npm run check && npm run e2e",
     "validate": "node scripts/validate.mjs",
     "db:migrate": "node scripts/migrate-platform.mjs",
     "db:migrate:dry": "node scripts/migrate-platform.mjs --dry-run",

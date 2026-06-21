@@ -2,6 +2,12 @@ name: ci
 
 on:
   workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: run playwright e2e suite
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -9,7 +15,7 @@ concurrency:
 
 jobs:
   test:
-    name: test, build, and e2e
+    name: test and build
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -27,18 +33,14 @@ jobs:
         run: npm ci
 
       - name: install playwright chromium
+        if: ${{ inputs.run_e2e }}
         run: npx playwright install --with-deps chromium
 
-      - name: typecheck
-        run: npm run typecheck
-
-      - name: unit tests
-        run: npm test
-
-      - name: build
-        run: npm run build
+      - name: check
+        run: npm run check
 
       - name: e2e tests
+        if: ${{ inputs.run_e2e }}
         run: npm run e2e
 
       - name: upload playwright report

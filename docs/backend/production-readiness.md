@@ -21,12 +21,18 @@ Quad can run with zero keys for demos, but the production backend is only green 
 Run these before claiming the hosted backend is ready:
 
 ```bash
-npm run typecheck
-npm test
-npm run build
+npm run check
 npm run db:status
 QUAD_SMOKE_BASE_URL=https://quad.example.com npm run smoke:prod
 ```
+
+For the full browser gate, run:
+
+```bash
+npm run check:full
+```
+
+GitHub Actions is manual-only during the hackathon push. Trigger `ci` from the Actions tab; leave `run_e2e` off for a fast typecheck/test/build run, or turn it on when you need Playwright proof before a demo/deploy.
 
 `npm run smoke:prod` checks:
 
