@@ -176,6 +176,24 @@
   font-size: 12px;
 }
 
+.topbarActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.meetingButton {
+  border: 1px solid #e24ba8;
+  border-radius: 999px;
+  background: #e24ba8;
+  color: #fff;
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(226, 75, 168, 0.22);
+}
+
 .pill {
   border: 1px solid #dad3d8;
   border-radius: 999px;
@@ -219,6 +237,29 @@
   padding: 13px 22px;
   border-bottom: 1px solid #e7e2e6;
   background: #fff;
+}
+
+.meetingRunbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 22px;
+  border-bottom: 1px solid #e7e2e6;
+  background: #fff;
+  color: #666;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+}
+
+.meetingRunbar span:first-child {
+  border: 1px solid #f5c7e4;
+  border-radius: 999px;
+  background: #fbe8f5;
+  color: #b92e82;
+  padding: 4px 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
 }
 
 .progressTrack {
@@ -290,6 +331,23 @@
   color: #666;
   font-size: 14px;
   line-height: 1.65;
+}
+
+.emptyActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.meetingWorkspace {
+  width: min(860px, calc(100% - 48px));
+  margin: 0 auto;
+  border: 1px solid #e7e2e6;
+  border-radius: 12px;
+  background: #fff;
+  padding: 16px;
+  box-shadow: 0 24px 70px rgba(22, 16, 22, 0.08);
 }
 
 .primaryButton,

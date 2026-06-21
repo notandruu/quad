@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { MeetingPanel } from "@/components/MeetingPanel";
 import styles from "./QuadWorkspaceDashboard.module.css";
 
 const ORG_ID = "org_acme";
@@ -141,6 +142,8 @@ type ChatMessage = {
   text: string;
 };
 
+type DashboardView = "brain" | "questionnaire" | "meeting" | "logs";
+
 const TRUST_QUESTIONS: TrustQuestion[] = [
   { id: "mfa", text: "Do you enforce MFA for production access?" },
   { id: "encryption", text: "Is customer data encrypted at rest and in transit?" },
@@ -192,7 +195,7 @@ export function QuadWorkspaceDashboard() {
   const [browserPhase, setBrowserPhase] = useState("idle");
   const [chat, setChat] = useState<ChatMessage[]>(initialChat);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [activeView, setActiveView] = useState<"brain" | "questionnaire" | "logs">("brain");
+  const [activeView, setActiveView] = useState<DashboardView>("brain");
   const [operator, setOperator] = useState<OperatorState | null>(null);
   const [composer, setComposer] = useState("Complete the SecureFlow security questionnaire");
   const [selectedSource, setSelectedSource] = useState<TrustSource | null>(null);
@@ -518,9 +521,9 @@ export function QuadWorkspaceDashboard() {
         <section className={styles.section}>
           <div className={styles.sectionTitle}>Workspace</div>
           <button className={styles.navItem} onClick={() => setActiveView("questionnaire")} type="button">Questionnaires</button>
+          <button className={styles.navItem} onClick={() => setActiveView("meeting")} type="button">Meeting agent</button>
           <button className={styles.navItem} onClick={() => setActiveView("brain")} type="button">Brain</button>
           <button className={styles.navItem} onClick={() => setActiveView("logs")} type="button">Evidence</button>
-          <a className={styles.navItem} href="/app">Classic runtime</a>
           <a className={styles.navItem} href="/quadchain">Quadchain</a>
         </section>
 
@@ -533,96 +536,127 @@ export function QuadWorkspaceDashboard() {
       <section className={styles.workPane}>
         <header className={styles.topbar}>
           <div>
-            <strong>Compliance</strong>
-            <span> · SecureFlow vendor questionnaire</span>
+            <strong>{activeView === "meeting" ? "Meeting agent" : "Compliance"}</strong>
+            <span>{activeView === "meeting" ? " · live google meet capture" : " · SecureFlow vendor questionnaire"}</span>
           </div>
-          <div className={`${styles.pill} ${styles[`pill_${status}`]}`}>{status.replace("_", " ")}</div>
+          <div className={styles.topbarActions}>
+            <button className={styles.meetingButton} onClick={() => setActiveView("meeting")} type="button">
+              send to google meet
+            </button>
+            <div className={`${styles.pill} ${styles[`pill_${status}`]}`}>{status.replace("_", " ")}</div>
+          </div>
         </header>
 
-        <div className={styles.runbar}>
-          <div className={styles.progressTrack}>
-            <div className={styles.progressFill} style={{ width: `${progress}%` }} />
+        {activeView === "meeting" ? (
+          <div className={styles.meetingRunbar}>
+            <span>live recall mode</span>
+            <span>paste a google meet url and quad joins as a meeting bot</span>
           </div>
-          <div className={styles.metrics}>
-            <span><b>{answeredCount}</b> / {TRUST_QUESTIONS.length} answered</span>
-            <span><b>{needsHumanCount}</b> need you</span>
-            <span><b>{sourceCount}</b> sources collected</span>
-            <span><b>{learnedCount}</b> learned this run</span>
-            <span><b>{receiptCount}</b> receipts</span>
+        ) : (
+          <div className={styles.runbar}>
+            <div className={styles.progressTrack}>
+              <div className={styles.progressFill} style={{ width: `${progress}%` }} />
+            </div>
+            <div className={styles.metrics}>
+              <span><b>{answeredCount}</b> / {TRUST_QUESTIONS.length} answered</span>
+              <span><b>{needsHumanCount}</b> need you</span>
+              <span><b>{sourceCount}</b> sources collected</span>
+              <span><b>{learnedCount}</b> learned this run</span>
+              <span><b>{receiptCount}</b> receipts</span>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className={styles.thread} ref={threadRef}>
-          {answers.length === 0 && status !== "running" ? (
+          {activeView === "meeting" ? (
+            <div className={styles.meetingWorkspace}>
+              <MeetingPanel
+                onEnded={(count) => {
+                  addChat("quad", `meeting ended. ${count} fact${count !== 1 ? "s" : ""} captured and staged for approval before writing to the company brain.`);
+                }}
+              />
+            </div>
+          ) : answers.length === 0 && status !== "running" ? (
             <div className={styles.emptyState}>
               <div className={styles.glyph}>□</div>
               <h1>Hand Quad a questionnaire.</h1>
               <p>
                 it now calls the real enterprise proof api: retrieve brain, collect connector evidence, judge the answer, write back validated facts, and expose the run in operator observability.
               </p>
-              <button className={styles.primaryButton} onClick={runQuestionnaire} type="button">
-                Run the SecureFlow questionnaire
-              </button>
+              <div className={styles.emptyActions}>
+                <button className={styles.primaryButton} onClick={runQuestionnaire} type="button">
+                  Run the SecureFlow questionnaire
+                </button>
+                <button className={styles.secondaryButton} onClick={() => setActiveView("meeting")} type="button">
+                  Send Quad to Google Meet
+                </button>
+              </div>
               {error ? <div className={styles.errorText}>{error}</div> : null}
             </div>
           ) : null}
 
-          {chat.map((message) => (
-            <div key={message.id} className={`${styles.messageRow} ${message.role === "user" ? styles.userMessage : styles.quadMessage}`}>
-              <div className={styles.messageAvatar}>{message.role === "user" ? "S" : "Q"}</div>
-              <div className={styles.messageBody}>
-                <div className={styles.messageWho}>{message.role === "user" ? "you" : "quad"}</div>
-                <p>{message.text}</p>
-              </div>
-            </div>
-          ))}
+          {activeView !== "meeting" ? (
+            <>
+              {chat.map((message) => (
+                <div key={message.id} className={`${styles.messageRow} ${message.role === "user" ? styles.userMessage : styles.quadMessage}`}>
+                  <div className={styles.messageAvatar}>{message.role === "user" ? "S" : "Q"}</div>
+                  <div className={styles.messageBody}>
+                    <div className={styles.messageWho}>{message.role === "user" ? "you" : "quad"}</div>
+                    <p>{message.text}</p>
+                  </div>
+                </div>
+              ))}
 
-          {TRUST_QUESTIONS.map((question, index) => {
-            const answer = answers.find((item) => item.id === question.id);
-            const isActive = activeIndex === index;
-            if (!answer && !isActive) return null;
-            return answer ? (
-              <AnswerCardView key={question.id} answer={answer} onSource={setSelectedSource} />
-            ) : (
-              <div key={question.id} className={styles.stepLine}>
-                <span className={styles.liveDot} />
-                q{index + 1}: {question.text}
-              </div>
-            );
-          })}
+              {TRUST_QUESTIONS.map((question, index) => {
+                const answer = answers.find((item) => item.id === question.id);
+                const isActive = activeIndex === index;
+                if (!answer && !isActive) return null;
+                return answer ? (
+                  <AnswerCardView key={question.id} answer={answer} onSource={setSelectedSource} />
+                ) : (
+                  <div key={question.id} className={styles.stepLine}>
+                    <span className={styles.liveDot} />
+                    q{index + 1}: {question.text}
+                  </div>
+                );
+              })}
 
-          {status === "needs_approval" || status === "done" ? (
-            <div className={styles.approvalCard}>
-              <div>
-                <div className={styles.kicker}>approval required before submit</div>
-                <h2>{status === "done" ? "questionnaire submitted." : "submit to the vendor portal?"}</h2>
-                <p>
-                  {answeredCount} answered from {sourceCount} sources · {needsHumanCount} routed to human review · {learnedCount} learned facts protected by receipts.
-                </p>
-              </div>
-              <div className={styles.approvalActions}>
-                <button className={styles.secondaryButton} onClick={() => setActiveView("questionnaire")} type="button">review form</button>
-                {status !== "done" ? <button className={styles.primaryButton} onClick={approveSubmit} type="button">approve & submit</button> : null}
-              </div>
-            </div>
+              {status === "needs_approval" || status === "done" ? (
+                <div className={styles.approvalCard}>
+                  <div>
+                    <div className={styles.kicker}>approval required before submit</div>
+                    <h2>{status === "done" ? "questionnaire submitted." : "submit to the vendor portal?"}</h2>
+                    <p>
+                      {answeredCount} answered from {sourceCount} sources · {needsHumanCount} routed to human review · {learnedCount} learned facts protected by receipts.
+                    </p>
+                  </div>
+                  <div className={styles.approvalActions}>
+                    <button className={styles.secondaryButton} onClick={() => setActiveView("questionnaire")} type="button">review form</button>
+                    {status !== "done" ? <button className={styles.primaryButton} onClick={approveSubmit} type="button">approve & submit</button> : null}
+                  </div>
+                </div>
+              ) : null}
+            </>
           ) : null}
         </div>
 
-        <form className={styles.composer} onSubmit={sendComposer}>
-          <label className={styles.composerLabel} htmlFor="quad-composer">message quad</label>
-          <input
-            id="quad-composer"
-            name="quad-composer"
-            value={composer}
-            onChange={(event) => setComposer(event.target.value)}
-            placeholder="ask quad, or hand it a questionnaire…"
-            autoComplete="off"
-          />
-          {status === "running" ? (
-            <button aria-label="stop questionnaire run" className={styles.iconButton} onClick={stopRun} type="button">×</button>
-          ) : null}
-          <button aria-label="send message" className={styles.sendButton} disabled={isChatting || status === "resetting"} type="submit">→</button>
-        </form>
+        {activeView !== "meeting" ? (
+          <form className={styles.composer} onSubmit={sendComposer}>
+            <label className={styles.composerLabel} htmlFor="quad-composer">message quad</label>
+            <input
+              id="quad-composer"
+              name="quad-composer"
+              value={composer}
+              onChange={(event) => setComposer(event.target.value)}
+              placeholder="ask quad, or hand it a questionnaire…"
+              autoComplete="off"
+            />
+            {status === "running" ? (
+              <button aria-label="stop questionnaire run" className={styles.iconButton} onClick={stopRun} type="button">×</button>
+            ) : null}
+            <button aria-label="send message" className={styles.sendButton} disabled={isChatting || status === "resetting"} type="submit">→</button>
+          </form>
+        ) : null}
       </section>
 
       <aside className={styles.obsPane}>
