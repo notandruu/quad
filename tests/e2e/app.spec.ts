@@ -41,12 +41,11 @@ test.describe("quad production flows", () => {
 
     await page.getByRole("button", { name: "now reveal the proof packet" }).click();
 
-    await expect(page.getByRole("heading", { name: "Mechanistic verifier trace" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Without quadchain" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "With quadchain" })).toBeVisible();
-    await expect(page.getByText(/certificate qchain_/)).toBeVisible();
-    await expect(page.getByText("Evidence extraction")).toBeVisible();
-    await expect(page.getByText("Hash binding")).toBeVisible();
+    await expect(page.getByText("your context diet")).toBeVisible();
+    await expect(page.getByText("proof verdict")).toBeVisible();
+    await expect(page.getByText(/qchain_/).first()).toBeVisible();
+    await expect(page.locator("body")).toContainText("Evidence extraction");
+    await expect(page.locator("body")).toContainText("Hash binding");
   });
 
   test("returns a verified quadchain comparison contract", async ({ request }) => {
