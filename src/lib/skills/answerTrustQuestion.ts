@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import type { BrainMemory } from "@/lib/types";
 import { retrieveMemories, findMemoryBySourceId } from "@/lib/brain/retrieve";
 import { ingestMemory, type IngestInput } from "@/lib/brain/ingest";
+import type { BrainMemoryVisibility } from "@/lib/brain/permissions";
 import { listConnectorDocuments, type ConnectorDocument } from "@/lib/connectors/documents";
 import { complete, auditModel, extractJsonObject } from "@/lib/llm/anthropic";
 import { publishAuditEvent } from "@/lib/redis/publisher";
@@ -46,6 +47,10 @@ export type TrustQuestionInput = {
   orgId: string;
   question: string;
   runId: string;
+  targetVisibility?: BrainMemoryVisibility;
+  userId?: string;
+  teamId?: string;
+  teamIds?: string[];
   /** Injected for tests — skips the LLM judge call. */
   _judgeOverride?: (opts: {
     orgId?: string;
@@ -190,6 +195,26 @@ export async function answerTrustQuestion(input: TrustQuestionInput): Promise<Tr
     reason: evaluation.reason,
   });
 
+  const learnedScope = normalizeLearnedMemoryScope(input);
+  if (!learnedScope.ok) {
+    await emit("answer.needs_human", {
+      questionId,
+      reason: learnedScope.reason,
+      targetVisibility: learnedScope.visibility,
+    });
+
+    const packet = createNeedsHumanPacket({ orgId, runId, questionId, question, reason: learnedScope.reason });
+    return {
+      questionId,
+      question,
+      status: "needs_human",
+      answer,
+      sources,
+      evaluation,
+      quadChain: summarizeQuadChainPacket(packet),
+    };
+  }
+
   // Step 6: writeback — idempotent by sourceId. Look up across whichever store
   // the write would land in (Supabase when configured, else in-memory) so reuse
   // detection works in both modes.
@@ -203,6 +228,10 @@ export async function answerTrustQuestion(input: TrustQuestionInput): Promise<Tr
     wasReused = true;
   } else {
     const validationTag = `[Validated ${new Date().toISOString().slice(0, 10)} | confidence ${evaluation.confidence.toFixed(2)}]`;
+    const relatedSourceIds = [
+      ...memories.map((memory) => memory.sourceId || memory.id),
+      ...connectorDocs.map((doc) => doc.id),
+    ];
     const ingestInput: IngestInput = {
       orgId,
       sourceId,
@@ -213,6 +242,12 @@ export async function answerTrustQuestion(input: TrustQuestionInput): Promise<Tr
       entities: [],
       confidence: evaluation.confidence,
       permissions: ["read"],
+      visibility: learnedScope.visibility,
+      userId: learnedScope.userId,
+      teamId: learnedScope.teamId,
+      teamIds: learnedScope.teamIds,
+      validationStatus: "verified",
+      relatedSourceIds,
       evidence: memories
         .flatMap((m) => m.evidence)
         .filter((e) => Boolean(e.quote))
@@ -235,6 +270,7 @@ export async function answerTrustQuestion(input: TrustQuestionInput): Promise<Tr
     sourceId,
     wasReused,
     confidence: evaluation.confidence,
+    targetVisibility: learnedScope.visibility,
   });
 
   // Build quadchain packet
@@ -276,6 +312,37 @@ export async function answerTrustQuestion(input: TrustQuestionInput): Promise<Tr
 }
 
 // ---- internal helpers ----
+
+type LearnedMemoryScope =
+  | {
+      ok: true;
+      visibility: BrainMemoryVisibility;
+      userId?: string;
+      teamId?: string;
+      teamIds?: string[];
+    }
+  | {
+      ok: false;
+      visibility: BrainMemoryVisibility;
+      reason: "ambiguous_team_scope" | "ambiguous_personal_scope";
+    };
+
+function normalizeLearnedMemoryScope(input: TrustQuestionInput): LearnedMemoryScope {
+  const visibility = input.targetVisibility ?? "company";
+  if (visibility === "team" && !input.teamId && (!input.teamIds || input.teamIds.length === 0)) {
+    return { ok: false, visibility, reason: "ambiguous_team_scope" };
+  }
+  if (visibility === "personal" && !input.userId) {
+    return { ok: false, visibility, reason: "ambiguous_personal_scope" };
+  }
+  return {
+    ok: true,
+    visibility,
+    userId: input.userId,
+    teamId: input.teamId,
+    teamIds: input.teamIds,
+  };
+}
 
 function buildContextBlock(memories: BrainMemory[], docs: ConnectorDocument[]): string {
   const parts: string[] = [];

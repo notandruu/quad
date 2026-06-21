@@ -183,7 +183,7 @@ describe("answerTrustQuestion", () => {
     expect(result.memory).toBeUndefined();
   });
 
-  it("writes to brain when judge passes, with correct org scope", async () => {
+  it("writes to brain when judge passes, with explicit company scope and verified metadata", async () => {
     const { fn: ingestFn, captures } = captureIngest();
 
     const result = await answerTrustQuestion({
@@ -196,9 +196,55 @@ describe("answerTrustQuestion", () => {
 
     expect(result.status).toBe("answered");
     expect(captures).toHaveLength(1);
-    const captured = captures[0] as { orgId: string; sourceId: string; confidence: number };
+    const captured = captures[0] as {
+      orgId: string;
+      sourceId: string;
+      confidence: number;
+      visibility?: string;
+      validationStatus?: string;
+      relatedSourceIds?: string[];
+    };
     expect(captured.orgId).toBe(ENTERPRISE_PROOF_ORG_ID);
     expect(captured.confidence).toBeCloseTo(0.91, 2);
+    expect(captured.visibility).toBe("company");
+    expect(captured.validationStatus).toBe("verified");
+    expect(captured.relatedSourceIds?.length).toBeGreaterThan(0);
+  });
+
+  it("blocks ambiguous team-scoped writeback before learning a fact", async () => {
+    const { fn: ingestFn, captures } = captureIngest();
+
+    const result = await answerTrustQuestion({
+      orgId: ENTERPRISE_PROOF_ORG_ID,
+      question: QUESTION_IR,
+      runId: "test_run_ambiguous_team_scope",
+      targetVisibility: "team",
+      _judgeOverride: PASS_JUDGE,
+      _ingestOverride: ingestFn,
+    });
+
+    expect(result.status).toBe("needs_human");
+    expect(result.memory).toBeUndefined();
+    expect(captures).toHaveLength(0);
+  });
+
+  it("allows team-scoped writeback when a team id is provided", async () => {
+    const { fn: ingestFn, captures } = captureIngest();
+
+    const result = await answerTrustQuestion({
+      orgId: ENTERPRISE_PROOF_ORG_ID,
+      question: QUESTION_IR,
+      runId: "test_run_team_scope",
+      targetVisibility: "team",
+      teamId: "security",
+      _judgeOverride: PASS_JUDGE,
+      _ingestOverride: ingestFn,
+    });
+
+    const captured = captures[0] as { visibility?: string; teamId?: string };
+    expect(result.status).toBe("answered");
+    expect(captured.visibility).toBe("team");
+    expect(captured.teamId).toBe("security");
   });
 
   it("uses the stable questionId as the sourceId in brain writeback", async () => {

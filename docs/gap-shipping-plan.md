@@ -476,6 +476,13 @@ Shipped v7:
 - external callers can provide a deterministic run id for correlation, and duplicate run ids are rejected unless the request is an idempotency replay.
 - route tests cover demo fallback, hosted secret enforcement, idempotency replay, and run-id conflict protection.
 
+Shipped v8:
+
+- enterprise-proof learned facts now default to explicit company-scoped memory instead of relying on implicit permission inference.
+- team-scoped learned facts require a team id, and personal learned facts require an owner user id before writeback.
+- judge-passing answers with ambiguous target scope escalate to `needs_human` and do not write memory.
+- learned facts carry `verified` validation metadata plus derived source relationships for the memories and connector documents used.
+
 Build:
 
 - document what stays off-chain/off-registry.

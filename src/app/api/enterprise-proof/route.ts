@@ -30,6 +30,10 @@ type RequestBody = {
   orgId?: string;
   question?: string;
   runId?: string;
+  targetVisibility?: "company" | "team" | "personal";
+  userId?: string;
+  teamId?: string;
+  teamIds?: string[];
 };
 
 /**
@@ -62,6 +66,10 @@ export async function POST(req: NextRequest) {
     orgId: auth.orgId,
     question,
     runId: runId ?? null,
+    targetVisibility: body.targetVisibility ?? "company",
+    userId: body.userId ?? null,
+    teamId: body.teamId ?? null,
+    teamIds: body.teamIds ?? [],
   });
   const guard = await checkMutationGuards({
     orgId: auth.orgId,
@@ -105,6 +113,10 @@ export async function POST(req: NextRequest) {
       orgId: auth.orgId,
       question,
       runId: run.id,
+      targetVisibility: body.targetVisibility,
+      userId: body.userId,
+      teamId: body.teamId,
+      teamIds: body.teamIds,
     });
 
     addArtifact({
