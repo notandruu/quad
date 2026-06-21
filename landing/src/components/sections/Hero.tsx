@@ -10,11 +10,11 @@ import { SPONSORS, SponsorMark } from "@/components/SponsorLogos";
 const useIso = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 const TITLE: { w: string; dim?: boolean; serif?: boolean; br?: boolean }[] = [
-  { w: "Quad.", serif: true },
-  { w: "Leading", dim: true, br: true },
-  { w: "agentic", dim: true },
-  { w: "trust", dim: false },
-  { w: "work.", dim: false },
+  { w: "Knowledge", serif: true },
+  { w: "infrastructure", dim: true },
+  { w: "for", dim: true },
+  { w: "every", dim: false },
+  { w: "agent.", dim: false },
 ];
 
 const LAYERS = [
