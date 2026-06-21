@@ -81,6 +81,13 @@ a {
   font-family: var(--font-serif), "Times New Roman", Georgia, serif;
 }
 
+/* keyboard focus — visible pink ring, never on mouse click */
+:focus-visible {
+  outline: 2px solid var(--color-flame);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 @keyframes tw-blink {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }

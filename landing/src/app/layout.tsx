@@ -31,10 +31,28 @@ const serif = Playfair_Display({
   weight: ["700", "800", "900"],
 });
 
+const TITLE = "Quad — AI employees that prove their work";
+const DESC =
+  "Quad is a company-aware AI employee for enterprise trust work. It finds the gap, proves the fix, ships through approval, and leaves a receipt.";
+
 export const metadata: Metadata = {
-  title: "Quad — AI employees that prove their work",
-  description:
-    "Quad is a company-aware AI employee for enterprise trust work. It finds the gap, proves the fix, ships through approval, and leaves a receipt.",
+  metadataBase: new URL("https://quad.dev"),
+  title: TITLE,
+  description: DESC,
+  icons: { icon: "/favicon.svg", apple: "/favicon.svg" },
+  openGraph: {
+    type: "website",
+    title: TITLE,
+    description: DESC,
+    siteName: "Quad",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Quad" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESC,
+    images: ["/og.png"],
+  },
 };
 
 export default function RootLayout({

@@ -46,7 +46,10 @@ export default function SecurityFlow({ className = "" }: { className?: string })
         return;
       }
 
-      const start = { scrollTrigger: { trigger: el, start: "top 80%" } };
+      // play only while in view (pause off-screen)
+      const start = {
+        scrollTrigger: { trigger: el, start: "top 85%", end: "bottom 15%", toggleActions: "play pause resume pause" },
+      };
 
       // verified evidence packets: brain -> gate (shrink) -> model
       gsap.utils.toArray<SVGCircleElement>("[data-ev]").forEach((p, i) => {
