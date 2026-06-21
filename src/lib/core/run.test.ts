@@ -62,11 +62,23 @@ describe("quad core run facade", () => {
         type: "audit",
         status: "queued",
       },
+      quadChain: [
+        {
+          type: "agent_handoff",
+          accepted: true,
+        },
+      ],
+      runtime: {
+        surface: "dashboard",
+      },
       task: {
         runId: "run_core_queue_facade",
         status: "queued",
       },
     });
+    expect(result.command).toBe("queue_audit");
+    if (result.command !== "queue_audit") throw new Error("expected queue result");
+    expect(result.runtime.selectedTools).toContain("quad.chain_verifier");
   });
 
   it("rejects missing command payloads before creating runtime work", async () => {

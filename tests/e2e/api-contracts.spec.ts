@@ -41,6 +41,44 @@ test.describe("api contracts", () => {
     await expect(verify.json()).resolves.toMatchObject({ error: "packetId required" });
   });
 
+  test("queues external agent runs through the shared core facade", async ({ request }) => {
+    test.skip(!process.env.QUAD_AGENT_RUN_SECRET, "agent run secret is required for external agent success path");
+    const response = await request.post("/api/agent/run", {
+      headers: process.env.QUAD_AGENT_RUN_SECRET
+        ? { "x-quad-agent-secret": process.env.QUAD_AGENT_RUN_SECRET }
+        : undefined,
+      data: {
+        orgId: "org_brightpath",
+        targetUrl: "https://quad.stephenhung.me",
+        workflow: "enterprise_proof",
+      },
+    });
+
+    expect(response.ok()).toBe(true);
+    const json = await response.json();
+    expect(json).toMatchObject({
+      agent: "quad",
+      workflow: "enterprise_proof",
+      summary: {
+        status: "queued",
+      },
+      runtime: {
+        surface: "fetch_agent",
+      },
+      job: {
+        type: "agent_run",
+        status: "queued",
+      },
+      quadChain: [
+        {
+          type: "agent_handoff",
+          accepted: true,
+        },
+      ],
+    });
+    expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+  });
+
   test("returns safe empty packet registry summaries", async ({ request }) => {
     const response = await request.get(`/api/quadchain/packets?runId=missing_${Date.now()}&limit=5`);
 

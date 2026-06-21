@@ -3,7 +3,8 @@ import { getEmployee } from "@/lib/employees";
 import { enqueueAuditJob } from "@/lib/jobs/queue";
 import { complete, chatModel } from "@/lib/llm/anthropic";
 import { withRuntimeTrace } from "@/lib/observability";
-import type { QuadChainPacketSummary, QuadChainSource } from "@/lib/quad-chain";
+import { createQuadChainPacket, summarizeQuadChainPacket, type QuadChainPacketSummary, type QuadChainSource } from "@/lib/quad-chain";
+import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 import { getMemoryMetadata, retrieveMemoriesWithPackets } from "@/lib/brain";
 import type { BrainMemoryRequester } from "@/lib/brain/permissions";
 import type { AuditReport, BrainMemory } from "@/lib/types";
@@ -55,6 +56,15 @@ export type QuadCoreQueueAuditResult = {
   runId: string;
   surface: QuadCoreSurface;
   mode: "redis" | "memory";
+  quadChain: QuadChainPacketSummary[];
+  runtime: {
+    surface: QuadCoreSurface;
+    selectedTools: string[];
+    missingCapabilities: Array<{
+      id: string;
+      missingEnvCount: number;
+    }>;
+  };
   job: {
     id: string;
     type: string;
@@ -95,14 +105,57 @@ async function runQueueAuditCommand(
 ): Promise<QuadCoreQueueAuditResult> {
   const targetUrl = input.targetUrl ?? input.pinnedUrl;
   if (!targetUrl) throw new Error("targetUrl required");
+  const runId = input.runId ?? `run_${crypto.randomUUID()}`;
+  const employee = getEmployee(input.employeeId);
   const result = await enqueueAuditJob({
     orgId: input.orgId,
     targetUrl,
     limit: input.limit,
-    runId: input.runId,
+    runId,
     workflow: input.workflow ?? "website_audit",
     createdBy: input.createdBy ?? (input.surface === "fetch_agent" ? "agent" : "dashboard"),
   });
+  const context = await buildQuadCoreContext({
+    orgId: input.orgId,
+    employee,
+    runId: result.job.runId,
+    text: `queue ${input.workflow ?? "website_audit"} for ${targetUrl}`,
+    surface: input.surface,
+    pinnedUrl: targetUrl,
+    hasActiveAudit: true,
+    contextMode: "skip",
+  });
+  const handoffPacket = createQuadChainPacket({
+    orgId: input.orgId,
+    runId: result.job.runId,
+    type: "agent_handoff",
+    producer: `quad.${input.surface}`,
+    consumer: "quad.worker",
+    output: [
+      `core queue handoff accepted for ${input.workflow ?? "website_audit"}.`,
+      `surface ${input.surface} queued job ${result.job.id} for ${targetUrl}.`,
+      "worker execution and customer-facing approvals are tracked in downstream task receipts.",
+    ].join("\n"),
+    answerConcepts: ["core", "queue", "handoff", input.workflow ?? "website_audit"],
+    evidence: [],
+    sources: [
+      {
+        id: "core_queue_request",
+        kind: "event",
+        content: {
+          workflow: input.workflow ?? "website_audit",
+          targetUrl,
+          limit: input.limit ?? null,
+          jobId: result.job.id,
+          selectedTools: context.selectedTools.map((tool) => tool.id),
+          missingCapabilities: context.missingCapabilities.map((capability) => capability.id),
+        },
+      },
+    ],
+    visibility: "internal",
+  });
+  const savedHandoff = await saveQuadChainPacket(handoffPacket);
+  const handoff = summarizeQuadChainPacket(handoffPacket) ?? savedHandoff.summary;
 
   return {
     ok: true,
@@ -111,6 +164,15 @@ async function runQueueAuditCommand(
     runId: result.job.runId,
     surface: input.surface,
     mode: result.mode,
+    quadChain: [handoff],
+    runtime: {
+      surface: context.surface,
+      selectedTools: context.selectedTools.map((tool) => tool.id),
+      missingCapabilities: context.missingCapabilities.map((capability) => ({
+        id: capability.id,
+        missingEnvCount: capability.missingEnv.length,
+      })),
+    },
     job: {
       id: result.job.id,
       type: result.job.type,

@@ -106,6 +106,12 @@ Shipped v1:
 - `/api/chat` now calls the shared core facade instead of duplicating context loading, audit-follow-up grounding, employee runtime, and receipt creation logic.
 - api-contract tests prove both chat and queued-audit commands work through the shared facade without leaking secrets.
 
+Shipped v2:
+
+- `/api/agent/run` now delegates to the shared `queue_audit` core command while preserving the external-agent response shape.
+- Fetch/Agentverse-style runs return queued job state, task summary, runtime capability state, and an `agent_handoff` quadchain receipt from the same core substrate as dashboard queues.
+- the old synchronous one-off agent route logic was removed; execution now belongs to the backend worker path.
+
 ## Gap 2.5: post-audit chat grounding
 
 Status: shipped v1.
