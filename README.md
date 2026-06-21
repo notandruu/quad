@@ -74,6 +74,15 @@ npm run e2e
 
 Railway is linked locally as project/service `quad-fetch-agent` in the `production` environment. Vercel serves the Next.js app at `quad.stephenhung.me`; Railway is ready for the long-running worker/runtime side when that path is split from the web app.
 
+The async backend path is now available:
+
+```bash
+npm run worker       # long-running worker loop for Railway
+npm run worker:once  # process one queued job locally
+```
+
+`POST /api/jobs` queues a website audit or enterprise proof run, `GET /api/jobs` lists queued/running/completed jobs, `GET /api/jobs/:jobId` inspects a job, and `POST /api/jobs/process` processes one job for cron-style or protected worker calls. Redis is used when configured; local demos fall back to in-memory jobs.
+
 ## What is stubbed
 
 The scaffold runs end to end with deterministic placeholders where a model or
