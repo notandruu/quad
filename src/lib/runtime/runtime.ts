@@ -1,10 +1,7 @@
 import type { Intent, QuadEmployee } from "@/lib/types";
-import { publishAuditEvent } from "@/lib/redis";
-import { retrieveMemoriesWithPackets } from "@/lib/brain";
 import type { QuadChainPacketSummary } from "@/lib/quad-chain";
 import { complete, chatModel } from "@/lib/llm/anthropic";
-import { classifyIntent, extractUrl } from "./intent";
-import { checkPermission } from "./permissions";
+import { buildQuadCoreContext, type QuadCoreContext, type QuadCoreSurface } from "@/lib/core";
 
 export type RuntimeInput = {
   orgId: string;
@@ -13,12 +10,14 @@ export type RuntimeInput = {
   text: string;
   pinnedUrl?: string;
   hasActiveAudit?: boolean;
+  surface?: QuadCoreSurface;
+  coreContext?: QuadCoreContext;
 };
 
 export type RuntimeResult = {
   intent: Intent;
   requiresApproval: boolean;
-  context: Awaited<ReturnType<typeof retrieveMemoriesWithPackets>>[number]["memory"][];
+  context: QuadCoreContext["memories"];
   verifiedContext: QuadChainPacketSummary[];
   detectedUrl: string | null;
   message: string;
@@ -36,46 +35,28 @@ export type RuntimeResult = {
 export async function runEmployee(input: RuntimeInput): Promise<RuntimeResult> {
   const { orgId, employee, runId, text } = input;
 
-  await publishEmployee(employee.id, "employee.input_received", { runId });
-
-  const intent = classifyIntent(text, {
-    hasActiveAudit: input.hasActiveAudit,
+  const core = input.coreContext ?? await buildQuadCoreContext({
+    orgId,
+    employee,
+    runId,
+    text,
+    surface: input.surface ?? "chat",
     pinnedUrl: input.pinnedUrl,
+    hasActiveAudit: input.hasActiveAudit,
   });
-  await publishEmployee(employee.id, "employee.intent_classified", { intent });
-
-  const retrieved = await retrieveMemoriesWithPackets({ orgId, query: text, limit: 6 });
-  const context = retrieved.map((item) => item.memory);
-  const verifiedContext = retrieved
-    .map((item) => item.quadChain)
-    .filter((item): item is QuadChainPacketSummary => Boolean(item));
-  await publishEmployee(employee.id, "employee.context_retrieved", {
-    count: context.length,
-    verifiedCount: verifiedContext.length,
-  });
-
-  const permission = checkPermission(employee, intent);
-  await publishEmployee(employee.id, "employee.permission_checked", {
-    allowed: permission.allowed,
-    requiresApproval: permission.requiresApproval,
-  });
-
-  const detectedUrl = extractUrl(text) ?? input.pinnedUrl ?? null;
 
   // Synthesize the final response with the chat model, grounded in retrieved
   // memories. Falls back to a deterministic acknowledgement with no API key.
   const message =
-    (await synthesizeReply(employee, text, context)) ??
-    draftMessage(intent, context.length, detectedUrl);
-
-  await publishEmployee(employee.id, "employee.response_completed", { intent });
+    (await synthesizeReply(employee, text, core.memories)) ??
+    draftMessage(core.intent, core.memories.length, core.detectedUrl);
 
   return {
-    intent,
-    requiresApproval: permission.requiresApproval,
-    context,
-    verifiedContext,
-    detectedUrl,
+    intent: core.intent,
+    requiresApproval: core.permission.requiresApproval,
+    context: core.memories,
+    verifiedContext: core.verifiedContext,
+    detectedUrl: core.detectedUrl,
     message,
   };
 }
@@ -115,16 +96,6 @@ function draftMessage(intent: Intent, contextCount: number, url: string | null):
     default:
       return `Got it. Retrieved ${contextCount} relevant memories.`;
   }
-}
-
-async function publishEmployee(
-  employeeId: string,
-  type: string,
-  payload: Record<string, unknown>
-) {
-  // Employee events share the audit publisher contract but on the employee
-  // stream. Reuse the audit publisher keyed by employee for the scaffold.
-  await publishAuditEvent(`employee:${employeeId}`, type, payload);
 }
 
 export * from "./intent";

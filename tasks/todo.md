@@ -218,6 +218,13 @@ hard constraints:
 
 ## next build plan
 
+- [x] add `src/lib/core/**` as the shared backend runtime spine for chat, voice, fetch, dashboard, and workers
+- [x] centralize runtime context loading: intent, verified brain memories, active capability catalog, approval policy, and run ids
+- [x] centralize quadchain receipt creation for runtime outputs so surfaces do not hand-roll packet logic
+- [x] make `/api/chat` use the core runtime context and receipt helper as the first live surface on the new substrate
+- [ ] keep the route-specific audit/worker execution paths working while the rest of the app migrates onto core
+- [x] verify the slice with unit tests, typecheck, and no changes to frozen `src/lib/types`
+
 - [ ] implement real redis streams for audit events and replay
 - [ ] use browserbase for rendered page capture, screenshots, visible text, selectors, buttons, images, and forms
 - [ ] require every finding to include url, quote/dom snippet, confidence, severity, and recommended fix
