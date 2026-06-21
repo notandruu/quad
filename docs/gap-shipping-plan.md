@@ -327,11 +327,18 @@ Shipped v1:
 - visible agent-loop traces now distinguish eager hot tools, deferred cold/write/observability tools, and blocked capabilities.
 - `GET /api/metaregistry/runtime-tools` exposes the read-only routing plan for dashboard, fetch, cli, worker, and future specialist-agent surfaces.
 
+Shipped v2:
+
+- the debug drawer now fetches the real website-audit/fetch-agent runtime plan and shows hot, deferred, and blocked counts beside the backend status.
+- runtime route summaries use a pure debug helper so product surfaces do not render raw certificates, raw env names, or unfiltered api payloads.
+- the drawer handles service-auth lock-down by showing that routing is unavailable instead of breaking the rest of the status panel.
+
 Acceptance:
 
 - allowlist, disabled, missing-env, and write-approval policy are applied before a tool reaches the runtime plan.
 - write-capable tools stay deferred until an approval gate exists.
 - observability tools can be installed and active without being stuffed into every prompt as eager context.
+- judges can open the product and see which tools quad would route before a workflow runs.
 
 ## Gap 3: dry-run publisher workbench
 

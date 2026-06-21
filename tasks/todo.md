@@ -11,7 +11,7 @@
 
 quad is not a throwaway hackathon build. quad should be designed as a production product that happens to have a hackathon launch/demo deadline.
 
-2026-06-21 update: shipped the next biggest backend gap as runtime tool routing from the metaregistry. quad can now build eager/deferred/blocked tool plans per intent and surface, expose `/api/metaregistry/runtime-tools`, and make core agent loops consume the same routing plan instead of hard-coded tool selection.
+2026-06-21 update: shipped the next biggest backend gap as runtime tool routing from the metaregistry. quad can now build eager/deferred/blocked tool plans per intent and surface, expose `/api/metaregistry/runtime-tools`, make core agent loops consume the same routing plan instead of hard-coded tool selection, and show the live route plan in the debug drawer.
 
 the core product is a company-aware ai employee platform: it understands a business goal, retrieves and collects missing context, uses tools, validates its own work, learns only verified knowledge, executes approved actions, and leaves a replayable evidence trail. website audits and security questionnaires are product workflows on top of that runtime, not the whole company.
 

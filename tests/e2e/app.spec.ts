@@ -24,6 +24,10 @@ test.describe("quad production flows", () => {
 
     await page.getByRole("button", { name: /Backends/ }).click();
     await expect(page.getByText("Stack status")).toBeVisible();
+    await expect(page.getByText("Runtime routing")).toBeVisible();
+    await expect(page.getByText("Hot", { exact: true })).toBeVisible();
+    await expect(page.getByText("Deferred", { exact: true })).toBeVisible();
+    await expect(page.getByText("Blocked", { exact: true })).toBeVisible();
     await expect(page.getByText(/Voice:/)).toBeVisible();
   });
 

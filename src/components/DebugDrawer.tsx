@@ -10,6 +10,11 @@ import {
   type BackendSettings,
   type ReadinessTone,
 } from "@/lib/debug/status";
+import {
+  summarizeRuntimeToolRouting,
+  topRuntimeToolLabels,
+  type RuntimeToolRoutingResponse,
+} from "@/lib/debug/runtimeTools";
 
 /**
  * Proof drawer. Polls /api/settings and shows which backends are live so the
@@ -19,15 +24,29 @@ import {
 export function DebugDrawer() {
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState<BackendSettings | null>(null);
+  const [runtimeTools, setRuntimeTools] = useState<RuntimeToolRoutingResponse | null>(null);
+  const [runtimeToolsError, setRuntimeToolsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    setRuntimeToolsError(null);
     try {
-      const res = await fetch("/api/settings", { cache: "no-store" });
-      setSettings(await res.json());
+      const [settingsRes, toolsRes] = await Promise.all([
+        fetch("/api/settings", { cache: "no-store" }),
+        fetch("/api/metaregistry/runtime-tools?intent=website_audit&surface=fetch_agent", { cache: "no-store" }),
+      ]);
+      setSettings(await settingsRes.json());
+      if (toolsRes.ok) {
+        setRuntimeTools(await toolsRes.json());
+      } else {
+        setRuntimeTools(null);
+        setRuntimeToolsError("Tool routing is locked behind service auth.");
+      }
     } catch {
       setSettings(null);
+      setRuntimeTools(null);
+      setRuntimeToolsError("Tool routing is unavailable right now.");
     } finally {
       setLoading(false);
     }
@@ -40,6 +59,8 @@ export function DebugDrawer() {
   const rows = settings ? summarizeBackends(settings) : [];
   const count = liveCount(rows);
   const readiness = settings ? summarizeReadiness(settings) : null;
+  const runtimePlan = runtimeTools?.plan ?? null;
+  const runtimeSummary = runtimePlan ? summarizeRuntimeToolRouting(runtimePlan) : null;
 
   return (
     <>
@@ -115,6 +136,39 @@ export function DebugDrawer() {
             </div>
           )}
 
+          <div className="mb-3 rounded-lg border border-edge bg-ink/50 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs font-medium text-neutral-200">Runtime routing</div>
+                <div className="mt-1 text-[11px] leading-4 text-neutral-500">
+                  {runtimeSummary?.detail ?? runtimeToolsError ?? "Loading route plan for audit tools."}
+                </div>
+              </div>
+              {runtimeSummary && (
+                <div className={`shrink-0 rounded border px-2 py-1 text-[10px] ${runtimeTone(runtimeSummary.tone)}`}>
+                  {runtimeSummary.label}
+                </div>
+              )}
+            </div>
+
+            {runtimeSummary && runtimePlan && (
+              <>
+                <div className="mt-3 grid grid-cols-3 gap-1.5 text-center">
+                  <RuntimeMetric label="Hot" value={runtimeSummary.hotCount} />
+                  <RuntimeMetric label="Deferred" value={runtimeSummary.deferredCount} />
+                  <RuntimeMetric label="Blocked" value={runtimeSummary.blockedCount} />
+                </div>
+                <div className="mt-3 space-y-1">
+                  {topRuntimeToolLabels(runtimePlan).map((label) => (
+                    <div key={label} className="truncate font-mono text-[10px] text-neutral-500">
+                      &gt; {label}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
           <div className="space-y-1.5">
             {rows.map((row) => (
               <StatusRow key={row.key} row={row} />
@@ -134,6 +188,14 @@ export function DebugDrawer() {
   );
 }
 
+function runtimeTone(tone: "ready" | "partial" | "blocked"): string {
+  return {
+    ready: "border-accent/40 text-accent",
+    partial: "border-amber-300/40 text-amber-300",
+    blocked: "border-neutral-600 text-neutral-400",
+  }[tone];
+}
+
 function toneText(tone: ReadinessTone): string {
   return {
     production: "text-accent",
@@ -148,6 +210,15 @@ function toneBar(tone: ReadinessTone): string {
     demo: "bg-sky-300",
     fallback: "bg-amber-300",
   }[tone];
+}
+
+function RuntimeMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded bg-neutral-950/60 px-2 py-1.5">
+      <div className="text-sm font-semibold tabular-nums text-neutral-100">{value}</div>
+      <div className="text-[9px] text-neutral-600">{label}</div>
+    </div>
+  );
 }
 
 function StatusRow({ row }: { row: BackendRow }) {
