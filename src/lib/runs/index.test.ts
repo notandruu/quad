@@ -16,6 +16,7 @@ import {
   requestApproval,
   saveRunSnapshot,
   summarizeAgentTask,
+  summarizeTaskStream,
   toWorkflowApprovalRow,
   toWorkflowArtifactRow,
   toWorkflowReceiptRow,
@@ -81,6 +82,84 @@ describe("run ledger", () => {
     expect(summarizeAgentTask(snapshot!).nextAction).toBe(
       "Human approval required before customer-facing work can ship."
     );
+  });
+
+  it("records a normalized task stream across the run lifecycle", () => {
+    const run = createWorkflowRun({
+      id: "run_task_stream",
+      orgId: "org_stream",
+      workflowKind: "enterprise_proof",
+      title: "Streamed enterprise proof",
+      createdBy: "agent",
+      targetUrl: "https://example.com",
+      now: "2026-06-21T04:00:00.000Z",
+    });
+    transitionRun(run.id, "running", { now: "2026-06-21T04:00:01.000Z" });
+    const task = addTask({
+      runId: run.id,
+      title: "Collect evidence",
+      status: "running",
+      owner: "quad",
+      capabilityId: "browserbase.read_browser",
+      detail: "Browser evidence collection started.",
+      now: "2026-06-21T04:00:02.000Z",
+    });
+    const artifact = addArtifact({
+      runId: run.id,
+      kind: "trust_packet",
+      title: "Trust packet",
+      data: { claims: ["sso"] },
+      now: "2026-06-21T04:00:03.000Z",
+    });
+    const approval = requestApproval({
+      runId: run.id,
+      artifactId: artifact.id,
+      reason: "Needs approval before publish.",
+      evidenceVisible: true,
+      now: "2026-06-21T04:00:04.000Z",
+    });
+    decideApproval({
+      runId: run.id,
+      approvalId: approval.id,
+      decision: "approved",
+      approver: "operator",
+      now: "2026-06-21T04:00:05.000Z",
+    });
+    const receipt = createReceipt({
+      runId: run.id,
+      artifactId: artifact.id,
+      approvalId: approval.id,
+      status: "ready",
+      summary: "Approved packet is ready.",
+      now: "2026-06-21T04:00:06.000Z",
+    });
+
+    const snapshot = getRunSnapshot(run.id)!;
+    const stream = summarizeTaskStream(snapshot);
+
+    expect(stream.map((event) => event.kind)).toEqual([
+      "run.created",
+      "run.status_changed",
+      "task.running",
+      "artifact.created",
+      "approval.requested",
+      "approval.decided",
+      "receipt.created",
+    ]);
+    expect(stream.map((event) => event.sequence)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(stream[2]).toMatchObject({
+      taskId: task.id,
+      capabilityId: "browserbase.read_browser",
+      status: "running",
+    });
+    expect(stream[6]).toMatchObject({
+      receiptId: receipt.id,
+      artifactId: artifact.id,
+      approvalId: approval.id,
+      status: "ready",
+    });
+    expect(summarizeAgentTask(snapshot).taskEvents.map((event) => event.kind)).toContain("approval.decided");
+    expect(buildHostedRunDetail(snapshot).taskEvents).toHaveLength(7);
   });
 
   it("blocks customer writes until approval is decided", () => {
@@ -313,6 +392,7 @@ describe("run ledger", () => {
       self: "/api/runs/run_hosted_detail",
       artifacts: "/api/runs/run_hosted_detail/artifacts",
       tasks: "/api/runs/run_hosted_detail/tasks",
+      taskEvents: "/api/runs/run_hosted_detail/tasks",
     });
     expect(detail.artifacts[0]).toMatchObject({
       id: artifact.id,

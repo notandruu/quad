@@ -89,12 +89,60 @@ export type ReceiptRecord = {
   artifactHash: `fnv1a:${string}`;
 };
 
+export type WorkflowTaskEventKind =
+  | "run.created"
+  | "run.status_changed"
+  | "task.queued"
+  | "task.running"
+  | "task.blocked"
+  | "task.completed"
+  | "artifact.created"
+  | "approval.requested"
+  | "approval.decided"
+  | "receipt.created";
+
+export type WorkflowTaskEventActor = "dashboard" | "agent" | "worker" | "quad" | "human" | "connector" | "system";
+
+export type WorkflowTaskEventRecord = {
+  id: string;
+  runId: string;
+  sequence: number;
+  kind: WorkflowTaskEventKind;
+  actor: WorkflowTaskEventActor;
+  message: string;
+  createdAt: string;
+  taskId?: string;
+  artifactId?: string;
+  approvalId?: string;
+  receiptId?: string;
+  capabilityId?: string;
+  status?: WorkflowRunStatus | WorkflowTaskRecord["status"] | ApprovalDecision | ReceiptRecord["status"];
+  payloadSummary?: Record<string, string | number | boolean | null>;
+};
+
+export type WorkflowTaskEventSummary = Pick<
+  WorkflowTaskEventRecord,
+  | "id"
+  | "sequence"
+  | "kind"
+  | "actor"
+  | "message"
+  | "createdAt"
+  | "taskId"
+  | "artifactId"
+  | "approvalId"
+  | "receiptId"
+  | "capabilityId"
+  | "status"
+>;
+
 export type RunLedgerSnapshot = {
   run: WorkflowRunRecord;
   tasks: WorkflowTaskRecord[];
   artifacts: WorkflowArtifactRecord[];
   approvals: ApprovalRecord[];
   receipts: ReceiptRecord[];
+  taskEvents: WorkflowTaskEventRecord[];
 };
 
 export type RunLedgerPersistResult = {
@@ -121,6 +169,7 @@ export type AgentTaskSummary = {
   artifacts: Array<Pick<WorkflowArtifactRecord, "id" | "kind" | "title" | "hash">>;
   approvals: Array<Pick<ApprovalRecord, "id" | "decision" | "reason" | "evidenceVisible">>;
   receipts: Array<Pick<ReceiptRecord, "id" | "status" | "summary" | "artifactHash">>;
+  taskEvents: WorkflowTaskEventSummary[];
   nextAction: string;
 };
 
@@ -148,10 +197,12 @@ export type HostedRunDetail = {
   }>;
   approvals: ApprovalRecord[];
   receipts: ReceiptRecord[];
+  taskEvents: WorkflowTaskEventSummary[];
   links: {
     self: string;
     artifacts: string;
     tasks: string;
+    taskEvents: string;
   };
 };
 
@@ -204,6 +255,19 @@ export function createWorkflowRun(input: CreateWorkflowRunInput): WorkflowRunRec
     artifacts: [],
     approvals: [],
     receipts: [],
+    taskEvents: [],
+  });
+  appendTaskEvent({
+    runId: run.id,
+    kind: "run.created",
+    actor: input.createdBy,
+    message: `${input.title} created.`,
+    status: "queued",
+    now,
+    payloadSummary: {
+      workflowKind: input.workflowKind,
+      targetUrl: input.targetUrl ?? null,
+    },
   });
   pruneLedger();
   return run;
@@ -331,6 +395,7 @@ export function transitionRun(
   input: { now?: string; failureReason?: string } = {}
 ): WorkflowRunRecord {
   const snapshot = requireSnapshot(runId);
+  const previousStatus = snapshot.run.status;
   const updated: WorkflowRunRecord = {
     ...snapshot.run,
     status,
@@ -338,6 +403,22 @@ export function transitionRun(
     failureReason: input.failureReason,
   };
   snapshot.run = updated;
+  if (previousStatus !== status || input.failureReason) {
+    appendTaskEvent({
+      runId,
+      kind: "run.status_changed",
+      actor: "system",
+      message: input.failureReason
+        ? `Run moved to ${status}: ${input.failureReason}`
+        : `Run moved from ${previousStatus} to ${status}.`,
+      status,
+      now: updated.updatedAt,
+      payloadSummary: {
+        previousStatus,
+        failureReason: input.failureReason ?? null,
+      },
+    });
+  }
   return updated;
 }
 
@@ -372,6 +453,21 @@ export function addTask(input: {
     taskIds: [...snapshot.run.taskIds, task.id],
     updatedAt: now,
   };
+  appendTaskEvent({
+    runId: input.runId,
+    kind: taskEventKindForTaskStatus(task.status),
+    actor: task.owner,
+    message: `${task.title}: ${task.detail}`,
+    taskId: task.id,
+    capabilityId: task.capabilityId,
+    status: task.status,
+    now,
+    payloadSummary: {
+      owner: task.owner,
+      dependencyCount: task.dependsOn.length,
+      capabilityId: task.capabilityId ?? null,
+    },
+  });
   return task;
 }
 
@@ -400,6 +496,18 @@ export function addArtifact(input: {
     artifactIds: [...snapshot.run.artifactIds, artifact.id],
     updatedAt: now,
   };
+  appendTaskEvent({
+    runId: input.runId,
+    kind: "artifact.created",
+    actor: "quad",
+    message: `${artifact.title} artifact created.`,
+    artifactId: artifact.id,
+    now,
+    payloadSummary: {
+      kind: artifact.kind,
+      hash: artifact.hash,
+    },
+  });
   return artifact;
 }
 
@@ -431,6 +539,19 @@ export function requestApproval(input: {
     approvalIds: [...snapshot.run.approvalIds, approval.id],
     updatedAt: now,
   };
+  appendTaskEvent({
+    runId: input.runId,
+    kind: "approval.requested",
+    actor: "quad",
+    message: approval.reason,
+    approvalId: approval.id,
+    artifactId: approval.artifactId,
+    status: "pending",
+    now,
+    payloadSummary: {
+      evidenceVisible: approval.evidenceVisible,
+    },
+  });
   return approval;
 }
 
@@ -452,6 +573,19 @@ export function decideApproval(input: {
   };
   snapshot.approvals[index] = updated;
   snapshot.run = { ...snapshot.run, updatedAt: updated.decidedAt ?? new Date().toISOString() };
+  appendTaskEvent({
+    runId: input.runId,
+    kind: "approval.decided",
+    actor: "human",
+    message: `Approval ${input.decision} by ${input.approver}.`,
+    approvalId: updated.id,
+    artifactId: updated.artifactId,
+    status: updated.decision,
+    now: updated.decidedAt ?? undefined,
+    payloadSummary: {
+      approver: input.approver,
+    },
+  });
   return updated;
 }
 
@@ -484,7 +618,79 @@ export function createReceipt(input: {
     receiptIds: [...snapshot.run.receiptIds, receipt.id],
     updatedAt: now,
   };
+  appendTaskEvent({
+    runId: input.runId,
+    kind: "receipt.created",
+    actor: "quad",
+    message: receipt.summary,
+    receiptId: receipt.id,
+    artifactId: receipt.artifactId,
+    approvalId: receipt.approvalId ?? undefined,
+    status: receipt.status,
+    now,
+    payloadSummary: {
+      artifactHash: receipt.artifactHash,
+    },
+  });
   return receipt;
+}
+
+export function appendTaskEvent(input: {
+  runId: string;
+  kind: WorkflowTaskEventKind;
+  actor: WorkflowTaskEventActor;
+  message: string;
+  now?: string;
+  taskId?: string;
+  artifactId?: string;
+  approvalId?: string;
+  receiptId?: string;
+  capabilityId?: string;
+  status?: WorkflowTaskEventRecord["status"];
+  payloadSummary?: WorkflowTaskEventRecord["payloadSummary"];
+}): WorkflowTaskEventRecord {
+  const snapshot = requireSnapshot(input.runId);
+  const events = ensureTaskEvents(snapshot);
+  const now = input.now ?? new Date().toISOString();
+  const sequence = events.length + 1;
+  const event: WorkflowTaskEventRecord = {
+    id: `event_${shortId(input.runId, input.kind, sequence, now)}`,
+    runId: input.runId,
+    sequence,
+    kind: input.kind,
+    actor: input.actor,
+    message: input.message,
+    createdAt: now,
+    taskId: input.taskId,
+    artifactId: input.artifactId,
+    approvalId: input.approvalId,
+    receiptId: input.receiptId,
+    capabilityId: input.capabilityId,
+    status: input.status,
+    payloadSummary: input.payloadSummary,
+  };
+  events.push(event);
+  snapshot.run = { ...snapshot.run, updatedAt: now };
+  return event;
+}
+
+export function summarizeTaskStream(snapshot: RunLedgerSnapshot, limit = 50): WorkflowTaskEventSummary[] {
+  return ensureTaskEvents(snapshot)
+    .slice(-Math.max(1, Math.min(limit, 200)))
+    .map((event) => ({
+      id: event.id,
+      sequence: event.sequence,
+      kind: event.kind,
+      actor: event.actor,
+      message: event.message,
+      createdAt: event.createdAt,
+      taskId: event.taskId,
+      artifactId: event.artifactId,
+      approvalId: event.approvalId,
+      receiptId: event.receiptId,
+      capabilityId: event.capabilityId,
+      status: event.status,
+    }));
 }
 
 export function assertCustomerWriteAllowed(snapshot: RunLedgerSnapshot): void {
@@ -523,6 +729,7 @@ export function summarizeAgentTask(snapshot: RunLedgerSnapshot): AgentTaskSummar
       summary: receipt.summary,
       artifactHash: receipt.artifactHash,
     })),
+    taskEvents: summarizeTaskStream(snapshot, 20),
     nextAction: pendingApproval
       ? "Human approval required before customer-facing work can ship."
       : blockedReceipt
@@ -551,10 +758,12 @@ export function buildHostedRunDetail(snapshot: RunLedgerSnapshot): HostedRunDeta
     })),
     approvals: snapshot.approvals.map((approval) => ({ ...approval })),
     receipts: snapshot.receipts.map((receipt) => ({ ...receipt })),
+    taskEvents: summarizeTaskStream(snapshot, 100),
     links: {
       self: `/api/runs/${snapshot.run.id}`,
       artifacts: `/api/runs/${snapshot.run.id}/artifacts`,
       tasks: `/api/runs/${snapshot.run.id}/tasks`,
+      taskEvents: `/api/runs/${snapshot.run.id}/tasks`,
     },
   };
 }
@@ -681,7 +890,31 @@ function cloneSnapshot(snapshot: RunLedgerSnapshot): RunLedgerSnapshot {
     artifacts: snapshot.artifacts.map((artifact) => ({ ...artifact })),
     approvals: snapshot.approvals.map((approval) => ({ ...approval })),
     receipts: snapshot.receipts.map((receipt) => ({ ...receipt })),
+    taskEvents: ensureTaskEvents(snapshot).map((event) => ({
+      ...event,
+      payloadSummary: event.payloadSummary ? { ...event.payloadSummary } : undefined,
+    })),
   };
+}
+
+function ensureTaskEvents(snapshot: RunLedgerSnapshot): WorkflowTaskEventRecord[] {
+  const maybeSnapshot = snapshot as RunLedgerSnapshot & { taskEvents?: WorkflowTaskEventRecord[] };
+  if (!Array.isArray(maybeSnapshot.taskEvents)) maybeSnapshot.taskEvents = [];
+  return maybeSnapshot.taskEvents;
+}
+
+function taskEventKindForTaskStatus(status: WorkflowTaskRecord["status"]): WorkflowTaskEventKind {
+  switch (status) {
+    case "queued":
+      return "task.queued";
+    case "running":
+      return "task.running";
+    case "blocked":
+      return "task.blocked";
+    case "completed":
+    default:
+      return "task.completed";
+  }
 }
 
 function pruneLedger(): void {
@@ -831,6 +1064,7 @@ async function loadNormalizedRunLedger(
       artifacts: artifactRecords,
       approvals: approvalRecords,
       receipts: receiptRecords,
+      taskEvents: [],
     };
     ledger.set(snapshot.run.id, cloneSnapshot(snapshot));
     pruneLedger();

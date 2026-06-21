@@ -17,6 +17,7 @@ Quad can run with zero keys for demos, but the production backend is only green 
 - Backend readiness route: `GET /api/health/backend`.
 - Retention and deletion policy route: `GET /api/security/data`.
 - Supabase-backed workflow ledger and quadchain packet registry, with Redis/memory fallback.
+- Normalized task stream events in run snapshots for run lifecycle changes, tasks, artifacts, approvals, decisions, and receipts. The hosted run detail and task endpoints expose the same stream for dashboard, external agents, workers, and future CLI or Slack surfaces.
 - Platform schema SQL in `docs/backend/platform-schema.sql`.
 
 ## Production gates
@@ -170,6 +171,7 @@ Backend readiness and security packets only expose token labels, scopes, counts,
 
 - external agent descriptor: `src/lib/agent/describe.ts` and `src/app/api/agent/describe/route.ts`
 - durable workflow ledger: `src/lib/runs`
+- normalized task stream: `src/lib/runs`
 - worker queue and canary: `src/lib/jobs`
 - worker runtime command: `scripts/worker.ts`
 - worker preflight: `scripts/worker-preflight.mjs`

@@ -226,6 +226,7 @@ hard constraints:
 - [x] make `/api/agent/run` use the same core runtime context and `agent_handoff` receipt helper for fetch/agentverse runs
 - [x] make backend worker jobs use the same core runtime context and `agent_handoff` receipt helper before executing queued work
 - [x] make `/api/audit/stream` enter the same core runtime context and emit a dashboard `agent_handoff` receipt before worker execution
+- [x] add normalized task stream events to the run ledger so dashboard, fetch, workers, and future cli/slack surfaces can inspect the same durable workflow timeline
 - [ ] keep the route-specific audit engine internals stable while the rest of the app migrates onto core
 - [x] verify the slice with unit tests, typecheck, and no changes to frozen `src/lib/types`
 

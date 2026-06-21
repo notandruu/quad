@@ -21,9 +21,11 @@ export async function GET(
     return NextResponse.json(requestAuthError(auth), { status: auth.status });
   }
 
+  const detail = buildHostedRunDetail(snapshot);
   return NextResponse.json({
     ok: true,
     runId: snapshot.run.id,
-    tasks: buildHostedRunDetail(snapshot).tasks,
+    tasks: detail.tasks,
+    taskEvents: detail.taskEvents,
   });
 }
