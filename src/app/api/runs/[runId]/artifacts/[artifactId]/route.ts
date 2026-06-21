@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getHostedArtifactDetail, loadRunSnapshot } from "@/lib/runs";
-import { authorizeRequest, requestAuthError } from "@/lib/security";
+import { authorizeRunAccess } from "@/lib/runs/access";
+import { getHostedArtifactDetail } from "@/lib/runs";
 
 export const runtime = "nodejs";
 
@@ -8,21 +8,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { runId: string; artifactId: string } }
 ) {
-  const snapshot = await loadRunSnapshot(params.runId);
-  if (!snapshot) {
-    return NextResponse.json({ ok: false, error: "run not found" }, { status: 404 });
-  }
-
-  const auth = authorizeRequest({
-    headers: request.headers,
-    requestedOrgId: snapshot.run.orgId,
-  });
-  if (!auth.ok) {
-    return NextResponse.json(requestAuthError(auth), { status: auth.status });
-  }
+  const access = await authorizeRunAccess({ runId: params.runId, headers: request.headers });
+  if (!access.ok) return NextResponse.json(access.body, { status: access.status });
 
   const includeRawData = new URL(request.url).searchParams.get("raw") === "1";
-  if (includeRawData && auth.mode !== "secret") {
+  if (includeRawData && access.auth.mode !== "secret") {
     return NextResponse.json(
       {
         ok: false,
@@ -33,7 +23,7 @@ export async function GET(
     );
   }
 
-  const artifact = getHostedArtifactDetail(snapshot, params.artifactId, { includeRawData });
+  const artifact = getHostedArtifactDetail(access.snapshot, params.artifactId, { includeRawData });
   if (!artifact) {
     return NextResponse.json({ ok: false, error: "artifact not found" }, { status: 404 });
   }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getHostedTaskDetail, loadRunSnapshot } from "@/lib/runs";
-import { authorizeRequest, requestAuthError } from "@/lib/security";
+import { authorizeRunAccess } from "@/lib/runs/access";
+import { getHostedTaskDetail } from "@/lib/runs";
 
 export const runtime = "nodejs";
 
@@ -8,20 +8,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { runId: string; taskId: string } }
 ) {
-  const snapshot = await loadRunSnapshot(params.runId);
-  if (!snapshot) {
-    return NextResponse.json({ ok: false, error: "run not found" }, { status: 404 });
-  }
+  const access = await authorizeRunAccess({ runId: params.runId, headers: request.headers });
+  if (!access.ok) return NextResponse.json(access.body, { status: access.status });
 
-  const auth = authorizeRequest({
-    headers: request.headers,
-    requestedOrgId: snapshot.run.orgId,
-  });
-  if (!auth.ok) {
-    return NextResponse.json(requestAuthError(auth), { status: auth.status });
-  }
-
-  const task = getHostedTaskDetail(snapshot, params.taskId);
+  const task = getHostedTaskDetail(access.snapshot, params.taskId);
   if (!task) {
     return NextResponse.json({ ok: false, error: "task not found" }, { status: 404 });
   }

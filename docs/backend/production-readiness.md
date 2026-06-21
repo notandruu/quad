@@ -18,6 +18,8 @@ Quad can run with zero keys for demos, but the production backend is only green 
 - Retention and deletion policy route: `GET /api/security/data`.
 - Supabase-backed workflow ledger and quadchain packet registry, with Redis/memory fallback.
 - Normalized task stream events in run snapshots for run lifecycle changes, tasks, artifacts, approvals, decisions, and receipts. The hosted run detail and task endpoints expose the same stream for dashboard, external agents, workers, and future CLI or Slack surfaces.
+- Hosted run, task, and artifact reads are org-scoped. Tokens scoped to another org receive `404` for run detail routes so run ids do not become an existence oracle.
+- Raw artifact data is opt-in and requires admin secret auth; service tokens only receive redacted previews.
 - Metaregistry capability policy for runtime tool exposure. `QUAD_CAPABILITY_ALLOWLIST`, `QUAD_CAPABILITY_DISABLED`, and `QUAD_CAPABILITY_FORCE_INSTALLED` control which capabilities an org can route to; write-capable tools require explicit allowlisting unless `QUAD_REQUIRE_WRITE_CAPABILITY_ALLOWLIST=false`.
 - Safe metaregistry install planning at `GET /api/metaregistry/install-plan`. The route is read-only and returns planned allowlist/force-install changes plus missing env key names for the enterprise proof starter bundle.
 - Approval-backed metaregistry install requests at `POST /api/metaregistry/install-request`. The route creates a `capability_install` run with approval artifacts, task events, receipts, and a quadchain packet instead of mutating connector secrets directly.

@@ -46,9 +46,14 @@ Shipped v3:
 - Metaregistry capability install requests emit `connector_action` quadchain packets tied to the approval run.
 - Connector credential install and revoke mutations emit restricted `connector_action` packet summaries without storing secret values in packet sources.
 
+Shipped v4:
+
+- Hosted run, artifact, and task routes share one org-scoped access helper.
+- Cross-org service tokens receive `404` for run detail routes so run ids do not reveal tenant existence.
+- Raw artifact reads remain admin-secret-only; service tokens receive redacted previews.
+
 Next:
 
-- add row-level tenant checks before exposing raw artifacts.
 - split snapshot storage into normalized tables once query needs exceed v1.
 
 ## Gap 2: operator console

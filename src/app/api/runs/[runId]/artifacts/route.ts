@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buildHostedRunDetail, loadRunSnapshot, type ArtifactKind } from "@/lib/runs";
-import { authorizeRequest, requestAuthError } from "@/lib/security";
+import { authorizeRunAccess } from "@/lib/runs/access";
+import { buildHostedRunDetail, type ArtifactKind } from "@/lib/runs";
 
 export const runtime = "nodejs";
 
@@ -8,22 +8,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { runId: string } }
 ) {
-  const snapshot = await loadRunSnapshot(params.runId);
-  if (!snapshot) {
-    return NextResponse.json({ ok: false, error: "run not found" }, { status: 404 });
-  }
-
-  const auth = authorizeRequest({
-    headers: request.headers,
-    requestedOrgId: snapshot.run.orgId,
-  });
-  if (!auth.ok) {
-    return NextResponse.json(requestAuthError(auth), { status: auth.status });
-  }
+  const access = await authorizeRunAccess({ runId: params.runId, headers: request.headers });
+  if (!access.ok) return NextResponse.json(access.body, { status: access.status });
 
   const kind = new URL(request.url).searchParams.get("kind") as ArtifactKind | null;
-  const artifacts = buildHostedRunDetail(snapshot).artifacts
+  const artifacts = buildHostedRunDetail(access.snapshot).artifacts
     .filter((artifact) => !kind || artifact.kind === kind);
 
-  return NextResponse.json({ ok: true, runId: snapshot.run.id, artifacts });
+  return NextResponse.json({ ok: true, runId: access.snapshot.run.id, artifacts });
 }

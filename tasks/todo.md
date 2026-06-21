@@ -216,6 +216,7 @@ hard constraints:
 - [x] add protected deletion dry-run and execution receipts for org/run data
 - [x] add encrypted connector credential install/list/revoke substrate
 - [x] emit restricted quadchain receipts for metaregistry install requests and connector credential install/revoke mutations
+- [x] hide hosted run/task/artifact reads behind org-scoped access checks and admin-only raw artifact reads
 
 ## next build plan
 
