@@ -11,11 +11,11 @@ describe("POST /api/metaregistry/install-request", () => {
   it("creates a safe install request run without exposing env values", async () => {
     vi.stubEnv("QUAD_API_SECRET", "");
     vi.stubEnv("QUAD_SERVICE_TOKENS", "");
-    vi.stubEnv("QUAD_ALLOWED_ORGS", "org_brightpath");
+    vi.stubEnv("QUAD_ALLOWED_ORGS", "org_redcross");
     vi.stubEnv("CMS_API_KEY", "cms_secret");
 
     const response = await POST(jsonRequest({
-      orgId: "org_brightpath",
+      orgId: "org_redcross",
       actor: "route.test",
       includeWriteTools: true,
     }));
@@ -45,7 +45,7 @@ describe("POST /api/metaregistry/install-request", () => {
     vi.stubEnv("QUAD_SERVICE_TOKENS", "");
 
     const response = await POST(jsonRequest({
-      orgId: "org_brightpath",
+      orgId: "org_redcross",
       capabilityIds: ["missing.capability"],
     }));
     const body = await response.json();

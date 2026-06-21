@@ -69,6 +69,45 @@ export async function transcribeWithDeepgram(input: {
   };
 }
 
+/**
+ * Synthesize speech from text with Deepgram Aura TTS. Returns the raw audio
+ * bytes (mp3 by default) and the content type so the API route can stream it
+ * back to the browser for the post-meeting voice review.
+ */
+export async function synthesizeWithDeepgram(input: {
+  text: string;
+  apiKey: string;
+  model?: string;
+  fetcher?: typeof fetch;
+}): Promise<{ audio: ArrayBuffer; contentType: string; model: string }> {
+  const fetcher = input.fetcher ?? fetch;
+  const model = input.model?.trim() || DEFAULT_TTS_MODEL;
+  const url = new URL("https://api.deepgram.com/v1/speak");
+  url.searchParams.set("model", model);
+  // mp3 is the most broadly playable in <audio> across browsers.
+  url.searchParams.set("encoding", "mp3");
+
+  const response = await fetcher(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Token ${input.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ text: input.text.slice(0, 1800) }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Deepgram TTS failed with status ${response.status}`);
+  }
+
+  const audio = await response.arrayBuffer();
+  return {
+    audio,
+    contentType: response.headers.get("content-type") || "audio/mpeg",
+    model,
+  };
+}
+
 function normalizeWsUrl(value?: string): string | null {
   if (!value?.trim()) return null;
   try {

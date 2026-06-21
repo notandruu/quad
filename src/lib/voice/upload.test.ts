@@ -4,12 +4,12 @@ import { appendVoiceTranscriptContext } from "./upload";
 describe("appendVoiceTranscriptContext", () => {
   it("adds org, run, and remember fields for scoped voice memory", () => {
     const form = appendVoiceTranscriptContext(new FormData(), {
-      orgId: " org_brightpath ",
+      orgId: " org_redcross ",
       runId: " run_123 ",
       remember: true,
     });
 
-    expect(form.get("orgId")).toBe("org_brightpath");
+    expect(form.get("orgId")).toBe("org_redcross");
     expect(form.get("runId")).toBe("run_123");
     expect(form.get("remember")).toBe("true");
   });

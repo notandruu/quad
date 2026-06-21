@@ -5,7 +5,7 @@ import { actionTone, draftFindingAction } from "./actionDrafts";
 const finding: AuditFinding = {
   id: "finding_1",
   runId: "run_1",
-  pageUrl: "https://brightpath.example/programs",
+  pageUrl: "https://redcross.example/programs",
   title: "Scholarship support is missing",
   category: "missing_public_explanation",
   severity: "medium",
@@ -23,7 +23,7 @@ describe("draftFindingAction", () => {
   it("creates a task draft with page and impact context", () => {
     const draft = draftFindingAction("create task", finding);
     expect(draft.title).toBe("Task: Scholarship support is missing");
-    expect(draft.body).toContain("https://brightpath.example/programs");
+    expect(draft.body).toContain("https://redcross.example/programs");
     expect(draft.body).toContain("Families cannot find tuition help.");
     expect(draft.status).toBe("ready");
   });

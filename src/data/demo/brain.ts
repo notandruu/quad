@@ -2,126 +2,95 @@ import type { IngestInput } from "@/lib/brain/ingest";
 
 export const DEMO_BRAIN_MEMORIES: IngestInput[] = [
   {
-    orgId: "org_brightpath",
-    sourceId: "doc_programs_overview",
+    orgId: "org_redcross",
+    sourceId: "doc_blood_supply_june_2026",
     sourceType: "doc",
-    title: "BrightPath Program Overview",
+    title: "Blood supply alert — June 2026",
     content:
-      "BrightPath Foundation runs three core programs serving the East Bay. " +
-      "After-School Tutoring serves 450 students; average GPA has improved by 0.8 points since enrollment. " +
-      "Summer Leadership Camp is a 6-week residential program serving 320 students each summer; " +
-      "the 2026 camp is fully waitlisted with applications closed 3 weeks early. " +
-      "College Prep Coaching serves 430 students and has achieved a 92% college acceptance rate, " +
-      "the highest of any Bay Area nonprofit program of comparable size.",
-    summary:
-      "Three programs: After-School Tutoring (450 students, +0.8 GPA), Summer Leadership Camp " +
-      "(320 students, 6-week residential, 2026 waitlisted), College Prep Coaching (430 students, 92% acceptance rate).",
-    entities: [
-      "After-School Tutoring",
-      "Summer Leadership Camp",
-      "College Prep Coaching",
-      "92% college acceptance rate",
-      "East Bay",
-    ],
-    confidence: 0.95,
+      "As of June 18, 2026, Bay Area O-negative inventory is at a 2.1-day supply. " +
+      "The national minimum threshold is 5 days. Type AB plasma is also critically low at a 1.8-day supply. " +
+      "A blood drive is scheduled this Saturday, June 22, at the Oakland Convention Center, 8am–4pm. " +
+      "We specifically need O-negative and O-positive donors. Donors can schedule at redcrossblood.org. " +
+      "If current donation rates do not increase by 40% this week, we will need to defer elective surgeries " +
+      "at three partner hospitals.",
+    summary: "O-negative at 2.1-day supply (critical). Blood drive Saturday June 22, Oakland Convention Center 8am–4pm.",
+    entities: ["O-negative", "blood supply", "blood drive", "Oakland Convention Center", "AB plasma"],
+    confidence: 0.98,
     permissions: ["read"],
+    evidence: [{ documentId: "doc_blood_supply_june_2026", quote: "O-negative inventory is at a 2.1-day supply" }],
   },
   {
-    orgId: "org_brightpath",
-    sourceId: "meeting_q2_2026_board",
-    sourceType: "meeting",
-    title: "Q2 Board Planning Meeting Notes",
-    content:
-      "Board approved expansion into Fremont — lease signed, opening target Q4 2026. " +
-      "Two new College Prep counselors hired to support growing demand. " +
-      "Summer Leadership Camp sold out three weeks early; demand exceeds capacity by 60%. " +
-      "After-School Tutoring currently has a 200-student waitlist, demonstrating significant unmet demand. " +
-      "Action item: web team to update site with Fremont location, Summer Camp details, and 92% acceptance stat.",
-    summary:
-      "Board approved Fremont expansion (Q4 2026). Summer Camp sold out early. " +
-      "200-student waitlist for After-School Tutoring. Web update action item overdue.",
-    entities: [
-      "Fremont expansion",
-      "200-student waitlist",
-      "Summer Leadership Camp",
-      "After-School Tutoring",
-      "web team",
-    ],
-    confidence: 0.92,
-    permissions: ["read"],
-  },
-  {
-    orgId: "org_brightpath",
-    sourceId: "doc_brand_voice_guide",
+    orgId: "org_redcross",
+    sourceId: "doc_houston_deployment_2026",
     sourceType: "doc",
-    title: "Brand Voice and Messaging Guide",
+    title: "Houston flood relief deployment — active",
     content:
-      "BrightPath brand voice: lead with student stories, not raw statistics. " +
-      "Tagline: 'Brighter Futures, Together.' " +
-      "Key differentiator to always mention on public-facing pages: 92% college acceptance rate " +
-      "(compare to 67% national average for similar demographics). " +
-      "Never use jargon. Write for families, not foundations. Keep sentences short. " +
-      "Emergency support hotline for students in crisis: 510-555-0192. " +
-      "This number must appear on every program page and the contact page.",
+      "Red Cross has 247 relief workers currently deployed to Harris County, TX for the June 2026 flooding response. " +
+      "As of June 20, our teams have served 14,300 meals, opened 4 emergency shelters housing 1,840 people, " +
+      "and distributed 6,200 relief supply kits. " +
+      "We need 80 additional trained shelter workers to maintain 24/7 operations through July 4. " +
+      "Bay Area volunteers with shelter operations certification can apply at redcross.org/deploy. " +
+      "This is our largest domestic deployment since Hurricane Harvey.",
     summary:
-      "Tagline 'Brighter Futures, Together.' Always lead with 92% acceptance rate. " +
-      "Emergency hotline 510-555-0192 required on all program and contact pages.",
-    entities: [
-      "92% college acceptance rate",
-      "brand voice",
-      "510-555-0192",
-      "emergency support hotline",
-      "tagline",
-    ],
-    confidence: 0.9,
-    permissions: ["read"],
-  },
-  {
-    orgId: "org_brightpath",
-    sourceId: "doc_impact_report_2025",
-    sourceType: "doc",
-    title: "BrightPath Impact Report 2025",
-    content:
-      "Total students served in 2025: 1,200. Average GPA improvement: +0.8 points. " +
-      "College acceptance rate: 92% (national average for comparable demographics: 67%). " +
-      "Operating budget: $2.1M. Donor renewal rate: 94%. " +
-      "Programs operating in Oakland and Berkeley; Fremont site approved for 2026. " +
-      "Summer Leadership Camp reached 320 students; waitlist opened for the first time in program history.",
-    summary:
-      "1,200 students, 92% college acceptance, 94% donor renewal, $2.1M budget, Fremont expansion approved.",
-    entities: [
-      "1,200 students",
-      "92% college acceptance rate",
-      "94% donor renewal",
-      "$2.1M budget",
-      "Fremont",
-    ],
+      "247 relief workers in Houston, 1,840 sheltered, 14,300 meals served. Need 80 more shelter workers urgently.",
+    entities: ["Houston", "flooding", "shelter workers", "emergency shelters", "Harris County", "deployment"],
     confidence: 0.97,
     permissions: ["read"],
+    evidence: [{ quote: "247 relief workers currently deployed to Harris County" }],
   },
   {
-    orgId: "org_brightpath",
-    sourceId: "doc_website_copy_brief",
+    orgId: "org_redcross",
+    sourceId: "doc_disaster_ready_homes_program",
     sourceType: "doc",
-    title: "Website Copy Update Brief (March 2026)",
+    title: "Disaster Ready Homes program — launching July 15",
     content:
-      "Approved by leadership in March 2026. Web team was tasked with three updates that have not yet shipped: " +
-      "(1) Programs page: add Summer Leadership Camp section with enrollment info and waitlist details. " +
-      "(2) Programs page: prominently feature the 92% college acceptance rate with comparison to 67% national average. " +
-      "(3) About / Locations section: add the new Fremont location approved by the board in Q1 2026. " +
-      "These updates were marked high priority because they directly address donor and prospective family questions. " +
-      "The omissions are causing confusion; several donors have asked about Summer Camp at events " +
-      "and were surprised it was not on the website.",
-    summary:
-      "Three overdue web updates: add Summer Leadership Camp, feature 92% acceptance rate, add Fremont location.",
-    entities: [
-      "Summer Leadership Camp",
-      "92% college acceptance rate",
-      "Fremont location",
-      "Programs page",
-      "web team",
-    ],
-    confidence: 0.93,
+      "Red Cross Bay Area is launching 'Disaster Ready Homes' on July 15, 2026. " +
+      "The program provides free in-home preparedness assessments, a 72-hour emergency supply kit, " +
+      "and a 90-minute household emergency planning session. " +
+      "Target: 10,000 Bay Area households in the first year, prioritizing Alameda and Contra Costa counties. " +
+      "Funded by a $1.2M FEMA preparedness grant. Applications open July 1 at bayarea.redcross.org/ready. " +
+      "This program has not yet been announced publicly — website update is overdue.",
+    summary: "New program July 15: free home assessments, 72-hour kits, planning sessions. 10,000 household target.",
+    entities: ["Disaster Ready Homes", "FEMA grant", "emergency kits", "Alameda County", "Contra Costa County"],
+    confidence: 0.96,
     permissions: ["read"],
+    evidence: [{ quote: "Disaster Ready Homes on July 15, 2026" }],
+  },
+  {
+    orgId: "org_redcross",
+    sourceId: "doc_virtual_cpr_training",
+    sourceType: "doc",
+    title: "Virtual CPR/AED certification — now available",
+    content:
+      "As of May 2026, Red Cross Bay Area offers a fully virtual CPR and AED certification course. " +
+      "The course is 2 hours, 100% online, and fully replaces the in-person classroom requirement. " +
+      "Cost is $29.99, reduced from $45 for in-person. Valid for 2 years. " +
+      "Corporate bulk pricing available: 20+ employees at $19.99 each. " +
+      "The website training page still only lists in-person sessions — this is a known gap that needs updating. " +
+      "Since launch, 2,400 people have completed the virtual course.",
+    summary: "Virtual CPR/AED cert now live (May 2026): 2 hours, $29.99, 2,400 completions. Website shows in-person only.",
+    entities: ["CPR", "AED", "virtual certification", "first aid", "corporate training"],
+    confidence: 0.95,
+    permissions: ["read"],
+    evidence: [{ quote: "fully virtual CPR and AED certification course" }],
+  },
+  {
+    orgId: "org_redcross",
+    sourceId: "doc_volunteer_shortage_q2_2026",
+    sourceType: "doc",
+    title: "Volunteer shortage — Q2 2026 status",
+    content:
+      "Red Cross Bay Area needs 340 more trained volunteers to meet hurricane season demand (July–October). " +
+      "Current certified shelter volunteers: 612. Target: 950. " +
+      "Highest urgency roles: shelter operations (180 needed), blood drive coordinators (95 needed), " +
+      "disaster mental health counselors (65 needed). " +
+      "Volunteer recruitment page on the website shows generic 'get involved' copy with no urgency signal. " +
+      "Board approved a volunteer recruitment campaign with $45K marketing budget, launching July 1. " +
+      "Specific ask: Bay Area residents with 8+ free hours/month.",
+    summary: "340 volunteer shortfall heading into hurricane season. Shelter ops, blood coordinators, mental health most needed.",
+    entities: ["volunteer shortage", "shelter operations", "hurricane season", "blood drive coordinators", "mental health"],
+    confidence: 0.94,
+    permissions: ["read"],
+    evidence: [{ quote: "340 more trained volunteers to meet hurricane season demand" }],
   },
 ];

@@ -56,12 +56,33 @@ export const PROOF_EVENTS = [
   "answer.needs_human",
 ] as const;
 
+/**
+ * Live-meeting capture pipeline. Quad sits in a meeting, transcribes it
+ * (Deepgram), and extracts candidate facts. Each fact is grounded and judged
+ * before it is written to the company brain — the UI streams every step so you
+ * can watch the agent think and watch the brain grow.
+ */
+export const MEETING_EVENTS = [
+  "meeting.started",
+  "meeting.transcript",
+  "meeting.thinking",
+  "fact.extracted",
+  "fact.evaluated",
+  "fact.learned",
+  "fact.rejected",
+  "meeting.summarized",
+  "meeting.ended",
+  "meeting.failed",
+] as const;
+
 export type AuditEventType = (typeof AUDIT_EVENTS)[number];
 export type EmployeeEventType = (typeof EMPLOYEE_EVENTS)[number];
 export type VoiceEventType = (typeof VOICE_EVENTS)[number];
 export type ProofEventType = (typeof PROOF_EVENTS)[number];
+export type MeetingEventType = (typeof MEETING_EVENTS)[number];
 export type QuadEventType =
   | AuditEventType
   | EmployeeEventType
   | VoiceEventType
-  | ProofEventType;
+  | ProofEventType
+  | MeetingEventType;

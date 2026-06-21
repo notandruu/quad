@@ -94,12 +94,12 @@ export default function Home() {
       setMessages([
         {
           role: "quad",
-          text: `BrightPath brain loaded (${json.memoriesLoaded} memories). Auditing their public site now...`,
+          text: `Red Cross brain loaded (${json.memoriesLoaded} internal documents). Auditing their public site now...`,
         },
       ]);
 
       const demoUrl = `${window.location.origin}/demo`;
-      await startAudit(demoUrl, "org_brightpath");
+      await startAudit(demoUrl, "org_redcross");
     } catch (err) {
       setDemoState("idle");
       setMessages((m) => [
@@ -324,7 +324,7 @@ export default function Home() {
               onClick={handleLoadDemo}
               disabled={demoState === "loading" || active}
               className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-medium text-accent hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
-              title="Seed BrightPath brain and run a live demo audit"
+              title="Seed Red Cross brain and run a live demo audit"
             >
               {demoState === "loading" ? "Loading..." : "Load demo"}
             </button>

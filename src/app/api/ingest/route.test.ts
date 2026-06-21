@@ -27,7 +27,7 @@ describe("POST /api/ingest", () => {
     }));
     const body = await response.json();
     const snapshot = getRunSnapshot(body.runId);
-    const memory = await findMemoryBySourceId("org_brightpath", "route_memory_proposal_1");
+    const memory = await findMemoryBySourceId("org_redcross", "route_memory_proposal_1");
 
     expect(response.status).toBe(200);
     expect(body).toMatchObject({

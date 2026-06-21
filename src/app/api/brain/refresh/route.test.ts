@@ -14,7 +14,7 @@ vi.mock("@/lib/brain/db", () => ({
 
 describe("POST /api/brain/refresh", () => {
   it("creates an approval-backed refresh proposal without directly writing memory", async () => {
-    const orgId = "org_brightpath";
+    const orgId = "org_redcross";
     const sourceId = "route_refresh_source";
     deleteMemoryStore({ orgId, sourceId });
     addMemory(memory({
