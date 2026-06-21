@@ -118,6 +118,8 @@ type MemoryTrailSummary = {
   }>;
 };
 
+type MemoryTrailItem = MemoryTrailSummary["latest"][number];
+
 type HostedArtifactPayload = {
   ok: boolean;
   artifact?: {
@@ -241,6 +243,7 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
   const [verifyingRunId, setVerifyingRunId] = useState<string | null>(null);
   const [installPlan, setInstallPlan] = useState<InstallPlanResponse["plan"] | null>(null);
   const [installRequestState, setInstallRequestState] = useState<"idle" | "requesting" | "requested" | "error">("idle");
+  const [refreshingMemoryId, setRefreshingMemoryId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const response = await fetch(`/api/operator?orgId=${encodeURIComponent(orgId)}&limit=8`, {
@@ -440,6 +443,22 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
     await load();
   }
 
+  async function requestMemoryRefresh(item: MemoryTrailItem) {
+    setRefreshingMemoryId(item.id);
+    const response = await fetch("/api/brain/refresh", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        orgId: data?.orgId,
+        memoryId: item.id,
+        sourceId: item.sourceId,
+        reason: `Refresh ${item.title} before agents reuse stale context.`,
+      }),
+    }).catch(() => null);
+    setRefreshingMemoryId(null);
+    if (response?.ok) await load();
+  }
+
   return (
     <section className="rounded-lg border border-accent/25 bg-panel p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -464,7 +483,13 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
 
       {data.backendReadiness && <BackendReadinessPanel readiness={data.backendReadiness} />}
       {data.quadChain && <QuadChainTrustTrail quadChain={data.quadChain} />}
-      {data.memory && <MemoryTrailPanel memory={data.memory} />}
+      {data.memory && (
+        <MemoryTrailPanel
+          memory={data.memory}
+          refreshingMemoryId={refreshingMemoryId}
+          onRefresh={(item) => void requestMemoryRefresh(item)}
+        />
+      )}
 
       <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(260px,0.9fr)]">
         <div className="space-y-2">
@@ -642,7 +667,15 @@ function QuadChainTrustTrail({ quadChain }: { quadChain: NonNullable<OperatorRes
   );
 }
 
-function MemoryTrailPanel({ memory }: { memory: MemoryTrailSummary }) {
+function MemoryTrailPanel({
+  memory,
+  refreshingMemoryId,
+  onRefresh,
+}: {
+  memory: MemoryTrailSummary;
+  refreshingMemoryId: string | null;
+  onRefresh: (item: MemoryTrailItem) => void;
+}) {
   return (
     <div className="mt-3 rounded border border-pink-300/25 bg-ink/45 p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -675,9 +708,21 @@ function MemoryTrailPanel({ memory }: { memory: MemoryTrailSummary }) {
                     {item.sourceType} · {item.metadata.visibility} · {item.metadata.validationStatus}
                   </div>
                 </div>
-                <span className={freshnessClass(item.metadata.freshness)}>
-                  {item.metadata.freshness}
-                </span>
+                <div className="flex shrink-0 items-center gap-1">
+                  {item.metadata.freshness === "stale" && (
+                    <button
+                      type="button"
+                      disabled={refreshingMemoryId === item.id}
+                      onClick={() => onRefresh(item)}
+                      className="rounded border border-amber-300/30 bg-amber-950/20 px-1.5 py-0.5 text-[9px] text-amber-100 hover:border-amber-300/60 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {refreshingMemoryId === item.id ? "Refreshing" : "Refresh"}
+                    </button>
+                  )}
+                  <span className={freshnessClass(item.metadata.freshness)}>
+                    {item.metadata.freshness}
+                  </span>
+                </div>
               </div>
               <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-neutral-500">{item.summary}</p>
               <div className="mt-1 flex flex-wrap gap-1">

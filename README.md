@@ -131,6 +131,8 @@ Brain memory is scoped before retrieval. `/api/ingest` defaults to an approval-b
 
 `GET /api/operator` exposes the memory trail for the dashboard: latest readable memories, freshness counts, company/team/personal scope counts, relationship edges, and confidence/evidence metadata. The operator console renders this so stale or narrowly scoped context is visible before agents rely on it.
 
+`POST /api/brain/refresh` turns stale context into an approval-backed memory refresh proposal. It preserves the original scope, evidence, freshness metadata, and relationship trail, and the refreshed memory is not retrievable until the proposal is approved.
+
 `GET /api/sponsor/proof` returns a booth-safe sponsor proof manifest: live/fallback/planned status, product claim, demo moment, route or surface, and explicit `safeToClaim` / `doNotClaim` lists. It never returns secret values.
 
 For Vercel plus Railway:

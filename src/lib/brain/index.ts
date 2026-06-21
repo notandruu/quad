@@ -4,6 +4,7 @@ export * from "./retrieve";
 export * from "./ingest";
 export * from "./proposals";
 export * from "./metadata";
+export * from "./refresh";
 export * from "./summaries";
 export * from "./store";
 export * from "./retention";

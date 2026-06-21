@@ -178,6 +178,19 @@ Acceptance v2:
 - scoped memory is visible as company/team/personal in the dashboard.
 - relationship edges are surfaced as a product signal, not hidden storage metadata.
 
+Shipped v3:
+
+- `POST /api/brain/refresh` creates approval-backed memory refresh proposals for stale or questionable context.
+- refresh proposals reuse the existing memory write approval ledger instead of mutating the brain directly.
+- refresh previews preserve original memory scope, evidence, freshness metadata, and relationship edges while linking the proposed memory back to the prior source.
+- the operator memory trail now shows a `Refresh` action on stale memories and reloads the approval queue after staging the proposal.
+
+Acceptance v3:
+
+- stale memory has a concrete operator action.
+- refresh proposals do not become retrievable brain memory until approved.
+- refreshed memory receipts explain which prior memory/source they update.
+
 ## Gap 3: dry-run publisher workbench
 
 Status: shipped v1.

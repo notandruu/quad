@@ -10,6 +10,7 @@ Quad can run with zero keys for demos, but the production backend is only green 
 - Public agent discovery at `GET /api/agent/describe`, with no secret values or raw tenant data.
 - Voice transcription writes verified company memory by default, with `voice_transcript` and `brain_memory_write` quadchain packet summaries returned to the caller.
 - Chat retrieval returns verified memory packet summaries when available, and `chat_answer` receipts record the memory receipt ids used to ground the answer.
+- Stale memory can be refreshed through `POST /api/brain/refresh`, which stages an approval-backed memory write proposal instead of directly mutating the company brain.
 - Post-audit chat loads audit reports from Redis or durable run artifacts, returns audit/finding packet summaries as verified context, and keeps org boundaries enforced.
 - Redis-backed job queue with memory fallback.
 - Long-running worker command for Railway: `npm run worker`.

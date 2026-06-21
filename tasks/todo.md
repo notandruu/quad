@@ -74,7 +74,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [ ] scoped context graph for company, team, and personal memories
 - [x] permission-aware retrieval filters for company, team, and personal memory scopes
 - [x] durable memory store with source provenance, confidence, permissions, embeddings, and metadata sidecars
-- [ ] memory freshness/staleness metadata with explicit refresh paths
+- [x] memory freshness/staleness metadata with explicit refresh paths
 - [x] memory stale-after, owner, validation, and relationship metadata on write/retrieve
 - [x] operator-visible memory trail with stale/scope/relationship signals
 - [ ] event-driven context capture pipeline with signal/noise extraction before writeback

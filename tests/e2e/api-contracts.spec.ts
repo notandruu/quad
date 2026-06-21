@@ -32,6 +32,10 @@ test.describe("api contracts", () => {
     expect(publish.status()).toBe(400);
     await expect(publish.json()).resolves.toMatchObject({ ok: false });
 
+    const refresh = await request.post("/api/brain/refresh", { data: {} });
+    expect(refresh.status()).toBe(400);
+    await expect(refresh.json()).resolves.toMatchObject({ ok: false, error: "memoryId or sourceId required" });
+
     const verify = await request.post("/api/quadchain/verify", { data: {} });
     expect(verify.status()).toBe(400);
     await expect(verify.json()).resolves.toMatchObject({ error: "packetId required" });
