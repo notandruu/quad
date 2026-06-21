@@ -551,6 +551,9 @@ export function QuadWorkspaceDashboard() {
           <div className={styles.meetingRunbar}>
             <span>live recall mode</span>
             <span>paste a google meet url and quad joins as a meeting bot</span>
+            <button className={styles.returnButton} onClick={() => setActiveView("questionnaire")} type="button">
+              return to main chat
+            </button>
           </div>
         ) : (
           <div className={styles.runbar}>
