@@ -126,6 +126,20 @@ type OperatorResponse = {
       lastRunAt: string | null;
     };
   };
+  backendReadiness?: {
+    ok: boolean;
+    mode: "production_ready" | "degraded" | "demo_fallback";
+    generatedAt: string;
+    nextActions: string[];
+    components: Record<
+      string,
+      {
+        status: "ready" | "degraded" | "missing";
+        configured: boolean;
+        detail: string;
+      }
+    >;
+  };
 };
 
 export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgId?: string; watchRunId?: string | null }) {
@@ -179,7 +193,7 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
       approvals: data?.pendingApprovals.length ?? 0,
       readyReceipts: runs.flatMap((run) => run.receipts).filter((receipt) => receipt.status === "ready").length,
       activeTools: data?.capabilities.active.length ?? 0,
-      backend: data?.worker?.canary.ok ? "pass" : data?.worker?.runtime.alive ? "live" : "check",
+      backend: data?.backendReadiness?.ok ? "pass" : data?.worker?.canary.ok ? "canary" : data?.worker?.runtime.alive ? "live" : "check",
     };
   }, [data]);
 
@@ -310,6 +324,8 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
         <OperatorStat label="backend" value={counts.backend} accent={counts.backend === "pass"} />
       </div>
 
+      {data.backendReadiness && <BackendReadinessPanel readiness={data.backendReadiness} />}
+
       <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(260px,0.9fr)]">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -422,6 +438,51 @@ function OperatorStat({
         {value}
       </div>
       <div className="mt-1 text-[9px] text-neutral-600">{label}</div>
+    </div>
+  );
+}
+
+function BackendReadinessPanel({ readiness }: { readiness: NonNullable<OperatorResponse["backendReadiness"]> }) {
+  const componentEntries = Object.entries(readiness.components);
+  const ready = componentEntries.filter(([, component]) => component.status === "ready").length;
+  const statusTone =
+    readiness.ok
+      ? "border-accent/30 bg-accent/10 text-accent"
+      : readiness.mode === "degraded"
+        ? "border-amber-300/30 bg-amber-950/20 text-amber-100"
+        : "border-red-300/30 bg-red-950/20 text-red-200";
+
+  return (
+    <div className="mt-3 rounded border border-edge bg-ink/45 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-xs font-medium text-neutral-200">Backend readiness</h3>
+          <p className="mt-1 font-mono text-[9px] text-neutral-600">
+            {ready}/{componentEntries.length} systems ready
+          </p>
+        </div>
+        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${statusTone}`}>
+          {formatStatus(readiness.mode)}
+        </span>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-1.5 md:grid-cols-4">
+        {componentEntries.slice(0, 8).map(([name, component]) => (
+          <div key={name} className="rounded border border-edge bg-panel px-2 py-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate text-[10px] text-neutral-400">{formatStatus(name)}</span>
+              <span className={componentStatusClass(component.status)}>{component.status}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      {readiness.nextActions.length > 0 && (
+        <div className="mt-3 rounded border border-amber-300/20 bg-amber-950/10 p-2">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-amber-100">Next backend action</div>
+          <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-neutral-400">
+            {readiness.nextActions[0]}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -762,6 +823,12 @@ function statusClass(status: string) {
   if (status === "failed") return "shrink-0 text-[10px] text-red-300";
   if (status === "completed") return "shrink-0 text-[10px] text-neutral-300";
   return "shrink-0 text-[10px] text-amber-200";
+}
+
+function componentStatusClass(status: "ready" | "degraded" | "missing") {
+  if (status === "ready") return "text-[9px] text-accent";
+  if (status === "degraded") return "text-[9px] text-amber-200";
+  return "text-[9px] text-red-300";
 }
 
 function formatStatus(status: string) {

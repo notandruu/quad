@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { DEMO_ORG_ID } from "@/data/seed";
+import { getBackendReadiness } from "@/lib/backend/readiness";
 import { listConnectorCredentials } from "@/lib/connectors";
 import { getWorkerCanaryHealth, getWorkerQueueHealth, getWorkerRuntimeHealth } from "@/lib/jobs/queue";
 import { summarizeCapabilities } from "@/lib/metaregistry";
@@ -23,11 +24,12 @@ export async function GET(request: Request) {
   const limit = Number(url.searchParams.get("limit") ?? 8);
   const snapshots = await listRunSnapshots({ orgId, limit });
   const capabilities = summarizeCapabilities(process.env);
-  const [connectorCredentials, workerQueue, workerRuntime, workerCanary] = await Promise.all([
+  const [connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness] = await Promise.all([
     listConnectorCredentials({ orgId }),
     getWorkerQueueHealth(),
     getWorkerRuntimeHealth(),
     getWorkerCanaryHealth(),
+    getBackendReadiness(),
   ]);
   const security = summarizeSecurityPacket(buildSecurityPacket({ orgId }));
   const runs = snapshots.map((snapshot) => summarizeAgentTask(snapshot));
@@ -74,6 +76,7 @@ export async function GET(request: Request) {
       runtime: workerRuntime,
       canary: workerCanary,
     },
+    backendReadiness: summarizeBackendReadiness(backendReadiness),
     connectorCredentials,
     security,
   });
@@ -189,4 +192,23 @@ function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorA
   }));
 
   return [...stagedArtifacts, ...approvalArtifacts, ...runArtifacts].slice(0, 7);
+}
+
+function summarizeBackendReadiness(report: Awaited<ReturnType<typeof getBackendReadiness>>) {
+  return {
+    ok: report.ok,
+    mode: report.mode,
+    generatedAt: report.generatedAt,
+    nextActions: report.nextActions.slice(0, 6),
+    components: Object.fromEntries(
+      Object.entries(report.components).map(([key, value]) => [
+        key,
+        {
+          status: value.status,
+          configured: value.configured,
+          detail: value.detail,
+        },
+      ])
+    ),
+  };
 }
