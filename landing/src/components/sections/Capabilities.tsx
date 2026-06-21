@@ -17,7 +17,7 @@ export default function Capabilities() {
       id="capabilities"
       label="How it works"
       desc="Quad starts with sparse memory. As it works it collects evidence, validates it, and writes back only what it can prove."
-      title="The brain is built during the work."
+      title="Quad learns your company as it works."
     >
       {/* company-brain memory graph */}
       <Reveal className="mt-9">
@@ -29,7 +29,7 @@ export default function Capabilities() {
                 Company brain
               </span>
             </div>
-            <span className="font-mono text-[11px] text-tan/55">8,600 verified memories · hover to focus</span>
+            <span className="font-mono text-[11px] text-tan/55">8,600 verified memories · Drag to explore</span>
           </div>
           <MemoryGraph className="h-[520px] w-full" />
         </div>
@@ -38,7 +38,7 @@ export default function Capabilities() {
       {/* step pipeline */}
       <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-ink/10 bg-ink/10 lg:grid-cols-4">
         {STEPS.map((s) => (
-          <div key={s.n} className="relative flex flex-col bg-paper p-6 transition-colors duration-200 hover:bg-cream">
+          <div key={s.n} className="relative flex flex-col bg-paper p-6">
             <span className="font-mono text-[12px] text-flame">{s.n}</span>
             <h3 className="mt-3 text-[16px] font-medium text-ink">{s.t}</h3>
             <p className="mt-1.5 text-[13px] leading-relaxed text-ink-soft">{s.b}</p>

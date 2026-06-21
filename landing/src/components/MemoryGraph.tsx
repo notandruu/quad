@@ -3,41 +3,33 @@
 import { useEffect, useRef } from "react";
 
 /**
- * Company-brain graph in the spirit of Obsidian's graph view.
- * ~85 memory nodes across knowledge clusters, force-directed on canvas:
- * degree-sized nodes, per-cluster pink-family hues, soft glow, drag-to-fling,
- * and hover-to-focus (the hovered node + its neighbors light up, the rest dims).
+ * Company brain as a rotating 3D memory sphere (Obsidian map energy).
+ * Dense clustered nodes + uniform field nodes fill a sphere shell; prominent
+ * nodes carry tags/labels that fade by depth so only the front face reads.
+ * Canvas + batched edges so it stays smooth with ~650 nodes.
  */
 
-const CLUSTERS: { name: string; hue: number; leaves: string[] }[] = [
-  { name: "Security", hue: 330, leaves: ["SOC 2", "MFA", "Encryption at rest", "Encryption in transit", "Access reviews", "Pen test", "Vuln scans", "Key rotation", "SSO / SAML", "RBAC", "Audit logs", "Incident response"] },
-  { name: "Compliance", hue: 320, leaves: ["GDPR", "ISO 27001", "SOC 2 report", "DPA register", "Data residency", "Retention policy", "Subprocessors", "Risk register"] },
-  { name: "Support", hue: 345, leaves: ["Tickets", "Macros", "Support SLAs", "CSAT", "Escalations", "Knowledge base", "Refund policy", "Onboarding"] },
-  { name: "Code", hue: 352, leaves: ["Repos", "Pull requests", "CI pipeline", "Secrets mgmt", "Service map", "On-call", "Service runbooks", "Postmortems"] },
-  { name: "Infra", hue: 310, leaves: ["Cloud accounts", "Regions", "Backups", "DR plan", "Monitoring", "Infra config"] },
-  { name: "Docs", hue: 338, leaves: ["Policies", "Wiki", "Handbook", "Decisions", "Specs", "Changelog"] },
-  { name: "Sales", hue: 356, leaves: ["RFPs", "Trust center", "Prior Q&A", "Questionnaires", "Pricing", "MSAs", "DPAs", "Case studies"] },
-  { name: "Product", hue: 316, leaves: ["Features", "Limits", "Status page", "Uptime", "Release notes", "Roadmap", "Beta flags"] },
-  { name: "People", hue: 342, leaves: ["Org chart", "Access matrix", "Offboarding", "Background checks", "Training"] },
-  { name: "Finance", hue: 326, leaves: ["Invoices", "Contracts", "Tax filings", "Revenue", "Forecasts"] },
+const CLUSTERS = [
+  { name: "Security", hue: 330, tags: ["SOC 2", "MFA", "Encryption", "Access reviews", "Pen test"] },
+  { name: "Compliance", hue: 320, tags: ["GDPR", "ISO 27001", "SOC 2 report", "DPA register", "Data residency"] },
+  { name: "Support", hue: 345, tags: ["Tickets", "Macros", "SLAs", "Escalations", "Refunds"] },
+  { name: "Code", hue: 352, tags: ["Repos", "Pull requests", "CI", "Secrets", "On-call"] },
+  { name: "Infra", hue: 310, tags: ["Cloud", "Regions", "Backups", "DR plan", "Monitoring"] },
+  { name: "Docs", hue: 338, tags: ["Policies", "Wiki", "Handbook", "Decisions", "Specs"] },
+  { name: "Sales", hue: 356, tags: ["RFPs", "Trust center", "Prior Q&A", "Pricing", "MSAs"] },
+  { name: "Product", hue: 316, tags: ["Features", "Status page", "Uptime", "Roadmap", "Releases"] },
+  { name: "People", hue: 342, tags: ["Org chart", "Access matrix", "Offboarding", "Training", "Roles"] },
+  { name: "Finance", hue: 326, tags: ["Invoices", "Contracts", "Revenue", "Forecasts", "Budgets"] },
+  { name: "Legal", hue: 300, tags: ["NDAs", "Terms", "Privacy", "IP", "Disputes"] },
+  { name: "Data", hue: 334, tags: ["Schemas", "Pipelines", "Lineage", "PII map", "Catalog"] },
+  { name: "Ops", hue: 306, tags: ["Vendors", "Procurement", "Assets", "Incidents", "Runbooks"] },
+  { name: "Marketing", hue: 348, tags: ["Website", "Blog", "Claims", "Brand", "SEO"] },
 ];
 
-const CROSS: [string, string][] = [
-  ["SOC 2", "SOC 2 report"], ["SOC 2 report", "Trust center"], ["Questionnaires", "Trust center"],
-  ["GDPR", "Data residency"], ["Data residency", "Regions"], ["DPA register", "Subprocessors"],
-  ["Access reviews", "Access matrix"], ["Incident response", "Postmortems"], ["Status page", "Uptime"],
-  ["Monitoring", "On-call"], ["Backups", "DR plan"], ["Pricing", "MSAs"], ["Roadmap", "Release notes"],
-  ["Risk register", "Pen test"], ["Audit logs", "Access reviews"], ["Secrets mgmt", "Key rotation"],
-  ["Onboarding", "Training"], ["Prior Q&A", "Knowledge base"], ["Questionnaires", "SOC 2 report"],
-  ["DPAs", "DPA register"], ["Specs", "Roadmap"], ["Contracts", "MSAs"],
-];
+const PER = 32; // cluster nodes
+const FIELD = 170; // uniform fill nodes
 
-type N = {
-  x: number; y: number; vx: number; vy: number;
-  r: number; hue: number; type: "hub" | "anchor" | "leaf";
-  label: string; deg: number;
-};
-type E = { a: number; b: number; l: number };
+type Node = { bx: number; by: number; bz: number; r: number; hue: number; light: number; lab: string | null; hub: boolean };
 
 export default function MemoryGraph({ className = "" }: { className?: string }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -51,240 +43,150 @@ export default function MemoryGraph({ className = "" }: { className?: string }) 
     if (!ctx) return;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-    // ---- build graph ----
-    const nodes: N[] = [];
-    const edges: E[] = [];
-    const idx: Record<string, number> = {};
-    nodes.push({ x: 0, y: 0, vx: 0, vy: 0, r: 17, hue: 333, type: "hub", label: "company brain", deg: 0 });
-    CLUSTERS.forEach((c) => {
-      const ai = nodes.length;
-      nodes.push({ x: 0, y: 0, vx: 0, vy: 0, r: 8, hue: c.hue, type: "anchor", label: c.name, deg: 0 });
-      idx[c.name] = ai;
-      edges.push({ a: 0, b: ai, l: 150 });
-      c.leaves.forEach((l) => {
-        const li = nodes.length;
-        nodes.push({ x: 0, y: 0, vx: 0, vy: 0, r: 4, hue: c.hue, type: "leaf", label: l, deg: 0 });
-        idx[l] = li;
-        edges.push({ a: ai, b: li, l: 46 });
-      });
-    });
-    CROSS.forEach(([a, b]) => {
-      if (idx[a] != null && idx[b] != null) edges.push({ a: idx[a], b: idx[b], l: 120 });
-    });
+    let W = 0, H = 0, CX = 0, CY = 0, R = 1, persp = 1;
+    const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+    const nodes: Node[] = [];
+    const edges: [number, number][] = [];
+    const norm = (v: number[]) => { const m = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / m, v[1] / m, v[2] / m]; };
+    const golden = Math.PI * (3 - Math.sqrt(5));
 
-    const neighbors: Set<number>[] = nodes.map(() => new Set());
-    edges.forEach((e) => {
-      nodes[e.a].deg++; nodes[e.b].deg++;
-      neighbors[e.a].add(e.b); neighbors[e.b].add(e.a);
+    // clustered nodes
+    CLUSTERS.forEach((c, ci) => {
+      const yy = 1 - (ci / (CLUSTERS.length - 1)) * 2;
+      const rad = Math.sqrt(Math.max(0, 1 - yy * yy));
+      const th = ci * golden;
+      const center = [Math.cos(th) * rad, yy, Math.sin(th) * rad];
+      const up = Math.abs(center[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+      const u = norm([center[1] * up[2] - center[2] * up[1], center[2] * up[0] - center[0] * up[2], center[0] * up[1] - center[1] * up[0]]);
+      const w = norm([center[1] * u[2] - center[2] * u[1], center[2] * u[0] - center[0] * u[2], center[0] * u[1] - center[1] * u[0]]);
+      const base = nodes.length;
+      nodes.push({ bx: center[0], by: center[1], bz: center[2], r: 4, hue: c.hue, light: 72, lab: c.name, hub: true });
+      for (let k = 0; k < PER; k++) {
+        const sp = 0.5;
+        const g1 = ((Math.random() - 0.5) + (Math.random() - 0.5)) * sp;
+        const g2 = ((Math.random() - 0.5) + (Math.random() - 0.5)) * sp;
+        const dir = norm([center[0] + u[0] * g1 + w[0] * g2, center[1] + u[1] * g1 + w[1] * g2, center[2] + u[2] * g1 + w[2] * g2]);
+        const named = k < c.tags.length;
+        const shell = 0.9 + Math.random() * 0.12;
+        nodes.push({
+          bx: dir[0] * shell, by: dir[1] * shell, bz: dir[2] * shell,
+          r: named ? 2.3 : 1.0 + Math.random() * 1.1,
+          hue: c.hue, light: named ? 64 : 52 + Math.random() * 12,
+          lab: named ? c.tags[k] : null, hub: false,
+        });
+        edges.push([base + 1 + k, k % 4 === 0 ? base : base + 1 + Math.floor(Math.random() * (k + 1))]);
+      }
     });
-    nodes.forEach((n) => {
-      if (n.type === "hub") n.r = 17;
-      else if (n.type === "anchor") n.r = 7 + Math.min(6, n.deg) * 0.55;
-      else n.r = 3.4 + Math.min(5, n.deg) * 0.7;
-    });
+    // cross-cluster hub ring
+    let hubIdx: number[] = [];
+    let acc = 0;
+    CLUSTERS.forEach(() => { hubIdx.push(acc); acc += PER + 1; });
+    for (let i = 0; i < hubIdx.length; i++) edges.push([hubIdx[i], hubIdx[(i + 1) % hubIdx.length]]);
 
-    // ---- sizing ----
-    let W = 0, H = 0, CX = 0, CY = 0;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    let seeded = false;
-    const seed = () => {
-      // hub at center; anchors in an ellipse; leaves scattered around anchors
-      nodes[0].x = CX; nodes[0].y = CY;
-      let ai = 1;
-      CLUSTERS.forEach((c, ci) => {
-        const ang = (ci / CLUSTERS.length) * Math.PI * 2;
-        const ax = CX + Math.cos(ang) * W * 0.26;
-        const ay = CY + Math.sin(ang) * H * 0.3;
-        nodes[ai].x = ax; nodes[ai].y = ay;
-        const a0 = ai; ai++;
-        for (let k = 0; k < c.leaves.length; k++) {
-          const a2 = Math.random() * Math.PI * 2;
-          nodes[ai].x = ax + Math.cos(a2) * 50 * (0.5 + Math.random());
-          nodes[ai].y = ay + Math.sin(a2) * 50 * (0.5 + Math.random());
-          ai++;
-        }
-        void a0;
+    // uniform field nodes (fill the sphere)
+    for (let i = 0; i < FIELD; i++) {
+      const yy = 1 - (i / (FIELD - 1)) * 2;
+      const rad = Math.sqrt(Math.max(0, 1 - yy * yy));
+      const th = i * golden;
+      const shell = 0.95 + Math.random() * 0.08;
+      nodes.push({
+        bx: Math.cos(th) * rad * shell, by: yy * shell, bz: Math.sin(th) * rad * shell,
+        r: 0.8 + Math.random() * 0.8, hue: CLUSTERS[i % CLUSTERS.length].hue, light: 48 + Math.random() * 10, lab: null, hub: false,
       });
-      seeded = true;
-    };
+    }
+
     const resize = () => {
       const rect = wrap.getBoundingClientRect();
       W = rect.width; H = rect.height; CX = W / 2; CY = H / 2;
+      R = Math.min(W, H) * 0.47; persp = R * 2.6;
       canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      if (!seeded && W > 0) seed();
     };
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(wrap);
 
-    // ---- interaction ----
-    let mx = -1, my = -1, hover = -1, drag = -1;
-    const pick = () => {
-      let best = -1, bd = 16 * 16;
-      for (let i = 0; i < nodes.length; i++) {
-        const dx = nodes[i].x - mx, dy = nodes[i].y - my;
-        const d = dx * dx + dy * dy;
-        const rr = (nodes[i].r + 7) * (nodes[i].r + 7);
-        if (d < rr && d < bd) { bd = d; best = i; }
-      }
-      return best;
+    let angleY = 0.5, tilt = 0.42, drag = false, lx = 0, ly = 0, vY = 0;
+    const onDown = (e: PointerEvent) => { drag = true; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId); };
+    const onMove = (e: PointerEvent) => {
+      if (!drag) return;
+      vY = (e.clientX - lx) * 0.006; angleY += vY;
+      tilt = Math.max(-1.2, Math.min(1.2, tilt + (e.clientY - ly) * 0.006));
+      lx = e.clientX; ly = e.clientY;
     };
-    const toLocal = (e: PointerEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      mx = e.clientX - rect.left; my = e.clientY - rect.top;
-    };
-    const onMove = (e: PointerEvent) => { toLocal(e); hover = drag >= 0 ? drag : pick(); };
-    const onDown = (e: PointerEvent) => { toLocal(e); const p = pick(); if (p > 0) { drag = p; canvas.setPointerCapture(e.pointerId); } };
-    const onUp = () => { drag = -1; };
-    const onLeave = () => { mx = -1; my = -1; hover = -1; };
-    canvas.addEventListener("pointermove", onMove);
+    const onUp = () => { drag = false; };
     canvas.addEventListener("pointerdown", onDown);
+    canvas.addEventListener("pointermove", onMove);
     canvas.addEventListener("pointerup", onUp);
-    canvas.addEventListener("pointerleave", onLeave);
+    canvas.addEventListener("pointerleave", onUp);
 
-    // ---- physics ----
-    const step = () => {
-      const REP = 820, DAMP = 0.9, GRAV = 0.012;
-      for (let i = 0; i < nodes.length; i++) {
-        const a = nodes[i];
-        let fx = (CX - a.x) * GRAV * (a.type === "leaf" ? 0.4 : 1);
-        let fy = (CY - a.y) * GRAV * (a.type === "leaf" ? 0.4 : 1);
-        for (let j = 0; j < nodes.length; j++) {
-          if (i === j) continue;
-          const b = nodes[j];
-          const dx = a.x - b.x, dy = a.y - b.y;
-          const d2 = dx * dx + dy * dy + 0.01;
-          const f = REP / d2;
-          const d = Math.sqrt(d2);
-          fx += (dx / d) * f; fy += (dy / d) * f;
-        }
-        a.vx = (a.vx + fx) * DAMP;
-        a.vy = (a.vy + fy) * DAMP;
-      }
-      for (const e of edges) {
-        const a = nodes[e.a], b = nodes[e.b];
-        const dx = b.x - a.x, dy = b.y - a.y;
-        const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
-        const k = ((d - e.l) / d) * 0.02;
-        a.vx += dx * k; a.vy += dy * k;
-        b.vx -= dx * k; b.vy -= dy * k;
-      }
-      const pad = 14;
-      for (let i = 0; i < nodes.length; i++) {
+    const N = nodes.length;
+    const order = nodes.map((_, i) => i);
+    const sx = new Float32Array(N), sy = new Float32Array(N), ss = new Float32Array(N), sa = new Float32Array(N), sz = new Float32Array(N);
+
+    const frame = () => {
+      if (!drag) { angleY += 0.0022 + vY; vY *= 0.94; }
+      const ca = Math.cos(angleY), sA = Math.sin(angleY), ct = Math.cos(tilt), st = Math.sin(tilt);
+      for (let i = 0; i < N; i++) {
         const n = nodes[i];
-        if (i === 0) { n.x = CX; n.y = CY; n.vx = 0; n.vy = 0; continue; }
-        if (i === drag) { n.x = mx; n.y = my; n.vx = 0; n.vy = 0; continue; }
-        // gentle perpetual wander
-        n.vx += Math.sin(t * 0.6 + i) * 0.02;
-        n.vy += Math.cos(t * 0.5 + i * 1.3) * 0.02;
-        const sp = Math.hypot(n.vx, n.vy);
-        if (sp > 6) { n.vx *= 6 / sp; n.vy *= 6 / sp; }
-        n.x = Math.max(pad, Math.min(W - pad, n.x + n.vx));
-        n.y = Math.max(pad, Math.min(H - pad, n.y + n.vy));
+        const x1 = n.bx * ca + n.bz * sA;
+        const z1 = -n.bx * sA + n.bz * ca;
+        const y2 = n.by * ct - z1 * st;
+        const z2 = n.by * st + z1 * ct;
+        const zr = z2 * R;
+        const s = persp / (persp + zr);
+        sx[i] = CX + x1 * R * s; sy[i] = CY + y2 * R * s; ss[i] = s; sz[i] = zr;
+        sa[i] = 0.22 + 0.78 * ((R - zr) / (2 * R));
       }
-    };
 
-    const draw = () => {
       ctx.clearRect(0, 0, W, H);
-      // ambient center glow
-      const g = ctx.createRadialGradient(CX, CY, 0, CX, CY, Math.max(W, H) * 0.55);
-      g.addColorStop(0, "rgba(255,92,171,0.06)");
-      g.addColorStop(1, "rgba(0,0,0,0)");
+      const g = ctx.createRadialGradient(CX, CY, 0, CX, CY, R * 1.2);
+      g.addColorStop(0, "rgba(255,92,171,0.06)"); g.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 
-      const hov = hover >= 0;
-      const lit = (i: number) => !hov || i === hover || neighbors[hover].has(i);
+      ctx.strokeStyle = "rgba(255,150,200,0.045)"; ctx.lineWidth = 0.6; ctx.beginPath();
+      for (let e = 0; e < edges.length; e++) { const a = edges[e][0], b = edges[e][1]; ctx.moveTo(sx[a], sy[a]); ctx.lineTo(sx[b], sy[b]); }
+      ctx.stroke();
 
-      // edges
-      for (const e of edges) {
-        const on = !hov || e.a === hover || e.b === hover;
-        ctx.strokeStyle = `hsla(${nodes[e.a].hue}, 75%, 66%, ${on ? (hov ? 0.55 : 0.13) : 0.03})`;
-        ctx.lineWidth = on && hov ? 1.2 : 0.8;
-        ctx.beginPath();
-        ctx.moveTo(nodes[e.a].x, nodes[e.a].y);
-        ctx.lineTo(nodes[e.b].x, nodes[e.b].y);
-        ctx.stroke();
+      order.sort((a, b) => sz[b] - sz[a]);
+      for (let o = 0; o < N; o++) {
+        const i = order[o]; const n = nodes[i];
+        ctx.globalAlpha = sa[i];
+        ctx.fillStyle = `hsl(${n.hue}, 78%, ${n.light}%)`;
+        ctx.beginPath(); ctx.arc(sx[i], sy[i], Math.max(0.4, n.r * ss[i]), 0, Math.PI * 2); ctx.fill();
       }
 
-      // nodes
-      for (let i = 0; i < nodes.length; i++) {
-        const n = nodes[i];
-        const L = lit(i);
-        ctx.globalAlpha = L ? 1 : 0.12;
-        const glow = n.type !== "leaf" || (hov && L);
-        ctx.shadowBlur = glow ? n.r * 1.7 : 0;
-        ctx.shadowColor = `hsl(${n.hue}, 90%, 62%)`;
-        ctx.fillStyle =
-          n.type === "hub" ? "#FF5CAB"
-            : `hsl(${n.hue}, ${n.type === "anchor" ? 88 : 74}%, ${n.type === "anchor" ? 65 : 60}%)`;
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
-        ctx.fill();
-        if (n.type === "hub") {
-          ctx.shadowBlur = 0;
-          ctx.fillStyle = "#1a0b14";
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, n.r * 0.4, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = 1;
-
-      // labels
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      for (let i = 0; i < nodes.length; i++) {
-        const n = nodes[i];
-        const showLeaf = hov && lit(i);
-        if (n.type === "leaf" && !showLeaf) continue;
-        const L = lit(i);
-        ctx.globalAlpha = L ? 0.95 : 0.1;
-        ctx.fillStyle = n.type === "hub" ? "rgba(255,255,255,0.95)" : "rgba(243,239,243,0.92)";
-        ctx.font = `${n.type === "hub" ? 12 : n.type === "anchor" ? 11 : 10}px var(--font-mono), ui-monospace, monospace`;
-        ctx.fillText(n.label, n.x, n.y + n.r + 4);
+      // labels (front-facing prominent nodes only)
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      let drawn = 0;
+      for (let o = N - 1; o >= 0 && drawn < 48; o--) {
+        const i = order[o]; const n = nodes[i];
+        if (!n.lab || sa[i] < 0.72) continue;
+        ctx.globalAlpha = Math.min(1, (sa[i] - 0.6) * 2.4);
+        ctx.fillStyle = n.hub ? "rgba(255,255,255,0.92)" : "rgba(243,239,243,0.7)";
+        ctx.font = `${n.hub ? 10 : 8.5}px var(--font-mono), ui-monospace, monospace`;
+        ctx.fillText(n.lab, sx[i], sy[i] + n.r * ss[i] + 3);
+        drawn++;
       }
       ctx.globalAlpha = 1;
-      canvas.style.cursor = hover > 0 ? (drag >= 0 ? "grabbing" : "grab") : "default";
+      canvas.style.cursor = drag ? "grabbing" : "grab";
     };
 
-    let t = 0;
-    let raf = 0;
-    let running = false;
-    const loop = () => {
-      t += 0.016;
-      step();
-      draw();
-      raf = requestAnimationFrame(loop);
-    };
+    let raf = 0, running = false;
+    const loop = () => { frame(); raf = requestAnimationFrame(loop); };
     const start = () => { if (!running && !reduce) { running = true; raf = requestAnimationFrame(loop); } };
     const stop = () => { running = false; cancelAnimationFrame(raf); };
 
-    if (reduce) {
-      for (let k = 0; k < 500; k++) step();
-      draw();
-    } else {
-      const io = new IntersectionObserver(
-        (ents) => { ents.forEach((e) => (e.isIntersecting ? start() : stop())); },
-        { threshold: 0 },
-      );
-      io.observe(wrap);
-      return () => {
-        io.disconnect(); stop(); ro.disconnect();
-        canvas.removeEventListener("pointermove", onMove);
-        canvas.removeEventListener("pointerdown", onDown);
-        canvas.removeEventListener("pointerup", onUp);
-        canvas.removeEventListener("pointerleave", onLeave);
-      };
-    }
+    let io: IntersectionObserver | null = null;
+    if (reduce) frame();
+    else { io = new IntersectionObserver((ents) => ents.forEach((e) => (e.isIntersecting ? start() : stop())), { threshold: 0 }); io.observe(wrap); }
 
     return () => {
-      ro.disconnect();
-      canvas.removeEventListener("pointermove", onMove);
+      io?.disconnect(); stop(); ro.disconnect();
       canvas.removeEventListener("pointerdown", onDown);
+      canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerup", onUp);
-      canvas.removeEventListener("pointerleave", onLeave);
+      canvas.removeEventListener("pointerleave", onUp);
     };
   }, []);
 

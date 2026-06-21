@@ -63,10 +63,10 @@ function CompressionViz() {
       gsap.set(cert.current, { opacity: 0, y: 10 });
       const c = { tok: RAW, saved: 0 };
 
-      const tl = gsap.timeline({ scrollTrigger: { trigger: el, start: "top 78%", once: true } });
-      tl.to(fill.current, { width: `${PCT}%`, duration: 1.6, ease: "power3.inOut" }, 0)
-        .to(c, { tok: COMPRESSED, saved: SAVED_PCT, duration: 1.6, ease: "power3.inOut", onUpdate: () => setText(c.tok, c.saved) }, 0)
-        .to(cert.current, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, "-=0.25");
+      const tl = gsap.timeline({ scrollTrigger: { trigger: el, start: "top 80%", once: true }, delay: 0.1 });
+      tl.to(fill.current, { width: `${PCT}%`, duration: 2.2, ease: "power1.inOut" }, 0)
+        .to(c, { tok: COMPRESSED, saved: SAVED_PCT, duration: 2.2, ease: "power1.inOut", onUpdate: () => setText(c.tok, c.saved) }, 0)
+        .to(cert.current, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, "-=0.5");
     }, el);
     return () => ctx.revert();
   }, []);

@@ -1,113 +1,79 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Panel from "@/components/Panel";
 import Reveal from "@/components/Reveal";
-import SecurityFlow from "@/components/SecurityFlow";
+import SecurityViz from "@/components/SecurityViz";
+import { QuadMark } from "@/components/Header";
 
 const CONTROLS = [
-  {
-    icon: "min" as const,
-    title: "Data minimization",
-    body: "Quad sends the smallest verified evidence packet, never your whole company brain.",
-  },
-  {
-    icon: "isolate" as const,
-    title: "Tenant isolation",
-    body: "Every customer's context is isolated, encrypted, and access-scoped by default.",
-  },
-  {
-    icon: "receipt" as const,
-    title: "Proof on every call",
-    body: "A receipt shows exactly what context each model call used, and why.",
-  },
-  {
-    icon: "retain" as const,
-    title: "You own the data",
-    body: "Permission-aware retrieval, redaction, and tenant-scoped retention and deletion.",
-  },
+  { kind: "minimize" as const, title: "Data minimization", body: "Quad sends the smallest verified evidence packet, never your whole company brain." },
+  { kind: "isolate" as const, title: "Tenant isolation", body: "Every customer's context is isolated, encrypted, and access-scoped by default." },
+  { kind: "proof" as const, title: "Proof on every call", body: "A receipt shows exactly what context each model call used, and why." },
+  { kind: "own" as const, title: "You own the data", body: "Permission-aware retrieval, redaction, and tenant-scoped retention and deletion." },
 ];
 
-function Ctl({ kind }: { kind: "min" | "isolate" | "receipt" | "retain" }) {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5CAB" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      {kind === "min" && (
-        <>
-          <circle cx="12" cy="12" r="9" />
-          <path d="M8 12h8" />
-        </>
-      )}
-      {kind === "isolate" && (
-        <>
-          <rect x="5" y="10" width="14" height="10" rx="2" />
-          <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-        </>
-      )}
-      {kind === "receipt" && (
-        <>
-          <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
-          <path d="M9 8h6M9 12h6" />
-        </>
-      )}
-      {kind === "retain" && (
-        <>
-          <path d="M12 3l8 3v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />
-          <path d="M9 12l2 2 4-4" />
-        </>
-      )}
-    </svg>
-  );
-}
-
-const BADGES = ["SOC 2 Type II", "GDPR", "ISO 27001", "Tenant-isolated"];
+const PERIOD = 5600;
 
 export default function Security() {
+  const [active, setActive] = useState(0);
+
+  // auto-advance; re-arms whenever active changes (incl. on click)
+  useEffect(() => {
+    const id = setTimeout(() => setActive((a) => (a + 1) % CONTROLS.length), PERIOD);
+    return () => clearTimeout(id);
+  }, [active]);
+
+  const c = CONTROLS[active];
+
   return (
     <Panel
       id="security"
       label="Security"
       desc="Enterprise AI deals are blocked by data security before model quality. Quad is built for the security review, not around it."
-      title="Minimize what leaves the tenant. Prove what did."
+      title="Send less. Prove everything."
     >
-      {/* animated data-minimization flow */}
       <Reveal className="mt-9">
         <div className="overflow-hidden rounded-xl border border-ink/12 bg-ink">
-          <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-3">
-            <div className="flex items-center gap-2.5">
-              <span className="h-2 w-2 rounded-full bg-flame" />
-              <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-bone">Data minimization</span>
-            </div>
-            <span className="font-mono text-[11px] text-tan/55">only the verified packet leaves your tenant</span>
+          {/* tabs with progress underline */}
+          <div className="grid grid-cols-2 border-b border-white/[0.07] sm:grid-cols-4">
+            {CONTROLS.map((t, i) => (
+              <button
+                key={t.title}
+                onClick={() => setActive(i)}
+                className="relative flex items-center gap-2.5 border-r border-white/[0.07] px-4 py-3.5 text-left last:border-r-0"
+              >
+                <span className={`font-mono text-[11px] ${active === i ? "text-flame" : "text-tan/40"}`}>0{i + 1}</span>
+                <span className={`text-[12.5px] transition-colors ${active === i ? "text-bone" : "text-tan/45"}`}>{t.title}</span>
+                {active === i && (
+                  <span
+                    key={active}
+                    className="sec-progress absolute bottom-0 left-0 h-[2px] w-full bg-flame"
+                    style={{ animationDuration: `${PERIOD}ms` }}
+                  />
+                )}
+              </button>
+            ))}
           </div>
-          <SecurityFlow className="h-[300px] w-full md:h-[340px]" />
+
+          {/* stage: animation + description */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px]">
+            <div className="border-b border-white/[0.07] lg:border-b-0">
+              <SecurityViz key={active} kind={c.kind} className="h-[300px] w-full md:h-[340px]" />
+            </div>
+            <div className="flex flex-col justify-center gap-4 p-7 lg:border-l lg:border-white/[0.07]">
+              <QuadMark size={26} strokeWidth={2.4} />
+              <div>
+                <h3 className="text-[19px] font-medium text-bone">{c.title}</h3>
+                <p className="mt-2 text-[13.5px] leading-relaxed text-tan/70">{c.body}</p>
+              </div>
+              <span className="font-mono text-[11px] text-tan/40">
+                {active + 1} / {CONTROLS.length}
+              </span>
+            </div>
+          </div>
         </div>
       </Reveal>
-
-      {/* supporting controls */}
-      <div className="mt-6 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-ink/12 bg-ink/12 sm:grid-cols-2 lg:grid-cols-4">
-        {CONTROLS.map((c) => (
-          <div key={c.title} className="flex flex-col bg-paper p-5 transition-colors duration-200 hover:bg-cream">
-            <div className="flex items-center gap-2.5">
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blush">
-                <Ctl kind={c.icon} />
-              </span>
-              <h3 className="text-[14px] font-medium text-ink">{c.title}</h3>
-            </div>
-            <p className="mt-2.5 text-[12.5px] leading-relaxed text-ink-soft">{c.body}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        {BADGES.map((b) => (
-          <span
-            key={b}
-            className="flex items-center gap-2 rounded-full border border-ink/15 bg-paper px-4 py-2 font-mono text-[12px] tracking-[0.02em] text-ink/70"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-flame" />
-            {b}
-          </span>
-        ))}
-      </div>
     </Panel>
   );
 }

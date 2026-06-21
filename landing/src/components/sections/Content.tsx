@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 // full 8-item index (matches the original rail; Pricing/Testimonials/Insights
 // have no section here but stay in the rail for visual fidelity)
@@ -23,6 +23,7 @@ const NAV = [
  */
 export default function Content({ children }: { children: ReactNode }) {
   const [active, setActive] = useState("capabilities");
+  const bars = useRef<(HTMLSpanElement | null)[]>([]);
 
   useEffect(() => {
     const obs = new IntersectionObserver(
@@ -35,6 +36,35 @@ export default function Content({ children }: { children: ReactNode }) {
     );
     document.querySelectorAll("[data-spy]").forEach((el) => obs.observe(el));
     return () => obs.disconnect();
+  }, []);
+
+  // per-section scroll progress fills each nav underline as you move through it
+  useEffect(() => {
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const vh = window.innerHeight;
+      const line = window.scrollY + vh * 0.5;
+      NAV.forEach((n, i) => {
+        const el = document.getElementById(n.id);
+        const bar = bars.current[i];
+        if (!el || !bar) return;
+        const top = el.getBoundingClientRect().top + window.scrollY;
+        const p = (line - top) / (el.offsetHeight || 1);
+        // only the section you're currently inside fills; the rest stay empty
+        const v = p >= 0 && p < 1 ? p : 0;
+        bar.style.transform = `scaleX(${v.toFixed(3)})`;
+      });
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      cancelAnimationFrame(raf);
+    };
   }, []);
 
   return (
@@ -53,7 +83,7 @@ export default function Content({ children }: { children: ReactNode }) {
               <a
                 key={n.id}
                 href={`#${n.id}`}
-                className="group flex h-[52px] shrink-0 items-center gap-3 border-b border-white/[0.07] px-5"
+                className="group relative flex h-[52px] shrink-0 items-center gap-3 border-b border-white/[0.07] px-5"
               >
                 <span className="font-mono text-[11px] text-tan/35">
                   0{i + 1}
@@ -65,6 +95,13 @@ export default function Content({ children }: { children: ReactNode }) {
                 >
                   {n.label}
                 </span>
+                {/* scroll-progress fill for this section */}
+                <span
+                  ref={(el) => { bars.current[i] = el; }}
+                  aria-hidden
+                  className="absolute bottom-0 left-0 h-[2px] w-full origin-left bg-flame"
+                  style={{ transform: "scaleX(0)", willChange: "transform" }}
+                />
               </a>
             ))}
             {/* empty cells continue down to the footer */}

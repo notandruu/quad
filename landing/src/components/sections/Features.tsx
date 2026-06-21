@@ -44,17 +44,17 @@ function FeatureIcon({ kind }: { kind: "venn" | "triangle" | "arcs" }) {
         d.style.strokeDasharray = `${len}`;
         d.style.strokeDashoffset = `${len}`;
       });
-      gsap.set("[data-fill]", { scale: 0, transformOrigin: "center", transformBox: "fill-box" } as gsap.TweenVars);
+      gsap.set("[data-fill]", { opacity: 0 });
 
       if (reduce) {
         gsap.set(draws, { strokeDashoffset: 0 });
-        gsap.set("[data-fill]", { scale: 1 });
+        gsap.set("[data-fill]", { opacity: 1 });
         return;
       }
 
       const tl = gsap.timeline({ scrollTrigger: { trigger: el, start: "top 84%", once: true } });
       tl.to(draws, { strokeDashoffset: 0, duration: 0.9, ease: "power2.inOut", stagger: 0.1 })
-        .to("[data-fill]", { scale: 1, duration: 0.45, ease: "back.out(2)", stagger: 0.06 }, "-=0.5");
+        .to("[data-fill]", { opacity: 1, duration: 0.5, ease: "power2.out", stagger: 0.06 }, "-=0.45");
     }, el);
     return () => ctx.revert();
   }, []);
@@ -101,7 +101,7 @@ export default function Features() {
         className="mt-9 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-ink/15 bg-ink/15 md:grid-cols-3"
       >
         {CARDS.map((c) => (
-          <div key={c.n} className="relative flex flex-col bg-paper px-6 py-7 transition-colors duration-200 hover:bg-cream/60">
+          <div key={c.n} className="relative flex flex-col bg-paper px-6 py-7">
             {/* top-center notch */}
             <span
               className="absolute left-1/2 top-0 h-2.5 w-4 -translate-x-1/2 bg-ink/85"

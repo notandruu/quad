@@ -23,33 +23,34 @@ const CHAMFER =
 
 function Emblem({ label }: { label: string }) {
   const c = "rgba(255,182,214,0.85)";
-  const shield = "M24 5 L39 11 V25 C39 33.5 32.4 39.2 24 43 C15.6 39.2 9 33.5 9 25 V11 Z";
-  if (label === "GDPR") {
-    // privacy shield with a lock
-    return (
-      <svg width="46" height="46" viewBox="0 0 48 48" fill="none" stroke={c} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
-        <path d={shield} />
-        <rect x="18.5" y="23.5" width="11" height="9" rx="1.5" />
-        <path d="M21 23.5 V20.2 A3 3 0 0 1 27 20.2 V23.5" />
-      </svg>
-    );
-  }
-  if (label === "SOC 2") {
-    // audited shield with a check
-    return (
-      <svg width="46" height="46" viewBox="0 0 48 48" fill="none" stroke={c} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
-        <path d={shield} />
-        <path d="M17.5 24.5 l4.4 4.4 8.8 -10.8" strokeWidth="1.9" />
-      </svg>
-    );
-  }
-  // ISO — rosette seal with a check
-  return (
-    <svg width="46" height="46" viewBox="0 0 48 48" fill="none" stroke={c} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round">
-      <rect x="11.5" y="11.5" width="25" height="25" rx="3.5" />
-      <rect x="11.5" y="11.5" width="25" height="25" rx="3.5" transform="rotate(45 24 24)" strokeOpacity="0.4" />
-      <path d="M18.5 24 l3.9 3.9 7.4 -9" strokeWidth="1.7" />
+  const svg = (children: React.ReactNode, sw = 1.6) => (
+    <svg width="46" height="46" viewBox="0 0 48 48" fill="none" stroke={c} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round">
+      {children}
     </svg>
+  );
+  if (label === "Reliable") {
+    // uptime pulse — centered spike
+    return svg(
+      <>
+        <circle cx="24" cy="24" r="18" strokeOpacity="0.35" />
+        <path d="M10 24 H19 L23 13 L25 35 L29 24 H38" strokeWidth="1.9" />
+      </>,
+    );
+  }
+  if (label === "Intelligent") {
+    // spark of insight — centered four-point star
+    return svg(
+      <path d="M24 8 L27.2 20.8 L40 24 L27.2 27.2 L24 40 L20.8 27.2 L8 24 L20.8 20.8 Z" />,
+      1.5,
+    );
+  }
+  // Verifiable — double-ring seal + check
+  return svg(
+    <>
+      <circle cx="24" cy="24" r="18" />
+      <circle cx="24" cy="24" r="13" strokeOpacity="0.4" />
+      <path d="M18.5 24 l3.8 3.8 7.4 -9" strokeWidth="1.9" />
+    </>,
   );
 }
 
@@ -72,10 +73,10 @@ export default function Footer() {
         {/* section-divider line — grid continues to the footer */}
         <div className="border-t border-white/[0.07] -mx-5 md:-mx-10" />
         <div className="flex">
-        <aside className="hidden w-[180px] shrink-0 flex-col items-center gap-8 self-stretch border-x border-white/[0.07] pt-24 lg:flex">
-          <Badge label="GDPR" />
-          <Badge label="SOC 2" />
-          <Badge label="ISO" />
+        <aside className="hidden w-[180px] shrink-0 flex-col items-center justify-center gap-10 self-stretch border-x border-white/[0.07] lg:flex">
+          <Badge label="Reliable" />
+          <Badge label="Intelligent" />
+          <Badge label="Verifiable" />
         </aside>
 
         <div className="min-w-0 flex-1 py-20 lg:ml-[38px] lg:border-l lg:border-white/[0.07] lg:pl-9">

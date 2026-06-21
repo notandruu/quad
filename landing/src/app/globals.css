@@ -101,6 +101,16 @@ a {
   align-self: stretch;
 }
 
+/* carousel progress underline (restarted via React key) */
+@keyframes sec-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.sec-progress {
+  transform-origin: left;
+  animation: sec-grow linear forwards;
+}
+
 /* ── texture system: 45° hatch + halftone dots ── */
 .hatch {
   background-image: repeating-linear-gradient(

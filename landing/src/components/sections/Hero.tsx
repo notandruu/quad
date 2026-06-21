@@ -125,10 +125,10 @@ export default function Hero() {
           >
             <button
               onClick={() => setOpen(isOpen ? -1 : i)}
-              className="flex w-full items-center gap-5 py-4 text-left lg:pl-9 lg:pr-9"
+              className="flex w-full items-center gap-5 py-[18px] text-left lg:pl-9 lg:pr-9"
             >
-              <span className="font-mono text-[12px] text-tan/50">0{i + 1}</span>
-              <span className="flex-1 text-[14px] text-bone">{layer.title}</span>
+              <span className="font-mono text-[13px] text-tan/50">0{i + 1}</span>
+              <span className="flex-1 text-[17px] text-bone">{layer.title}</span>
               <span
                 className={`text-tan/60 transition-transform duration-300 ${
                   isOpen ? "rotate-180" : ""
@@ -142,13 +142,13 @@ export default function Hero() {
               style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
             >
               <div className="min-h-0 overflow-hidden">
-                <ul className="space-y-2.5 pb-5 pl-9 pr-9 lg:pl-9">
+                <ul className="space-y-3 pb-6 pl-9 pr-9 lg:pl-9">
                   {layer.items.map((it) => (
                     <li
                       key={it}
-                      className="flex items-start gap-4 text-[13px] leading-relaxed text-tan/80"
+                      className="flex items-start gap-4 text-[15px] leading-relaxed text-tan/80"
                     >
-                      <span className="mt-px font-mono text-[14px] leading-none text-tan/40">
+                      <span className="mt-px font-mono text-[15px] leading-none text-tan/40">
                         +
                       </span>
                       <span>{it}</span>

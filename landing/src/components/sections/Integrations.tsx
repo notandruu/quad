@@ -48,7 +48,7 @@ export default function Integrations() {
           ))}
         </Reveal>
         <div className="border-t border-ink/[0.07] bg-paper py-4 text-center font-mono text-[12px] uppercase tracking-[0.08em] text-ink/45">
-          connectors install through the registry · and 150+ more
+          Connectors install through the registry · and 150+ more
         </div>
       </div>
     </Panel>
