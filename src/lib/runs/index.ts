@@ -55,7 +55,7 @@ export type WorkflowArtifactRecord = {
   runId: string;
   kind: ArtifactKind;
   title: string;
-  hash: string;
+  hash: `fnv1a:${string}`;
   createdAt: string;
   data: unknown;
 };
@@ -80,7 +80,7 @@ export type ReceiptRecord = {
   status: "blocked" | "ready" | "executed";
   createdAt: string;
   summary: string;
-  artifactHash: string;
+  artifactHash: `fnv1a:${string}`;
 };
 
 export type RunLedgerSnapshot = {
@@ -384,17 +384,17 @@ function pruneLedger(): void {
 }
 
 function shortId(...parts: unknown[]): string {
-  return stableHash(parts).replace("sha256:", "").slice(0, 12);
+  return stableHash(parts).replace("fnv1a:", "").slice(0, 12);
 }
 
-function stableHash(value: unknown): string {
+function stableHash(value: unknown): `fnv1a:${string}` {
   const encoded = new TextEncoder().encode(stableStringify(value));
   let hash = 2166136261;
   for (const byte of encoded) {
     hash ^= byte;
     hash = Math.imul(hash, 16777619);
   }
-  return `sha256:${(hash >>> 0).toString(16).padStart(8, "0")}`;
+  return `fnv1a:${(hash >>> 0).toString(16).padStart(8, "0")}`;
 }
 
 function stableStringify(value: unknown): string {

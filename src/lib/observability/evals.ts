@@ -81,6 +81,7 @@ async function llmJudge(
       `PAGE TEXT (truncated): ${(evidence?.text ?? "").slice(0, 4000)}`,
     ].join("\n"),
     maxTokens: 400,
+    purpose: "evaluation",
   });
 
   if (raw === null) return null;

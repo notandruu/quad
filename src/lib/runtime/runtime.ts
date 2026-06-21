@@ -90,6 +90,7 @@ async function synthesizeReply(
     system: `You are ${employee.name}, an AI ${employee.role.replace("_", " ")}. Tone: ${employee.tone}. Answer only from the company memory provided. Cite the source titles you used. If the memory does not cover it, say so plainly.`,
     prompt: `COMPANY MEMORY:\n${memos || "(none retrieved)"}\n\nUSER:\n${text}`,
     maxTokens: 800,
+    purpose: "chat",
   });
 }
 

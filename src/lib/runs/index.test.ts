@@ -58,6 +58,7 @@ describe("run ledger", () => {
     const snapshot = getRunSnapshot(run.id);
     expect(snapshot?.run.taskIds).toEqual([task.id]);
     expect(snapshot?.run.artifactIds).toEqual([artifact.id]);
+    expect(artifact.hash.startsWith("fnv1a:")).toBe(true);
     expect(snapshot?.run.approvalIds).toEqual([approval.id]);
     expect(snapshot?.run.receiptIds).toEqual([receipt.id]);
     expect(summarizeAgentTask(snapshot!).nextAction).toBe(

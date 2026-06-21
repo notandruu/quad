@@ -64,6 +64,7 @@ describe("security governance", () => {
 
   it("reports security substrate readiness", () => {
     expect(securityReadiness({}).retentionPolicy).toBe(false);
-    expect(securityReadiness({ QUAD_RETENTION_DAYS: "30" }).label).toBe("Security substrate wired");
+    expect(securityReadiness({ QUAD_RETENTION_DAYS: "30" }).label).toBe("Security substrate present");
+    expect(securityReadiness({}).modelGatewaySubstrate).toBe(true);
   });
 });

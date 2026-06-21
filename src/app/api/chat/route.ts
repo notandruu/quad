@@ -82,6 +82,7 @@ async function auditGroundedChat(
     system,
     prompt: text,
     maxTokens: 1000,
+    purpose: "chat",
   });
 
   return reply ?? `Based on the audit of ${report.targetUrl}: ${report.summary}`;

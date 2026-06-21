@@ -45,6 +45,8 @@ export type FdeWorkflowPlan = {
   };
 };
 
+const REQUIRED_CAPABILITIES = new Set(["trust_packet.exporter"]);
+
 export function buildTrustPacketWorkflow(input: {
   report: AuditReport;
   activeTools?: ActiveTool[];
@@ -105,7 +107,9 @@ export function buildTrustPacketWorkflow(input: {
     openObligations,
     createdAt: input.createdAt,
   });
-  const blocked = steps.some((step) => step.status === "blocked") || !certificate.proofChain.accepted;
+  const coreBlocked = steps.some(
+    (step) => step.status === "blocked" && (!step.capabilityId || REQUIRED_CAPABILITIES.has(step.capabilityId))
+  ) || !certificate.proofChain.accepted;
 
   return {
     workflowId: `fde_${input.report.runId}`,
@@ -120,9 +124,9 @@ export function buildTrustPacketWorkflow(input: {
     certificate,
     receiptPreview: {
       id: `receipt_${input.report.runId}`,
-      status: blocked ? "blocked" : "ready_for_approval",
-      summary: blocked
-        ? "Trust packet is blocked by missing connector or evidence obligations."
+      status: coreBlocked ? "blocked" : "ready_for_approval",
+      summary: coreBlocked
+        ? "Trust packet is blocked by missing required proof capability or evidence obligations."
         : "Trust packet is ready for approval with a verifiable quad chain certificate.",
     },
   };
@@ -178,7 +182,9 @@ function buildConnectorSteps(activeToolIds: Set<string>): FdeWorkflowStep[] {
         ? writeCapability
           ? "Connector is staged in dry-run mode until approval."
           : "Connector is available for artifact generation."
-        : "Connector is not active in the current metaregistry state.",
+        : REQUIRED_CAPABILITIES.has(capabilityId)
+          ? "Required connector is not active in the current metaregistry state."
+          : "Optional publisher is not active; packet can still be approved without it.",
     };
   });
 }

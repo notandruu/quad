@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DEMO_ORG_ID } from "@/data/seed";
+import { validateAgentRunRequest, type AgentRunRequestBody } from "@/lib/agent/runRequest";
 import { buildTrustPacketWorkflow } from "@/lib/fde/workflows";
 import { summarizeCapabilities } from "@/lib/metaregistry";
 import {
@@ -18,27 +19,23 @@ import { runAudit } from "@/lib/tools/auditAnalyzer";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-type AgentRunRequest = {
-  orgId?: string;
-  targetUrl?: string;
-  workflow?: "enterprise_proof" | "website_audit";
-  limit?: number;
-};
-
 /**
  * Thin external-agent bridge. Fetch/Agentverse or any future agent surface can
  * call this route and get the same normalized task summary the dashboard can
  * eventually consume. Durable work still lives in the quad runtime substrate.
  */
 export async function POST(req: NextRequest) {
-  const body = (await req.json().catch(() => ({}))) as AgentRunRequest;
-  const orgId = body.orgId ?? DEMO_ORG_ID;
-  const targetUrl = body.targetUrl;
-  const workflow = body.workflow ?? "enterprise_proof";
-
-  if (!targetUrl) {
-    return NextResponse.json({ error: "targetUrl required" }, { status: 400 });
+  const body = (await req.json().catch(() => ({}))) as AgentRunRequestBody;
+  const validation = validateAgentRunRequest({
+    body,
+    headers: req.headers,
+    defaultOrgId: DEMO_ORG_ID,
+    env: process.env,
+  });
+  if (!validation.ok) {
+    return NextResponse.json({ error: validation.error }, { status: validation.status });
   }
+  const { orgId, targetUrl, workflow, limit } = validation;
 
   const run = createWorkflowRun({
     orgId,
@@ -62,7 +59,7 @@ export async function POST(req: NextRequest) {
       orgId,
       runId: run.id,
       targetUrl,
-      limit: body.limit ?? 4,
+      limit,
     });
     cacheReport(report);
     addArtifact({
@@ -117,7 +114,9 @@ export async function POST(req: NextRequest) {
           detail: step.detail,
         });
       }
-      transitionRun(run.id, plan.receiptPreview.status === "blocked" ? "needs_approval" : "needs_approval");
+      transitionRun(run.id, plan.receiptPreview.status === "blocked" ? "failed" : "needs_approval", {
+        failureReason: plan.receiptPreview.status === "blocked" ? plan.receiptPreview.summary : undefined,
+      });
     } else {
       transitionRun(run.id, "completed");
     }

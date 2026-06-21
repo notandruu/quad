@@ -94,7 +94,7 @@ describe("fde workflows", () => {
     expect(plan.receiptPreview.status).toBe("ready_for_approval");
   });
 
-  it("blocks publishing when connector capabilities are missing", () => {
+  it("blocks trust packets when the required exporter is missing", () => {
     const plan = buildTrustPacketWorkflow({
       report,
       activeTools: activeTools.filter((tool) => tool.id === "quad.chain_verifier"),
@@ -102,6 +102,17 @@ describe("fde workflows", () => {
 
     expect(plan.steps.find((step) => step.capabilityId === "trust_packet.exporter")?.status).toBe("blocked");
     expect(plan.receiptPreview.status).toBe("blocked");
+  });
+
+  it("does not block the core trust packet when optional publishers are missing", () => {
+    const plan = buildTrustPacketWorkflow({
+      report,
+      activeTools: activeTools.filter((tool) => ["quad.chain_verifier", "trust_packet.exporter"].includes(tool.id)),
+    });
+
+    expect(plan.steps.find((step) => step.capabilityId === "cms.publisher")?.status).toBe("blocked");
+    expect(plan.steps.find((step) => step.capabilityId === "task.publisher")?.status).toBe("blocked");
+    expect(plan.receiptPreview.status).toBe("ready_for_approval");
   });
 
   it("turns weak findings into human obligations", () => {

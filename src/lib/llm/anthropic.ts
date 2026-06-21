@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { assertModelCallAllowed, prepareModelPayload } from "@/lib/security";
+import { assertModelCallAllowed, prepareModelPayload, type ModelPurpose } from "@/lib/security";
 
 let client: Anthropic | null = null;
 
@@ -28,16 +28,18 @@ export async function complete(opts: {
   system?: string;
   prompt: string;
   maxTokens?: number;
+  purpose?: Extract<ModelPurpose, "chat" | "audit" | "evaluation" | "trust_packet">;
 }): Promise<string | null> {
   const anthropic = getAnthropic();
   if (!anthropic) return null;
+  const purpose = opts.purpose ?? "chat";
   const promptDecision = prepareModelPayload({
-    purpose: opts.model === auditModel() ? "audit" : "chat",
+    purpose,
     text: opts.prompt,
   });
   const systemDecision = opts.system
     ? prepareModelPayload({
-        purpose: opts.model === auditModel() ? "audit" : "chat",
+        purpose,
         text: opts.system,
       })
     : null;

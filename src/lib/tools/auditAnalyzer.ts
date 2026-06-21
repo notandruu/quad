@@ -149,6 +149,7 @@ async function analyzePage(
       system: "You are a precise website auditor. Output only a JSON array of findings.",
       prompt,
       maxTokens: 3000,
+      purpose: "audit",
     });
 
     if (raw === null) {
@@ -271,6 +272,7 @@ async function synthesize(
         system: "You are a concise, company-aware AI employee. Output only plain text.",
         prompt: buildSynthesisPrompt(targetUrl, shown, brainSummary),
         maxTokens: 300,
+        purpose: "audit",
       })) ??
       `Found ${shown.length} grounded issues across ${evidenceByUrl.size} pages. ${filtered.length} low-quality findings were filtered out.`;
 

@@ -193,19 +193,19 @@ export function telemetryAttributes(input: {
 }
 
 export function securityReadiness(env: Record<string, string | undefined>): {
-  modelGateway: boolean;
-  telemetryRedaction: boolean;
-  tenantIsolation: boolean;
+  modelGatewaySubstrate: boolean;
+  telemetryRedactionSubstrate: boolean;
+  tenantKeySubstrate: boolean;
   retentionPolicy: boolean;
   label: string;
 } {
   const retentionPolicy = Boolean(env.QUAD_RETENTION_DAYS);
   return {
-    modelGateway: true,
-    telemetryRedaction: true,
-    tenantIsolation: true,
+    modelGatewaySubstrate: true,
+    telemetryRedactionSubstrate: true,
+    tenantKeySubstrate: true,
     retentionPolicy,
-    label: retentionPolicy ? "Security substrate wired" : "Security substrate wired, retention policy missing",
+    label: retentionPolicy ? "Security substrate present" : "Security substrate present, retention policy missing",
   };
 }
 
