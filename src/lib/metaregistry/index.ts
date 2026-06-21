@@ -12,6 +12,25 @@ export type CapabilityStatus = "available" | "degraded" | "unavailable";
 
 export type ApprovalMode = "none" | "dry_run" | "human_approval" | "admin_approval";
 
+export type CapabilityLifecycleState =
+  | "available"
+  | "installing"
+  | "installed"
+  | "allowlisted"
+  | "degraded"
+  | "disabled"
+  | "revoked";
+
+export type CapabilityValidationStatus = "pass" | "warning" | "fail";
+
+export type CapabilityValidationCheck = {
+  id: string;
+  capabilityId: string;
+  label: string;
+  status: CapabilityValidationStatus;
+  detail: string;
+};
+
 export type CapabilityManifest = {
   id: string;
   name: string;
@@ -70,6 +89,7 @@ export type CapabilityCatalogEntry = {
   approvalMode: ApprovalMode;
   installed: boolean;
   status: CapabilityStatus;
+  lifecycleState: CapabilityLifecycleState;
   active: boolean;
   allowlisted: boolean;
   disabled: boolean;
@@ -77,6 +97,12 @@ export type CapabilityCatalogEntry = {
   missingEnvCount: number;
   stateLabel: "active" | "needs_env" | "needs_install" | "blocked" | "disabled";
   nextAction: string;
+  validation: {
+    total: number;
+    passing: number;
+    warnings: number;
+    failing: number;
+  };
 };
 
 export type CapabilityKindSummary = {
@@ -112,6 +138,13 @@ export type CapabilityCatalogSummary = {
   };
   kinds: CapabilityKindSummary[];
   sponsors: CapabilitySponsorSummary[];
+  validation: {
+    total: number;
+    passing: number;
+    warnings: number;
+    failing: number;
+    checks: CapabilityValidationCheck[];
+  };
   entries: CapabilityCatalogEntry[];
 };
 
@@ -414,6 +447,7 @@ export function summarizeCapabilityCatalog(
     return buildCatalogEntry(manifest, state);
   });
   const starterEntries = entries.filter((entry) => capabilities.starterBundle.includes(entry.id));
+  const validationChecks = buildCapabilityValidationChecks(capabilities);
   const entryLimit = input.entryLimit ?? entries.length;
 
   return {
@@ -432,8 +466,18 @@ export function summarizeCapabilityCatalog(
     },
     kinds: summarizeByKind(entries),
     sponsors: summarizeBySponsor(entries),
+    validation: summarizeValidationChecks(validationChecks),
     entries: input.includeEntries === false ? [] : entries.slice(0, entryLimit),
   };
+}
+
+export function buildCapabilityValidationChecks(capabilities: CapabilitySummary): CapabilityValidationCheck[] {
+  const byState = new Map(capabilities.installed.map((state) => [state.id, state]));
+
+  return CAPABILITY_CATALOG.flatMap((manifest) => {
+    const state = byState.get(manifest.id) ?? buildInstallState(manifest, {}, capabilities.policy);
+    return validationChecksForCapability(manifest, state);
+  });
 }
 
 export function buildActiveToolCatalog(states: CapabilityInstallState[]): ActiveTool[] {
@@ -671,6 +715,8 @@ function buildInstallState(
 }
 
 function buildCatalogEntry(manifest: CapabilityManifest, state: CapabilityInstallState): CapabilityCatalogEntry {
+  const checks = validationChecksForCapability(manifest, state);
+
   return {
     id: manifest.id,
     name: manifest.name,
@@ -684,6 +730,7 @@ function buildCatalogEntry(manifest: CapabilityManifest, state: CapabilityInstal
     approvalMode: manifest.approvalMode,
     installed: state.installed,
     status: state.status,
+    lifecycleState: capabilityLifecycleState(state),
     active: state.active,
     allowlisted: state.allowlisted,
     disabled: state.disabled,
@@ -691,6 +738,7 @@ function buildCatalogEntry(manifest: CapabilityManifest, state: CapabilityInstal
     missingEnvCount: state.missingEnv.length,
     stateLabel: catalogStateLabel(state),
     nextAction: catalogNextAction(manifest, state),
+    validation: summarizeEntryValidationChecks(checks),
   };
 }
 
@@ -711,6 +759,108 @@ function catalogNextAction(manifest: CapabilityManifest, state: CapabilityInstal
   if (state.missingEnv.length > 0) return `configure ${state.missingEnv.length} required env key${state.missingEnv.length === 1 ? "" : "s"}.`;
   if (manifest.writes) return "open a human approval gate before execution.";
   return "review policy blocker.";
+}
+
+function capabilityLifecycleState(state: CapabilityInstallState): CapabilityLifecycleState {
+  if (state.disabled) return "disabled";
+  if (!state.installed) return "available";
+  if (state.missingEnv.length > 0) return "degraded";
+  if (state.allowlisted) return "allowlisted";
+  return "installed";
+}
+
+function validationChecksForCapability(
+  manifest: CapabilityManifest,
+  state: CapabilityInstallState
+): CapabilityValidationCheck[] {
+  const manifestFailures = validateCapabilityManifest(manifest);
+  const checks: CapabilityValidationCheck[] = [
+    {
+      id: `${manifest.id}:manifest`,
+      capabilityId: manifest.id,
+      label: "Manifest schema",
+      status: manifestFailures.length === 0 ? "pass" : "fail",
+      detail: manifestFailures.length === 0
+        ? "Capability manifest is namespaced, scoped, and internally valid."
+        : `Manifest fails ${manifestFailures.length} validation rule${manifestFailures.length === 1 ? "" : "s"}.`,
+    },
+    {
+      id: `${manifest.id}:install`,
+      capabilityId: manifest.id,
+      label: "Install state",
+      status: state.installed ? "pass" : "warning",
+      detail: state.installed
+        ? `Capability is installed from ${state.installSource}.`
+        : "Capability exists in the catalog but is not installed for this org.",
+    },
+    {
+      id: `${manifest.id}:allowlist`,
+      capabilityId: manifest.id,
+      label: "Org allowlist",
+      status: state.allowlisted ? "pass" : "fail",
+      detail: state.allowlisted
+        ? "Capability is allowed by org policy."
+        : "Capability is blocked by org allowlist policy.",
+    },
+    {
+      id: `${manifest.id}:env`,
+      capabilityId: manifest.id,
+      label: "Runtime configuration",
+      status: state.missingEnv.length === 0 ? "pass" : state.installed ? "fail" : "warning",
+      detail: state.missingEnv.length === 0
+        ? "Required runtime configuration is present."
+        : `Missing ${state.missingEnv.length} required env key${state.missingEnv.length === 1 ? "" : "s"}.`,
+    },
+    {
+      id: `${manifest.id}:approval`,
+      capabilityId: manifest.id,
+      label: "Approval gate",
+      status: !manifest.writes || manifest.approvalMode !== "none" ? "pass" : "fail",
+      detail: !manifest.writes
+        ? "Capability is read-only or internal."
+        : `Write capability uses ${manifest.approvalMode} approval.`,
+    },
+    {
+      id: `${manifest.id}:active`,
+      capabilityId: manifest.id,
+      label: "Runtime routing",
+      status: state.active ? "pass" : state.disabled || !state.allowlisted ? "fail" : "warning",
+      detail: runtimeRoutingValidationDetail(manifest, state),
+    },
+  ];
+
+  return checks;
+}
+
+function runtimeRoutingValidationDetail(
+  manifest: CapabilityManifest,
+  state: CapabilityInstallState
+): string {
+  if (state.active) return "Capability can be routed by the runtime.";
+  if (state.disabled) return "Capability is disabled by org policy.";
+  if (!state.installed) return "Capability exists in the catalog but is not installed for this org.";
+  if (!state.allowlisted) return "Capability is blocked by org allowlist policy.";
+  if (state.missingEnv.length > 0) {
+    return `Capability is missing ${state.missingEnv.length} required env key${state.missingEnv.length === 1 ? "" : "s"}.`;
+  }
+  if (manifest.writes) return "Capability is waiting for a write approval gate.";
+  return "Capability is blocked by policy.";
+}
+
+function summarizeEntryValidationChecks(checks: CapabilityValidationCheck[]): CapabilityCatalogEntry["validation"] {
+  return {
+    total: checks.length,
+    passing: checks.filter((check) => check.status === "pass").length,
+    warnings: checks.filter((check) => check.status === "warning").length,
+    failing: checks.filter((check) => check.status === "fail").length,
+  };
+}
+
+function summarizeValidationChecks(checks: CapabilityValidationCheck[]): CapabilityCatalogSummary["validation"] {
+  return {
+    ...summarizeEntryValidationChecks(checks),
+    checks: checks.filter((check) => check.status !== "pass").slice(0, 20),
+  };
 }
 
 function summarizeByKind(entries: CapabilityCatalogEntry[]): CapabilityKindSummary[] {

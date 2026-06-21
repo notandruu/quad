@@ -9,6 +9,7 @@ import {
   summarizeCapabilityCatalog,
   summarizeCapabilities,
   validateCapabilityManifest,
+  buildCapabilityValidationChecks,
   type CapabilityInstallState,
   type CapabilityManifest,
 } from ".";
@@ -54,18 +55,52 @@ describe("metaregistry", () => {
     });
     expect(browserWrite).toMatchObject({
       active: true,
+      lifecycleState: "allowlisted",
       stateLabel: "active",
       nextAction: "ready for routing.",
       missingEnvCount: 0,
+      validation: {
+        failing: 0,
+      },
     });
     expect(taskPublisher).toMatchObject({
       active: false,
+      lifecycleState: "degraded",
       stateLabel: "needs_env",
       nextAction: "configure 1 required env key.",
       missingEnvCount: 1,
+      validation: {
+        failing: 1,
+      },
     });
+    expect(catalog.validation.failing).toBeGreaterThan(0);
+    expect(catalog.validation.checks.length).toBeGreaterThan(0);
     expect(JSON.stringify(catalog)).not.toContain("bb_secret");
     expect(JSON.stringify(catalog)).not.toContain("project_secret");
+  });
+
+  it("derives validation checks from manifests and install state", () => {
+    const capabilities = summarizeCapabilities({
+      QUAD_CAPABILITY_ALLOWLIST: "quad.chain_verifier,browserbase.write_browser",
+      QUAD_CAPABILITY_FORCE_INSTALLED: "browserbase.write_browser",
+    });
+    const checks = buildCapabilityValidationChecks(capabilities);
+
+    expect(checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          capabilityId: "browserbase.write_browser",
+          label: "Runtime configuration",
+          status: "fail",
+        }),
+        expect.objectContaining({
+          capabilityId: "browserbase.write_browser",
+          label: "Approval gate",
+          status: "pass",
+        }),
+      ])
+    );
+    expect(JSON.stringify(checks)).not.toContain("BROWSERBASE_API_KEY");
   });
 
   it("builds an enterprise proof starter bundle", () => {

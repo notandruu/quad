@@ -5,7 +5,12 @@ import {
   type WorkerCanaryHealth,
   type WorkerRuntimeHealth,
 } from "@/lib/jobs/queue";
-import { summarizeCapabilities, type CapabilitySummary } from "@/lib/metaregistry";
+import {
+  buildCapabilityValidationChecks,
+  summarizeCapabilities,
+  type CapabilitySummary,
+  type CapabilityValidationCheck,
+} from "@/lib/metaregistry";
 import { getObservabilityReadiness, type ObservabilityReadiness } from "@/lib/observability";
 import { getRedis, isRedisConfigured } from "@/lib/redis";
 import { getServiceTokenReadiness, securityReadiness, type ServiceTokenReadiness } from "@/lib/security";
@@ -54,6 +59,12 @@ export type BackendReadinessReport = {
         disabled: boolean;
         installSource: string;
       }>;
+      validation: {
+        total: number;
+        warnings: number;
+        failing: number;
+        checks: CapabilityValidationCheck[];
+      };
     };
     worker: BackendComponentHealth & {
       seen: boolean;
@@ -236,9 +247,12 @@ function buildCapabilityReadiness(capabilities: CapabilitySummary): BackendReadi
       disabled: capability.disabled,
       installSource: capability.installSource,
     }));
+  const checks = buildCapabilityValidationChecks(capabilities);
+  const failingChecks = checks.filter((check) => check.status === "fail");
+  const warningChecks = checks.filter((check) => check.status === "warning");
   const activeCount = capabilities.activeTools.length;
   const status: BackendComponentStatus =
-    activeCount === 0 ? "missing" : blocked.length === 0 ? "ready" : "degraded";
+    activeCount === 0 ? "missing" : failingChecks.length === 0 && blocked.length === 0 ? "ready" : "degraded";
 
   return {
     status,
@@ -253,11 +267,17 @@ function buildCapabilityReadiness(capabilities: CapabilitySummary): BackendReadi
       requireWriteAllowlist: capabilities.policy.requireWriteAllowlist,
     },
     blocked: blocked.slice(0, 12),
+    validation: {
+      total: checks.length,
+      warnings: warningChecks.length,
+      failing: failingChecks.length,
+      checks: [...failingChecks, ...warningChecks].slice(0, 12),
+    },
     detail: status === "ready"
       ? `Metaregistry exposes ${activeCount} active runtime capabilities.`
       : status === "missing"
         ? "Metaregistry has no active runtime capabilities."
-        : `Metaregistry has ${blocked.length} blocked installed capabilities.`,
+        : `Metaregistry has ${failingChecks.length} failing validation checks across ${blocked.length} blocked installed capabilities.`,
   };
 }
 

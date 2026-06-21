@@ -133,11 +133,19 @@ Shipped v1:
 - the operator console renders a capability registry panel with installed/blocked/missing-env stats, starter-bundle readiness, kind breakdowns, sponsor breakdowns, and per-capability next actions.
 - catalog responses never include secret env values; they expose counts and next actions only.
 
+Shipped v2:
+
+- `buildCapabilityValidationChecks()` derives validation checks from manifests and install state: manifest schema, install state, org allowlist, runtime configuration, approval gate, and runtime routing.
+- capability catalog entries include lifecycle state and per-capability validation counts.
+- `/api/metaregistry/catalog`, `/api/operator`, and backend readiness expose failing and warning validation counts without leaking env values.
+- the operator console shows registry validation failures as a first-class production readiness signal.
+
 Acceptance:
 
 - demo viewers can see that quad is an extensible ai employee platform, not a one-off audit route.
 - write-capable tools are visibly approval-gated before execution.
 - sponsor alignment is grounded in live capability state instead of deck-only claims.
+- production readiness can now explain which registry checks are actually failing.
 
 ## Gap 2.1: runtime observability receipts
 

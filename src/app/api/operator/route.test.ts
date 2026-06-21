@@ -86,6 +86,10 @@ describe("GET /api/operator", () => {
         total: expect.any(Number),
         active: expect.any(Number),
       },
+      validation: {
+        failing: expect.any(Number),
+        warnings: expect.any(Number),
+      },
     });
     expect(body.capabilities.catalog.entries).toEqual(
       expect.arrayContaining([

@@ -11,7 +11,7 @@
 
 quad is not a throwaway hackathon build. quad should be designed as a production product that happens to have a hackathon launch/demo deadline.
 
-2026-06-21 update: shipped the next biggest platform gap as a product-facing metaregistry catalog. quad now exposes `/api/metaregistry/catalog`, includes catalog readiness in `/api/operator`, and renders a capability registry panel with install state, starter-bundle readiness, kind breakdowns, sponsor alignment, approval gates, missing-env counts, and per-capability next actions.
+2026-06-21 update: shipped the next biggest platform gap as manifest-derived capability validation. quad now derives registry checks for manifest schema, install state, org allowlist, runtime config, approval gates, and runtime routing; `/api/metaregistry/catalog`, `/api/operator`, backend readiness, and the operator console all surface validation failures without leaking env values.
 
 the core product is a company-aware ai employee platform: it understands a business goal, retrieves and collects missing context, uses tools, validates its own work, learns only verified knowledge, executes approved actions, and leaves a replayable evidence trail. website audits and security questionnaires are product workflows on top of that runtime, not the whole company.
 
@@ -210,7 +210,7 @@ hard constraints:
 - [x] define capability manifest types for connectors, publishers, skills, agents, policies, and surfaces
 - [x] create static metaregistry catalog for existing services and dry-run publishers
 - [x] derive debug/operator capability rows from the metaregistry instead of hard-coded backend lists
-- [ ] derive validation checks from capability manifests where practical
+- [x] derive validation checks from capability manifests where practical
 - [ ] add install states: available, installing, installed, allowlisted, degraded, disabled, revoked
 - [x] show one-click install mock for enterprise proof starter bundle
 

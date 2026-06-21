@@ -40,12 +40,19 @@ type OperatorCapability = {
   scopes?: string[];
   writes?: boolean;
   installed?: boolean;
+  lifecycleState?: string;
   active?: boolean;
   allowlisted?: boolean;
   disabled?: boolean;
   installSource?: string;
   stateLabel?: "active" | "needs_env" | "needs_install" | "blocked" | "disabled";
   nextAction?: string;
+  validation?: {
+    total: number;
+    passing: number;
+    warnings: number;
+    failing: number;
+  };
   status?: string;
   reason?: string;
   missingEnv?: string[];
@@ -250,6 +257,19 @@ type OperatorResponse = {
         blocked: number;
         missingEnv: number;
       }>;
+      validation: {
+        total: number;
+        passing: number;
+        warnings: number;
+        failing: number;
+        checks: Array<{
+          id: string;
+          capabilityId: string;
+          label: string;
+          status: "pass" | "warning" | "fail";
+          detail: string;
+        }>;
+      };
       entries: OperatorCapability[];
     };
   };
@@ -1512,7 +1532,7 @@ function CapabilityCatalogPanel({ capabilities }: { capabilities: OperatorRespon
         <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
           <OperatorStat label="installed" value={String(catalog.installed)} />
           <OperatorStat label="blocked" value={String(catalog.blocked)} accent={catalog.blocked === 0} />
-          <OperatorStat label="missing env" value={String(catalog.missingEnv)} accent={catalog.missingEnv === 0} />
+          <OperatorStat label="validation" value={String(catalog.validation.failing)} accent={catalog.validation.failing === 0} />
         </div>
       )}
 
@@ -1548,13 +1568,30 @@ function CapabilityCatalogPanel({ capabilities }: { capabilities: OperatorRespon
           ))}
         </div>
       )}
+
+      {catalog && catalog.validation.checks.length > 0 && (
+        <div className="mt-2 rounded border border-edge bg-panel px-2 py-1 text-[9px] leading-4 text-neutral-600">
+          {catalog.validation.checks.slice(0, 2).map((check) => (
+            <div key={check.id} className="truncate">
+              {check.capabilityId}: {capabilityCheckLabel(check.label)} {check.status}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
+function capabilityCheckLabel(label: string) {
+  return label === "Runtime routing" ? "route check" : label.toLowerCase();
+}
+
 function CapabilityPill({ capability, active = false }: { capability: OperatorCapability; active?: boolean }) {
   const label = capability.sponsor ?? capability.name ?? capability.id;
-  const detail = capability.nextAction ?? capability.reason ?? capability.id;
+  const failing = capability.validation?.failing ?? 0;
+  const detail = failing > 0
+    ? `${failing} validation check${failing === 1 ? "" : "s"} failing. ${capability.nextAction ?? capability.reason ?? capability.id}`
+    : capability.nextAction ?? capability.reason ?? capability.id;
   const state = capability.stateLabel ?? (active ? "active" : "blocked");
 
   return (

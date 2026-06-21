@@ -69,6 +69,10 @@ describe("getBackendReadiness", () => {
       status: "ready",
       activeCount: 10,
       blockedCount: 0,
+      validation: {
+        failing: 0,
+        warnings: expect.any(Number),
+      },
       policy: {
         allowlistCount: 0,
         disabledCount: 0,
@@ -111,6 +115,7 @@ describe("getBackendReadiness", () => {
     expect(report.components.redis.status).toBe("missing");
     expect(report.components.serviceTokens.status).toBe("missing");
     expect(report.components.capabilities.status).toBe("degraded");
+    expect(report.components.capabilities.validation.failing).toBeGreaterThan(0);
     expect(report.components.capabilities.blocked.map((capability) => capability.id)).toContain("openai.embeddings");
     expect(report.nextActions).toContain("Configure org-scoped QUAD_SERVICE_TOKENS for Railway workers and read-only operators.");
     expect(report.nextActions).toContain("Resolve metaregistry capability blockers before claiming the AI employee can route tools safely.");
@@ -131,6 +136,15 @@ describe("getBackendReadiness", () => {
 
     expect(report.ok).toBe(false);
     expect(report.components.capabilities.status).toBe("degraded");
+    expect(report.components.capabilities.validation.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          capabilityId: "quad.chain_verifier",
+          label: "Runtime routing",
+          status: "fail",
+        }),
+      ])
+    );
     expect(report.components.capabilities.blocked).toContainEqual(
       expect.objectContaining({
         id: "quad.chain_verifier",

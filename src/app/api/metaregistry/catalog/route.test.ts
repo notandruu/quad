@@ -29,6 +29,10 @@ describe("GET /api/metaregistry/catalog", () => {
         active: expect.any(Number),
         writeCapable: expect.any(Number),
         approvalGated: expect.any(Number),
+        validation: {
+          failing: expect.any(Number),
+          warnings: expect.any(Number),
+        },
       },
     });
     expect(body.catalog.entries).toEqual(
@@ -55,5 +59,6 @@ describe("GET /api/metaregistry/catalog", () => {
     expect(body.catalog.entries).toEqual([]);
     expect(body.catalog.kinds.length).toBeGreaterThan(0);
     expect(body.catalog.sponsors.length).toBeGreaterThan(0);
+    expect(body.catalog.validation.checks.length).toBeGreaterThan(0);
   });
 });
