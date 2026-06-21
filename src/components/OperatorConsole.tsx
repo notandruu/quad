@@ -10,7 +10,23 @@ type OperatorRun = {
   artifacts: Array<{ id: string; kind: string; title: string; hash: string }>;
   approvals: Array<{ id: string; decision: string; reason: string; evidenceVisible: boolean }>;
   receipts: Array<{ id: string; status: string; summary: string; artifactHash: string }>;
+  taskEvents?: TaskEventSummary[];
   nextAction: string;
+};
+
+type TaskEventSummary = {
+  id: string;
+  sequence: number;
+  kind: string;
+  actor: string;
+  message: string;
+  createdAt: string;
+  taskId?: string;
+  artifactId?: string;
+  approvalId?: string;
+  receiptId?: string;
+  capabilityId?: string;
+  status?: string;
 };
 
 type OperatorCapability = {
@@ -224,6 +240,19 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
     const artifacts = data?.artifacts ?? [];
     return artifacts.find((artifact) => artifact.id === activeArtifactId) ?? artifacts[0] ?? null;
   }, [activeArtifactId, data?.artifacts]);
+
+  const taskEvents = useMemo(() => {
+    return (data?.runs ?? [])
+      .flatMap((run) =>
+        (run.taskEvents ?? []).map((event) => ({
+          ...event,
+          runId: run.runId,
+          runTitle: run.title,
+        }))
+      )
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.sequence - a.sequence)
+      .slice(0, 8);
+  }, [data?.runs]);
 
   useEffect(() => {
     if (!activeArtifact || artifactTab !== "data") return;
@@ -441,6 +470,8 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
               ))}
             </div>
           </div>
+
+          <TaskStream events={taskEvents} />
         </div>
       </div>
     </section>
@@ -893,6 +924,66 @@ function CapabilityPill({ capability, active = false }: { capability: OperatorCa
       {capability.sponsor ?? capability.name ?? capability.id}
     </span>
   );
+}
+
+function TaskStream({
+  events,
+}: {
+  events: Array<TaskEventSummary & { runId: string; runTitle: string }>;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-xs font-medium text-neutral-200">Task stream</h3>
+        <span className="font-mono text-[9px] text-neutral-700">{events.length} events</span>
+      </div>
+      <div className="mt-2 space-y-1.5">
+        {events.length > 0 ? (
+          events.map((event) => (
+            <a
+              key={`${event.runId}:${event.id}`}
+              href={`/api/runs/${encodeURIComponent(event.runId)}/tasks`}
+              target="_blank"
+              rel="noreferrer"
+              className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2 rounded border border-edge bg-ink/45 px-2 py-1.5 hover:border-accent/35"
+              title={event.message}
+            >
+              <span className={taskEventTone(event.kind)}>{taskEventGlyph(event.kind)}</span>
+              <span className="min-w-0">
+                <span className="block truncate text-[10px] text-neutral-300">{formatStatus(event.kind)}</span>
+                <span className="block truncate text-[10px] leading-4 text-neutral-600">{event.message}</span>
+                {event.capabilityId && (
+                  <span className="mt-0.5 block truncate font-mono text-[9px] text-neutral-700">{event.capabilityId}</span>
+                )}
+              </span>
+              <span className="font-mono text-[9px] text-neutral-700">#{event.sequence}</span>
+            </a>
+          ))
+        ) : (
+          <div className="rounded border border-dashed border-edge bg-ink/30 p-2 text-[10px] text-neutral-600">
+            No task events yet.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function taskEventGlyph(kind: string) {
+  if (kind.includes("blocked")) return "!";
+  if (kind.includes("approval")) return "?";
+  if (kind.includes("receipt")) return "#";
+  if (kind.includes("artifact")) return "+";
+  if (kind.includes("completed")) return "/";
+  return "*";
+}
+
+function taskEventTone(kind: string) {
+  if (kind.includes("blocked")) return "mt-0.5 font-mono text-[10px] text-red-200";
+  if (kind.includes("approval")) return "mt-0.5 font-mono text-[10px] text-accent";
+  if (kind.includes("receipt")) return "mt-0.5 font-mono text-[10px] text-pink-100";
+  if (kind.includes("completed")) return "mt-0.5 font-mono text-[10px] text-neutral-300";
+  return "mt-0.5 font-mono text-[10px] text-neutral-600";
 }
 
 function statusClass(status: string) {

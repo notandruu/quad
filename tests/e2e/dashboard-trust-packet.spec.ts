@@ -81,6 +81,9 @@ test.describe("dashboard trust packet flow", () => {
     await expect(page.getByText("ready receipts")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Approval queue" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Capability registry" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Task stream" })).toBeVisible();
+    await expect(page.getByText("approval.decided")).toBeVisible();
+    await expect(page.getByRole("link", { name: /task\.blocked.*cms\.publisher/ })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Trust trail", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Trust packet", exact: true })).toBeVisible();
     await expect(page.getByText("Missing security proof", { exact: true })).toBeVisible();
@@ -220,6 +223,40 @@ async function mockDashboardBackends(
                   ? "Cms proof block draft staged in dry-run mode."
                   : "Trust packet is ready for approval with a verifiable quad chain certificate.",
                 artifactHash: publishStaged ? "fnv1a:stage1234" : "fnv1a:12345678",
+              },
+            ],
+            taskEvents: [
+              {
+                id: "event_ui_created",
+                sequence: 1,
+                kind: "run.created",
+                actor: "dashboard",
+                message: "Enterprise proof trust packet created.",
+                createdAt: "2026-06-21T00:00:00.000Z",
+                status: "queued",
+              },
+              {
+                id: "event_ui_approval",
+                sequence: 2,
+                kind: "approval.decided",
+                actor: "human",
+                message: "Approval approved by demo.operator.",
+                createdAt: "2026-06-21T00:00:03.000Z",
+                approvalId: "approval_ui_1",
+                status: approvalDecision,
+              },
+              {
+                id: "event_ui_publish",
+                sequence: 3,
+                kind: publishStaged ? "task.completed" : "task.blocked",
+                actor: "connector",
+                message: publishStaged
+                  ? "Stage cms proof block: Dry-run artifact staged. No customer-facing write was executed."
+                  : "Stage cms proof block: Capability is not allowlisted for this org.",
+                createdAt: "2026-06-21T00:00:04.000Z",
+                taskId: "task_ui_publish",
+                capabilityId: "cms.publisher",
+                status: publishStaged ? "completed" : "blocked",
               },
             ],
             nextAction: "Human approval required before customer-facing work can ship.",
