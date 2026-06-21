@@ -178,6 +178,12 @@ Shipped v2:
 - The `chat_answer` packet records the verified context receipt ids used to ground the answer.
 - The dashboard chat badge shows when a response used verified memories.
 
+Shipped v3:
+
+- The dashboard voice button passes the active org id and run id into `POST /api/voice/transcribe`.
+- Voice transcript memory now lands in the same tenant/run context as the visible audit when one is active.
+- The chat surface shows a saved-memory acknowledgement with the memory-write receipt after Deepgram transcription.
+
 Build:
 
 - voice mode asks buyer-readiness questions.

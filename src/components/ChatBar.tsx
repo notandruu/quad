@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { UrlChip } from "./UrlChip";
 import { VoiceButton } from "./VoiceButton";
+import type { QuadChainPacketSummary } from "@/lib/quad-chain";
 
 const URL_RE = /https?:\/\/[^\s]+/i;
 
@@ -16,12 +17,18 @@ export function ChatBar({
   voiceEnabled = false,
   voiceClientUrl = null,
   deepgramEnabled = false,
+  orgId = null,
+  runId = null,
+  onVoiceStored,
 }: {
   onSend: (text: string, url: string | null) => void;
   disabled?: boolean;
   voiceEnabled?: boolean;
   voiceClientUrl?: string | null;
   deepgramEnabled?: boolean;
+  orgId?: string | null;
+  runId?: string | null;
+  onVoiceStored?: (input: { memory: { id: string; title: string } | null; quadChain: QuadChainPacketSummary[] }) => void;
 }) {
   const [value, setValue] = useState("");
   const detectedUrl = value.match(URL_RE)?.[0] ?? null;
@@ -59,7 +66,11 @@ export function ChatBar({
           enabled={voiceEnabled}
           clientUrl={voiceClientUrl}
           deepgramEnabled={deepgramEnabled}
+          orgId={orgId}
+          runId={runId}
+          rememberTranscripts
           onTranscript={submitVoice}
+          onTranscriptStored={onVoiceStored}
         />
       </div>
     </div>

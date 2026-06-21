@@ -114,6 +114,19 @@ export default function Home() {
     }
   }
 
+  function handleVoiceStored(input: { memory: { id: string; title: string } | null; quadChain: QuadChainPacketSummary[] }) {
+    const memory = input.memory;
+    if (!memory) return;
+    setMessages((m) => [
+      ...m,
+      {
+        role: "quad",
+        text: `Saved that as company memory: ${memory.title}.`,
+        quadChain: input.quadChain.find((packet) => packet.type === "brain_memory_write") ?? input.quadChain[0] ?? null,
+      },
+    ]);
+  }
+
   async function startAudit(targetUrl: string, orgId?: string) {
     setActive(true);
     setEvents([]);
@@ -229,6 +242,9 @@ export default function Home() {
           voiceEnabled={Boolean(settings?.voice)}
           voiceClientUrl={settings?.voiceClientUrl ?? null}
           deepgramEnabled={Boolean(settings?.deepgram)}
+          orgId={report?.orgId ?? undefined}
+          runId={report?.runId ?? undefined}
+          onVoiceStored={handleVoiceStored}
         />
       </section>
 

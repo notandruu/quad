@@ -2,6 +2,8 @@
 
 import { useMemo, useRef, useState } from "react";
 import { buildVoiceSurfaceCapability } from "@/lib/voice/surface";
+import { appendVoiceTranscriptContext } from "@/lib/voice/upload";
+import type { QuadChainPacketSummary } from "@/lib/quad-chain";
 
 type VoiceStatus = "idle" | "listening" | "recording" | "blocked" | "error";
 
@@ -29,12 +31,20 @@ export function VoiceButton({
   enabled,
   clientUrl,
   deepgramEnabled = false,
+  orgId = null,
+  runId = null,
+  rememberTranscripts = true,
   onTranscript,
+  onTranscriptStored,
 }: {
   enabled: boolean;
   clientUrl: string | null;
   deepgramEnabled?: boolean;
+  orgId?: string | null;
+  runId?: string | null;
+  rememberTranscripts?: boolean;
   onTranscript: (text: string) => void;
+  onTranscriptStored?: (input: { memory: { id: string; title: string } | null; quadChain: QuadChainPacketSummary[] }) => void;
 }) {
   const [status, setStatus] = useState<VoiceStatus>("idle");
   const [message, setMessage] = useState("Voice mode");
@@ -118,13 +128,23 @@ export function VoiceButton({
     try {
       const form = new FormData();
       form.append("audio", audio, `quad-voice.${audio.type.includes("mp4") ? "mp4" : "webm"}`);
+      appendVoiceTranscriptContext(form, { orgId, runId, remember: rememberTranscripts });
       const response = await fetch("/api/voice/transcribe", { method: "POST", body: form });
-      const data = (await response.json()) as { transcript?: string; error?: string };
+      const data = (await response.json()) as {
+        transcript?: string;
+        memory?: { id: string; title: string } | null;
+        quadChain?: QuadChainPacketSummary[];
+        error?: string;
+      };
       if (!response.ok) throw new Error(data.error ?? "Transcription failed");
       const transcript = data.transcript?.trim();
       if (transcript) {
+        onTranscriptStored?.({
+          memory: data.memory ?? null,
+          quadChain: Array.isArray(data.quadChain) ? data.quadChain : [],
+        });
         onTranscript(transcript);
-        setMessage("Voice mode");
+        setMessage(data.memory ? "Memory saved" : "Voice mode");
       } else {
         setMessage("No speech heard");
       }
