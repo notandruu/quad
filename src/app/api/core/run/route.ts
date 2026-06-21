@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { DEMO_ORG_ID } from "@/data/seed";
+import { ENTERPRISE_PROOF_ORG_ID } from "@/data/demo/enterprise-proof";
 import { runQuadCoreCommand } from "@/lib/core/run";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
 import {
@@ -44,6 +45,7 @@ export async function POST(request: NextRequest) {
   const auth = authorizeRequest({
     headers: request.headers,
     requestedOrgId: body.orgId ?? DEMO_ORG_ID,
+    defaultOrgId: body.orgId === ENTERPRISE_PROOF_ORG_ID ? ENTERPRISE_PROOF_ORG_ID : DEMO_ORG_ID,
     requiredScopes: body.command === "queue_audit" ? ["jobs:write"] : ["runs:read"],
   });
   if (!auth.ok) {

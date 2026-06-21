@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { QuadWorkspaceDashboard } from "@/components/QuadWorkspaceDashboard";
 
 export default function Home() {
-  redirect("/quad-dashboard.html");
+  return <QuadWorkspaceDashboard />;
 }

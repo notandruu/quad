@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { DEMO_ORG_ID } from "@/data/seed";
+import { ENTERPRISE_PROOF_ORG_ID } from "@/data/demo/enterprise-proof";
 import { getBackendReadiness } from "@/lib/backend/readiness";
 import { listBrainMemoryTrail } from "@/lib/brain";
 import { listConnectorCredentials } from "@/lib/connectors";
@@ -17,9 +18,11 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
+  const requestedOrgId = url.searchParams.get("orgId") ?? DEMO_ORG_ID;
   const auth = authorizeRequest({
     headers: request.headers,
-    requestedOrgId: url.searchParams.get("orgId") ?? DEMO_ORG_ID,
+    requestedOrgId,
+    defaultOrgId: requestedOrgId === ENTERPRISE_PROOF_ORG_ID ? ENTERPRISE_PROOF_ORG_ID : DEMO_ORG_ID,
   });
   if (!auth.ok) {
     return NextResponse.json(requestAuthError(auth), { status: auth.status });
