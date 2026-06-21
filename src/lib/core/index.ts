@@ -113,8 +113,8 @@ export async function buildQuadCoreContext(input: QuadCoreContextInput): Promise
   });
 
   const capabilities = summarizeCapabilities(input.env ?? process.env);
-  const selectedTools = selectToolsForIntent(intent, capabilities.activeTools);
-  const missingCapabilities = missingCapabilitiesForIntent(intent, capabilities);
+  const selectedTools = selectToolsForRuntime(intent, input.surface, capabilities.activeTools);
+  const missingCapabilities = missingCapabilitiesForRuntime(intent, input.surface, capabilities);
   await emit("core.capabilities_selected", {
     selectedToolIds: selectedTools.map((tool) => tool.id),
     missingCapabilityIds: missingCapabilities.map((tool) => tool.id),
@@ -147,6 +147,15 @@ export async function buildQuadCoreContext(input: QuadCoreContextInput): Promise
 export function selectToolsForIntent(intent: Intent, activeTools: ActiveTool[]): ActiveTool[] {
   const desired = desiredCapabilityIds(intent);
   return activeTools.filter((tool) => desired.includes(tool.id));
+}
+
+export function selectToolsForRuntime(
+  intent: Intent,
+  surface: QuadCoreSurface,
+  activeTools: ActiveTool[]
+): ActiveTool[] {
+  const desired = new Set([...desiredCapabilityIds(intent), ...desiredSurfaceCapabilityIds(surface)]);
+  return activeTools.filter((tool) => desired.has(tool.id));
 }
 
 export function createQuadCoreReceipt(input: QuadCoreReceiptInput): QuadChainPacket {
@@ -205,11 +214,12 @@ export async function saveQuadCoreReceipt(input: QuadCoreReceiptInput): Promise<
   return summarizeQuadChainPacket(packet) ?? saved.summary;
 }
 
-function missingCapabilitiesForIntent(
+function missingCapabilitiesForRuntime(
   intent: Intent,
+  surface: QuadCoreSurface,
   capabilities: CapabilitySummary
 ): QuadCoreContext["missingCapabilities"] {
-  const desired = new Set(desiredCapabilityIds(intent));
+  const desired = new Set([...desiredCapabilityIds(intent), ...desiredSurfaceCapabilityIds(surface)]);
   const active = new Set(capabilities.activeTools.map((tool) => tool.id));
   return capabilities.installed
     .filter((state) => desired.has(state.id) && !active.has(state.id))
@@ -237,6 +247,21 @@ function desiredCapabilityIds(intent: Intent): string[] {
     case "general_chat":
     default:
       return ["quad.company_brain", "quad.chain_verifier"];
+  }
+}
+
+function desiredSurfaceCapabilityIds(surface: QuadCoreSurface): string[] {
+  switch (surface) {
+    case "fetch_agent":
+      return ["fetch.agent_bridge"];
+    case "voice":
+      return ["deepgram.voice_memory"];
+    case "worker":
+      return ["redis.event_spine"];
+    case "dashboard":
+    case "chat":
+    default:
+      return [];
   }
 }
 

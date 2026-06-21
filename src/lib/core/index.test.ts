@@ -6,6 +6,7 @@ import {
   buildQuadCoreContext,
   createQuadCoreReceipt,
   selectToolsForIntent,
+  selectToolsForRuntime,
 } from ".";
 
 const memory: RetrievedMemoryWithPacket = {
@@ -99,6 +100,30 @@ describe("quad core", () => {
     ]);
 
     expect(selected.map((tool) => tool.id)).toEqual(["task.publisher"]);
+  });
+
+  it("adds fetch bridge capability for external agent surfaces", () => {
+    const selected = selectToolsForRuntime("website_audit", "fetch_agent", [
+      {
+        id: "browserbase.read_browser",
+        name: "Browserbase read browser",
+        kind: "connector",
+        approvalMode: "none",
+        scopes: ["browser:read"],
+      },
+      {
+        id: "fetch.agent_bridge",
+        name: "Fetch agent bridge",
+        kind: "surface",
+        approvalMode: "none",
+        scopes: ["agent:run"],
+      },
+    ]);
+
+    expect(selected.map((tool) => tool.id)).toEqual([
+      "browserbase.read_browser",
+      "fetch.agent_bridge",
+    ]);
   });
 
   it("degrades to empty context when retrieval fails", async () => {

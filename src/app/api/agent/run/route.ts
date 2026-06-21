@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { validateAgentRunRequest, type AgentRunRequestBody } from "@/lib/agent/runRequest";
+import { buildQuadCoreContext, saveQuadCoreReceipt } from "@/lib/core";
+import { getEmployee } from "@/lib/employees";
 import { buildTrustPacketWorkflow } from "@/lib/fde/workflows";
-import { summarizeCapabilities } from "@/lib/metaregistry";
 import type { QuadChainPacketSummary } from "@/lib/quad-chain";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 import {
@@ -50,6 +51,39 @@ export async function POST(req: NextRequest) {
   });
 
   try {
+    const coreContext = await buildQuadCoreContext({
+      orgId,
+      employee: getEmployee(),
+      runId: run.id,
+      text: `run audit ${targetUrl} for ${workflow}`,
+      surface: "fetch_agent",
+      pinnedUrl: targetUrl,
+      hasActiveAudit: workflow === "website_audit",
+    });
+    const handoffReceipt = await saveQuadCoreReceipt({
+      context: coreContext,
+      type: "agent_handoff",
+      output: `External agent requested ${workflow} for ${targetUrl}.`,
+      producer: "quad.fetch_agent",
+      consumer: "quad.runtime",
+      sources: [
+        {
+          id: "agent_run_request",
+          kind: "event",
+          content: {
+            workflow,
+            targetUrl,
+            limit,
+            selectedTools: coreContext.selectedTools.map((tool) => tool.id),
+            missingCapabilities: coreContext.missingCapabilities.map((capability) => capability.id),
+          },
+        },
+      ],
+      answerConcepts: ["agent", "handoff", workflow],
+      visibility: "internal",
+    });
+    quadChain.push(handoffReceipt);
+
     transitionRun(run.id, "running");
     addTask({
       runId: run.id,
@@ -81,8 +115,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (workflow === "enterprise_proof") {
-      const capabilities = summarizeCapabilities(process.env).activeTools;
-      const plan = buildTrustPacketWorkflow({ report, activeTools: capabilities });
+      const plan = buildTrustPacketWorkflow({ report, activeTools: coreContext.capabilities.activeTools });
       const packetArtifact = addArtifact({
         runId: run.id,
         kind: "trust_packet",
@@ -140,6 +173,14 @@ export async function POST(req: NextRequest) {
       workflow,
       summary: snapshot ? summarizeAgentTask(snapshot) : null,
       quadChain,
+      runtime: {
+        surface: coreContext.surface,
+        selectedTools: coreContext.selectedTools.map((tool) => tool.id),
+        missingCapabilities: coreContext.missingCapabilities.map((capability) => ({
+          id: capability.id,
+          missingEnvCount: capability.missingEnv.length,
+        })),
+      },
     });
   } catch (err) {
     transitionRun(run.id, "failed", {
