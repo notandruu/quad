@@ -55,7 +55,7 @@ function roundRhom(cx: number, cy: number, w: number, h: number, r = 0.12) {
 
 export default function IsoDiagram({ className = "" }: { className?: string }) {
   const ref = useRef<SVGSVGElement>(null);
-  const labels = ["CONTEXT", "ACTION", "CONTROL", "PROOF"];
+  const labels = ["FIND", "GATHER", "VALIDATE", "SHIP"];
 
   useIso(() => {
     const el = ref.current;
