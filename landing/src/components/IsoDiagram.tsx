@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { gsap } from "gsap";
+
+const useIso = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 /**
  * Isometric exploded-stack diagram (hero).
@@ -55,19 +57,79 @@ export default function IsoDiagram({ className = "" }: { className?: string }) {
   const ref = useRef<SVGSVGElement>(null);
   const labels = ["CONTEXT", "ACTION", "CONTROL", "PROOF"];
 
-  useEffect(() => {
+  useIso(() => {
     const el = ref.current;
     if (!el) return;
+
+    // respect reduced-motion: render the diagram fully, no draw-on
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
     const ctx = gsap.context(() => {
-      gsap.from("[data-layer]", {
-        opacity: 0,
-        y: -10,
-        duration: 0.6,
-        ease: "expo.out",
-        stagger: 0.12,
-        delay: 0.15,
+      const geom = Array.from(
+        el.querySelectorAll<SVGGeometryElement>(
+          "path, line, polygon, polyline, ellipse, circle, rect",
+        ),
+      );
+
+      const draw: SVGGeometryElement[] = [];
+      const fills: SVGGeometryElement[] = [];
+
+      geom.forEach((s) => {
+        const cs = getComputedStyle(s);
+        const hasStroke =
+          cs.stroke && cs.stroke !== "none" && parseFloat(cs.strokeWidth) > 0;
+        const hasFill =
+          cs.fill && cs.fill !== "none" && cs.fill !== "rgba(0, 0, 0, 0)";
+
+        let len = 0;
+        try {
+          len = s.getTotalLength();
+        } catch {
+          len = 0;
+        }
+
+        if (hasStroke && len > 0) {
+          s.style.strokeDasharray = `${len}`;
+          s.style.strokeDashoffset = `${len}`;
+          draw.push(s);
+        }
+        if (hasFill) {
+          s.style.fillOpacity = "0";
+          fills.push(s);
+        }
       });
-      gsap.from("[data-conn]", { opacity: 0, duration: 0.45, stagger: 0.1, delay: 0.45 });
+
+      // cascade top-to-bottom along the spine
+      const byY = (a: SVGGeometryElement, b: SVGGeometryElement) => {
+        try {
+          return a.getBBox().y - b.getBBox().y;
+        } catch {
+          return 0;
+        }
+      };
+      draw.sort(byY);
+      fills.sort(byY);
+
+      const texts = Array.from(el.querySelectorAll("text"));
+      gsap.set(texts, { opacity: 0 });
+
+      const tl = gsap.timeline({ delay: 0.2 });
+      tl.to(draw, {
+        strokeDashoffset: 0,
+        duration: 1.05,
+        ease: "power2.inOut",
+        stagger: 0.022,
+      });
+      tl.to(
+        fills,
+        { fillOpacity: 1, duration: 0.55, ease: "power1.out", stagger: 0.012 },
+        "-=0.6",
+      );
+      tl.to(
+        texts,
+        { opacity: 1, duration: 0.4, ease: "power1.out", stagger: 0.06 },
+        "-=0.45",
+      );
     }, el);
     return () => ctx.revert();
   }, []);
