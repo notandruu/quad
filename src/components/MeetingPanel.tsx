@@ -47,7 +47,7 @@ export type MeetingPanelProps = {
 export function MeetingPanel({ onEnded }: MeetingPanelProps) {
   const [status, setStatus]       = useState<MeetingStatus>("idle");
   const [meetingUrl, setMeetingUrl] = useState("");
-  const [mode, setMode]           = useState<"recall" | "scripted">("scripted");
+  const [mode, setMode]           = useState<"recall" | "scripted">("recall");
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [thinking, setThinking]   = useState<ThinkingStep[]>([]);
   const [facts, setFacts]         = useState<LearnedFact[]>([]);
