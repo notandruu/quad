@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     ok: true,
     orgId: auth.orgId,
-    policy: buildRetentionPolicy(),
+    policy: buildRetentionPolicy({ orgId: auth.orgId }),
     deletion: {
       route: "/api/security/data",
       method: "POST",

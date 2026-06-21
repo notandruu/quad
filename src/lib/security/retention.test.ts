@@ -10,6 +10,7 @@ import { buildDataDeletionReceipt, buildRetentionPolicy, confirmationFor } from 
 describe("data retention deletion receipts", () => {
   it("builds a configured retention policy across quad stores", () => {
     const policy = buildRetentionPolicy({
+      orgId: "org_global",
       now: "2026-06-21T00:00:00.000Z",
       env: {
         QUAD_RETENTION_DAYS: "30",
@@ -17,8 +18,10 @@ describe("data retention deletion receipts", () => {
       },
     });
 
+    expect(policy.orgId).toBe("org_global");
     expect(policy.configured).toBe(true);
     expect(policy.retentionDays).toBe(30);
+    expect(policy.source).toBe("global_env");
     expect(policy.eventTtlSeconds).toBe(86400);
     expect(policy.generatedAt).toBe("2026-06-21T00:00:00.000Z");
     expect(policy.stores.find((store) => store.store === "audit_events")).toMatchObject({
@@ -39,6 +42,36 @@ describe("data retention deletion receipts", () => {
         confirmationPattern: "delete:<orgId>",
       },
     ]);
+  });
+
+  it("prefers per-org retention overrides when configured", () => {
+    const policy = buildRetentionPolicy({
+      orgId: "org_enterprise",
+      env: {
+        QUAD_RETENTION_DAYS: "30",
+        QUAD_ORG_RETENTION_DAYS: JSON.stringify({
+          org_enterprise: 7,
+          org_default: 90,
+        }),
+        QUAD_AUDIT_EVENT_TTL_SECONDS: "86400",
+      },
+    });
+    const fallback = buildRetentionPolicy({
+      orgId: "org_missing",
+      env: {
+        QUAD_RETENTION_DAYS: "30",
+        QUAD_ORG_RETENTION_DAYS: JSON.stringify({
+          org_enterprise: 7,
+        }),
+      },
+    });
+
+    expect(policy.retentionDays).toBe(7);
+    expect(policy.source).toBe("org_override");
+    expect(policy.stores.find((store) => store.store === "workflow_runs")?.targetDays).toBe(7);
+    expect(fallback.retentionDays).toBe(30);
+    expect(fallback.source).toBe("global_env");
+    expect(fallback.warnings.join(" ")).toContain("No valid QUAD_ORG_RETENTION_DAYS override");
   });
 
   it("warns when retention env is missing or inconsistent", () => {

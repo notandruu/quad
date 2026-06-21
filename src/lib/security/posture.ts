@@ -73,7 +73,7 @@ export function buildSecurityPacket(input: {
   const env = input.env ?? process.env;
   const readiness = securityReadiness(env);
   const capabilities = summarizeCapabilities(env);
-  const retentionPolicy = buildRetentionPolicy({ env, now: input.now });
+  const retentionPolicy = buildRetentionPolicy({ orgId: input.orgId, env, now: input.now });
   const retentionDays = retentionPolicy.retentionDays;
   const apiSecretConfigured = Boolean(env.QUAD_API_SECRET);
   const allowedOrgsConfigured = Boolean(env.QUAD_ALLOWED_ORGS);

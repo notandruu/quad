@@ -33,6 +33,7 @@ describe("security posture packet", () => {
         QUAD_API_SECRET: "secret",
         QUAD_ALLOWED_ORGS: "org_prod",
         QUAD_RETENTION_DAYS: "30",
+        QUAD_ORG_RETENTION_DAYS: JSON.stringify({ org_prod: 14 }),
         DATABASE_URL: "postgresql://user:pass@example.com/db",
         SENTRY_DSN: "https://sentry.example",
         PHOENIX_COLLECTOR_ENDPOINT: "https://phoenix.example",
@@ -44,11 +45,12 @@ describe("security posture packet", () => {
     expect(packet.controls.every((control) => control.status === "pass")).toBe(true);
     expect(packet.deletion).toMatchObject({
       configured: true,
-      retentionDays: 30,
+      retentionDays: 14,
     });
     expect(packet.deletion.policy).toMatchObject({
       configured: true,
-      retentionDays: 30,
+      retentionDays: 14,
+      source: "org_override",
     });
     expect(packet.deletion.policy.stores.some((store) => store.store === "external_providers")).toBe(true);
   });

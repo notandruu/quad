@@ -18,8 +18,10 @@ export type RetentionStorePolicy = {
 };
 
 export type RetentionPolicy = {
+  orgId: string | null;
   configured: boolean;
   retentionDays: number | null;
+  source: "org_override" | "global_env" | "missing";
   eventTtlSeconds: number | null;
   generatedAt: string;
   stores: RetentionStorePolicy[];
@@ -75,18 +77,30 @@ export class DataDeletionError extends Error {
 }
 
 export function buildRetentionPolicy(input: {
+  orgId?: string;
   env?: Record<string, string | undefined>;
   now?: string;
 } = {}): RetentionPolicy {
   const env = input.env ?? process.env;
-  const retentionDays = parsePositiveInteger(env.QUAD_RETENTION_DAYS);
+  const orgOverride = input.orgId ? parseOrgRetentionDays(env.QUAD_ORG_RETENTION_DAYS)[input.orgId] ?? null : null;
+  const globalRetentionDays = parsePositiveInteger(env.QUAD_RETENTION_DAYS);
+  const retentionDays = orgOverride ?? globalRetentionDays;
+  const source = orgOverride !== null ? "org_override" : globalRetentionDays !== null ? "global_env" : "missing";
   const eventTtlSeconds = parsePositiveInteger(env.QUAD_AUDIT_EVENT_TTL_SECONDS);
   const configured = retentionDays !== null;
-  const warnings = buildRetentionWarnings({ retentionDays, eventTtlSeconds });
+  const warnings = buildRetentionWarnings({
+    retentionDays,
+    eventTtlSeconds,
+    orgId: input.orgId,
+    orgOverrideConfigured: orgOverride !== null,
+    orgOverrideRaw: env.QUAD_ORG_RETENTION_DAYS,
+  });
 
   return {
+    orgId: input.orgId ?? null,
     configured,
     retentionDays,
+    source,
     eventTtlSeconds,
     generatedAt: input.now ?? new Date().toISOString(),
     stores: [
@@ -270,10 +284,16 @@ function buildDeletionWarnings(input: DataDeletionRequest): string[] {
 function buildRetentionWarnings(input: {
   retentionDays: number | null;
   eventTtlSeconds: number | null;
+  orgId?: string;
+  orgOverrideConfigured: boolean;
+  orgOverrideRaw?: string;
 }): string[] {
   const warnings: string[] = [];
   if (input.retentionDays === null) {
     warnings.push("QUAD_RETENTION_DAYS is missing or invalid; durable stores rely on explicit deletion only.");
+  }
+  if (input.orgId && input.orgOverrideRaw && !input.orgOverrideConfigured) {
+    warnings.push(`No valid QUAD_ORG_RETENTION_DAYS override was found for ${input.orgId}; using global retention policy.`);
   }
   if (input.eventTtlSeconds === null) {
     warnings.push("QUAD_AUDIT_EVENT_TTL_SECONDS is missing or invalid; redis event ttl falls back to runtime defaults.");
@@ -293,6 +313,21 @@ function parsePositiveInteger(raw: string | undefined): number | null {
   const parsed = Number(raw);
   if (!Number.isInteger(parsed) || parsed <= 0) return null;
   return parsed;
+}
+
+function parseOrgRetentionDays(raw: string | undefined): Record<string, number> {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed as Record<string, unknown>)
+        .map(([orgId, value]) => [orgId, parsePositiveInteger(String(value))] as const)
+        .filter((entry): entry is readonly [string, number] => Boolean(entry[0]) && entry[1] !== null)
+    );
+  } catch {
+    return {};
+  }
 }
 
 function hashParts(...parts: string[]): string {

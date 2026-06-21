@@ -218,11 +218,11 @@ Shipped v3:
 - `GET /api/security/data` returns the current retention policy and deletion examples.
 - the security packet embeds store-by-store retention policy for workflow runs, quadchain packets, jobs, brain memories, audit events, connector credentials, and external providers.
 - retention policy warns when durable retention is missing, redis ttl is missing, or redis ttl exceeds the configured retention window.
+- `QUAD_ORG_RETENTION_DAYS` supports per-org retention overrides on top of global `QUAD_RETENTION_DAYS`.
 
 Build:
 
 - enforce org-scoped access on durable run reads.
-- add data retention settings per org.
 - document what stays off-chain/off-registry.
 - add secret leak tests for all public settings and summaries.
 
