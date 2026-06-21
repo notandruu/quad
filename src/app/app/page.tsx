@@ -17,6 +17,7 @@ import type { QuadCoreAgentLoopTrace } from "@/lib/core";
 import type { QuadChainPacketSummary } from "@/lib/quad-chain";
 import type { VoiceInterviewQuestion } from "@/lib/voice/interview";
 import { classifyEnterpriseProofPrompt, formatEnterpriseProofMessage } from "@/lib/runtime/enterpriseProof";
+import { MeetingPanel } from "@/components/MeetingPanel";
 
 type Message = {
   role: "user" | "quad";
@@ -63,6 +64,7 @@ export default function Home() {
   const [demoState, setDemoState] = useState<DemoState>("idle");
   const [voicePrompt, setVoicePrompt] = useState<VoiceInterviewQuestion | null>(null);
   const [voicePromptCursor, setVoicePromptCursor] = useState(0);
+  const [demoMode, setDemoMode] = useState<"audit" | "meeting">("audit");
 
   useEffect(() => {
     fetch("/api/settings", { cache: "no-store" })
@@ -317,18 +319,36 @@ export default function Home() {
     <main className="relative mx-auto flex min-h-screen max-w-6xl flex-col gap-4 p-4 lg:h-screen lg:flex-row">
       <AsciiBlossoms />
       <section className="relative z-10 flex min-h-[58vh] flex-1 flex-col gap-4 lg:min-h-0">
-        <header className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold tracking-tight">Quad</h1>
-          <div className="flex items-center gap-3">
+        <header className="flex items-center justify-between gap-3">
+          <h1 className="text-lg font-semibold tracking-tight shrink-0">Quad</h1>
+
+          {/* Mode toggle */}
+          <div className="flex rounded border border-edge text-xs overflow-hidden">
             <button
-              onClick={handleLoadDemo}
-              disabled={demoState === "loading" || active}
-              className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-medium text-accent hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
-              title="Seed Red Cross brain and run a live demo audit"
+              onClick={() => setDemoMode("audit")}
+              className={`px-3 py-1.5 transition-colors ${demoMode === "audit" ? "bg-accent/20 text-accent" : "text-neutral-500 hover:text-neutral-300"}`}
             >
-              {demoState === "loading" ? "Loading..." : "Load demo"}
+              Audit
             </button>
-            <span className="text-xs text-neutral-600">Live audit employee</span>
+            <button
+              onClick={() => setDemoMode("meeting")}
+              className={`px-3 py-1.5 transition-colors ${demoMode === "meeting" ? "bg-accent/20 text-accent" : "text-neutral-500 hover:text-neutral-300"}`}
+            >
+              Meeting agent
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {demoMode === "audit" && (
+              <button
+                onClick={handleLoadDemo}
+                disabled={demoState === "loading" || active}
+                className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-medium text-accent hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+                title="Seed Red Cross brain and run a live demo audit"
+              >
+                {demoState === "loading" ? "Loading..." : "Load demo"}
+              </button>
+            )}
             <a
               href="/quadchain"
               className="rounded-lg border border-edge bg-panel px-3 py-1 text-xs font-medium text-accent hover:border-accent/50"
@@ -339,13 +359,29 @@ export default function Home() {
         </header>
 
         <div className="flex-1 space-y-3 overflow-y-auto">
-          {messages.map((m, i) => (
-            <MessageBubble key={i} message={m} active={active} onAction={startAudit} />
-          ))}
-          <OperatorConsole watchRunId={report?.runId ?? null} />
-          <TrustTrail runId={report?.runId ?? null} />
-          <TrustPacketPanel report={report} />
-          <FindingsPanel report={report} />
+          {demoMode === "meeting" ? (
+            <MeetingPanel
+              onEnded={(count) => {
+                setMessages((m) => [
+                  ...m,
+                  {
+                    role: "quad",
+                    text: `Meeting ended. ${count} verified fact${count !== 1 ? "s" : ""} added to the Red Cross brain. Switch to Audit to see how the website gaps compare.`,
+                  },
+                ]);
+              }}
+            />
+          ) : (
+            <>
+              {messages.map((m, i) => (
+                <MessageBubble key={i} message={m} active={active} onAction={startAudit} />
+              ))}
+              <OperatorConsole watchRunId={report?.runId ?? null} />
+              <TrustTrail runId={report?.runId ?? null} />
+              <TrustPacketPanel report={report} />
+              <FindingsPanel report={report} />
+            </>
+          )}
         </div>
 
         <ChatBar
