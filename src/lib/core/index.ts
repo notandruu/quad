@@ -116,7 +116,7 @@ export async function buildQuadCoreContext(input: QuadCoreContextInput): Promise
     verifiedContextCount: verifiedContext.length,
   });
 
-  const capabilities = summarizeCapabilities(input.env ?? process.env);
+  const capabilities = summarizeCapabilities(input.env ?? process.env, { orgId: input.orgId });
   const selectedTools = selectToolsForRuntime(intent, input.surface, capabilities.activeTools);
   const missingCapabilities = missingCapabilitiesForRuntime(intent, input.surface, capabilities);
   await emit("core.capabilities_selected", {

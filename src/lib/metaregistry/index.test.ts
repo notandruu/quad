@@ -3,6 +3,7 @@ import {
   CAPABILITY_CATALOG,
   buildActiveToolCatalog,
   getEnterpriseProofStarterBundle,
+  resolveCapabilityPolicy,
   summarizeCapabilities,
   validateCapabilityManifest,
   type CapabilityInstallState,
@@ -40,18 +41,24 @@ describe("metaregistry", () => {
         installed: true,
         status: "available",
         missingEnv: [],
-        active: true,
-        reason: "Ready.",
-      },
-      {
+      active: true,
+      allowlisted: true,
+      disabled: false,
+      installSource: "default",
+      reason: "Ready.",
+    },
+    {
         id: "cms.publisher",
         installed: true,
         status: "degraded",
-        missingEnv: ["CMS_API_KEY"],
-        active: false,
-        reason: "Missing CMS_API_KEY.",
-      },
-    ];
+      missingEnv: ["CMS_API_KEY"],
+      active: false,
+      allowlisted: true,
+      disabled: false,
+      installSource: "forced",
+      reason: "Missing CMS_API_KEY.",
+    },
+  ];
 
     expect(buildActiveToolCatalog(states).map((tool) => tool.id)).toEqual(["quad.chain_verifier"]);
   });
@@ -77,5 +84,86 @@ describe("metaregistry", () => {
       "scope_required",
       "env_key_invalid",
     ]);
+  });
+
+  it("uses org policy to allowlist, disable, and force-install capabilities", () => {
+    const summary = summarizeCapabilities(
+      {
+        QUAD_CAPABILITY_ALLOWLIST: "quad.chain_verifier,cms.publisher",
+        QUAD_CAPABILITY_DISABLED: "quad.chain_verifier",
+        QUAD_CAPABILITY_FORCE_INSTALLED: "cms.publisher",
+        CMS_API_KEY: "cms_test",
+      },
+      { orgId: "org_enterprise" }
+    );
+
+    const verifier = summary.installed.find((state) => state.id === "quad.chain_verifier");
+    const cms = summary.installed.find((state) => state.id === "cms.publisher");
+    const browserbase = summary.installed.find((state) => state.id === "browserbase.read_browser");
+
+    expect(summary.policy).toMatchObject({
+      orgId: "org_enterprise",
+      allowlist: ["quad.chain_verifier", "cms.publisher"],
+      disabled: ["quad.chain_verifier"],
+      forceInstalled: ["cms.publisher"],
+      requireWriteAllowlist: true,
+    });
+    expect(verifier).toMatchObject({
+      active: false,
+      disabled: true,
+      reason: "Capability is disabled by org policy.",
+    });
+    expect(cms).toMatchObject({
+      installed: true,
+      active: true,
+      allowlisted: true,
+      installSource: "forced",
+    });
+    expect(browserbase).toMatchObject({
+      installed: true,
+      active: false,
+      allowlisted: false,
+      reason: "Capability is not allowlisted for this org.",
+    });
+    expect(summary.activeTools.map((tool) => tool.id)).toEqual(["cms.publisher"]);
+  });
+
+  it("requires explicit allowlisting before activating write tools", () => {
+    const blocked = summarizeCapabilities({
+      QUAD_CAPABILITY_FORCE_INSTALLED: "cms.publisher",
+      CMS_API_KEY: "cms_test",
+    }).installed.find((state) => state.id === "cms.publisher");
+
+    const allowed = summarizeCapabilities({
+      QUAD_CAPABILITY_ALLOWLIST: "cms.publisher",
+      QUAD_CAPABILITY_FORCE_INSTALLED: "cms.publisher",
+      CMS_API_KEY: "cms_test",
+    }).installed.find((state) => state.id === "cms.publisher");
+
+    expect(blocked).toMatchObject({
+      installed: true,
+      active: false,
+      reason: "Write capability requires explicit org allowlisting.",
+    });
+    expect(allowed).toMatchObject({
+      installed: true,
+      active: true,
+    });
+  });
+
+  it("parses capability policy from env with safe defaults", () => {
+    expect(
+      resolveCapabilityPolicy({
+        QUAD_CAPABILITY_ALLOWLIST: "quad.chain_verifier, trust_packet.exporter",
+        QUAD_CAPABILITY_DISABLED: "sentry.reliability",
+        QUAD_REQUIRE_WRITE_CAPABILITY_ALLOWLIST: "false",
+      })
+    ).toEqual({
+      orgId: undefined,
+      allowlist: ["quad.chain_verifier", "trust_packet.exporter"],
+      disabled: ["sentry.reliability"],
+      forceInstalled: [],
+      requireWriteAllowlist: false,
+    });
   });
 });

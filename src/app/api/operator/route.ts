@@ -29,7 +29,7 @@ export async function GET(request: Request) {
   // single transient rejection must not 500 the whole panel mid-demo — degrade
   // each source to a safe empty value instead.
   const snapshots = await listRunSnapshots({ orgId, limit }).catch(() => []);
-  const capabilities = summarizeCapabilities(process.env);
+  const capabilities = summarizeCapabilities(process.env, { orgId });
   const [connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness, quadChainPackets] = await Promise.all([
     listConnectorCredentials({ orgId }).catch(() => []),
     getWorkerQueueHealth().catch(() => null),
@@ -73,10 +73,19 @@ export async function GET(request: Request) {
         .map((capability) => ({
           id: capability.id,
           status: capability.status,
-          reason: "Configuration required before this capability can run.",
+          reason: capability.reason,
           missingEnvCount: capability.missingEnv.length,
+          allowlisted: capability.allowlisted,
+          disabled: capability.disabled,
+          installSource: capability.installSource,
         })),
       starterBundle: capabilities.starterBundle,
+      policy: {
+        allowlistCount: capabilities.policy.allowlist.length,
+        disabledCount: capabilities.policy.disabled.length,
+        forceInstalledCount: capabilities.policy.forceInstalled.length,
+        requireWriteAllowlist: capabilities.policy.requireWriteAllowlist,
+      },
     },
     worker: {
       queue: workerQueue,

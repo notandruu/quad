@@ -18,6 +18,7 @@ Quad can run with zero keys for demos, but the production backend is only green 
 - Retention and deletion policy route: `GET /api/security/data`.
 - Supabase-backed workflow ledger and quadchain packet registry, with Redis/memory fallback.
 - Normalized task stream events in run snapshots for run lifecycle changes, tasks, artifacts, approvals, decisions, and receipts. The hosted run detail and task endpoints expose the same stream for dashboard, external agents, workers, and future CLI or Slack surfaces.
+- Metaregistry capability policy for runtime tool exposure. `QUAD_CAPABILITY_ALLOWLIST`, `QUAD_CAPABILITY_DISABLED`, and `QUAD_CAPABILITY_FORCE_INSTALLED` control which capabilities an org can route to; write-capable tools require explicit allowlisting unless `QUAD_REQUIRE_WRITE_CAPABILITY_ALLOWLIST=false`.
 - Platform schema SQL in `docs/backend/platform-schema.sql`.
 
 ## Production gates
@@ -177,6 +178,7 @@ Backend readiness and security packets only expose token labels, scopes, counts,
 - worker preflight: `scripts/worker-preflight.mjs`
 - Railway worker config: `railway.json`
 - quadchain packet registry: `src/lib/quad-chain/registry.ts`
+- metaregistry runtime gate: `src/lib/metaregistry`
 - backend readiness: `src/lib/backend/readiness.ts`
 - security and retention: `src/lib/security`
 - platform schema: `docs/backend/platform-schema.sql`

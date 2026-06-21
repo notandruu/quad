@@ -5,6 +5,7 @@ import {
   type WorkerCanaryHealth,
   type WorkerRuntimeHealth,
 } from "@/lib/jobs/queue";
+import { summarizeCapabilities, type CapabilitySummary } from "@/lib/metaregistry";
 import { getObservabilityReadiness, type ObservabilityReadiness } from "@/lib/observability";
 import { getRedis, isRedisConfigured } from "@/lib/redis";
 import { getServiceTokenReadiness, securityReadiness, type ServiceTokenReadiness } from "@/lib/security";
@@ -35,6 +36,25 @@ export type BackendReadinessReport = {
     observability: BackendComponentHealth & ObservabilityReadiness;
     voice: BackendComponentHealth;
     browserbase: BackendComponentHealth;
+    capabilities: BackendComponentHealth & {
+      activeCount: number;
+      blockedCount: number;
+      starterBundleCount: number;
+      policy: {
+        allowlistCount: number;
+        disabledCount: number;
+        forceInstalledCount: number;
+        requireWriteAllowlist: boolean;
+      };
+      blocked: Array<{
+        id: string;
+        reason: string;
+        missingEnvCount: number;
+        allowlisted: boolean;
+        disabled: boolean;
+        installSource: string;
+      }>;
+    };
     worker: BackendComponentHealth & {
       seen: boolean;
       workerId: string | null;
@@ -81,6 +101,7 @@ export async function getBackendReadiness(
   const observability = getObservabilityReadiness(env);
   const browserbaseConfigured = Boolean(env.BROWSERBASE_API_KEY && env.BROWSERBASE_PROJECT_ID);
   const voiceConfigured = Boolean(env.DEEPGRAM_API_KEY || env.MOSHI_SERVER_URL || env.NEXT_PUBLIC_MOSHI_SERVER_URL);
+  const capabilities = summarizeCapabilities(env);
 
   const supabaseProbe = await probeRequiredTables(input.probeSupabase ?? defaultSupabaseProbe, supabaseConfigured);
   const redisProbe = await probeRedis(input.probeRedis ?? defaultRedisProbe, redisConfigured);
@@ -158,6 +179,7 @@ export async function getBackendReadiness(
         ? "Browserbase is configured for remote browser execution."
         : "Browserbase is missing, so browser automation falls back to direct fetch.",
     },
+    capabilities: buildCapabilityReadiness(capabilities),
     worker: {
       status: componentStatus(workerProbe.configured || workerProbe.seen, workerProbe.alive),
       configured: workerProbe.configured || workerProbe.seen,
@@ -183,7 +205,8 @@ export async function getBackendReadiness(
     components.worker.status === "ready" &&
     components.auth.status === "ready" &&
     components.serviceTokens.status === "ready" &&
-    components.encryption.status === "ready";
+    components.encryption.status === "ready" &&
+    components.capabilities.status === "ready";
   const optionalReady =
     components.observability.status === "ready" &&
     components.voice.status === "ready" &&
@@ -195,6 +218,42 @@ export async function getBackendReadiness(
     generatedAt,
     components,
     nextActions,
+  };
+}
+
+function buildCapabilityReadiness(capabilities: CapabilitySummary): BackendReadinessReport["components"]["capabilities"] {
+  const blocked = capabilities.installed
+    .filter((capability) => capability.installed && !capability.active)
+    .map((capability) => ({
+      id: capability.id,
+      reason: capability.reason,
+      missingEnvCount: capability.missingEnv.length,
+      allowlisted: capability.allowlisted,
+      disabled: capability.disabled,
+      installSource: capability.installSource,
+    }));
+  const activeCount = capabilities.activeTools.length;
+  const status: BackendComponentStatus =
+    activeCount === 0 ? "missing" : blocked.length === 0 ? "ready" : "degraded";
+
+  return {
+    status,
+    configured: activeCount > 0,
+    activeCount,
+    blockedCount: blocked.length,
+    starterBundleCount: capabilities.starterBundle.length,
+    policy: {
+      allowlistCount: capabilities.policy.allowlist.length,
+      disabledCount: capabilities.policy.disabled.length,
+      forceInstalledCount: capabilities.policy.forceInstalled.length,
+      requireWriteAllowlist: capabilities.policy.requireWriteAllowlist,
+    },
+    blocked: blocked.slice(0, 12),
+    detail: status === "ready"
+      ? `Metaregistry exposes ${activeCount} active runtime capabilities.`
+      : status === "missing"
+        ? "Metaregistry has no active runtime capabilities."
+        : `Metaregistry has ${blocked.length} blocked installed capabilities.`,
   };
 }
 
@@ -285,6 +344,9 @@ function buildNextActions(
   }
   if (components.browserbase.status !== "ready") {
     actions.push("Set Browserbase credentials so audits use remote browser execution.");
+  }
+  if (components.capabilities.status !== "ready") {
+    actions.push("Resolve metaregistry capability blockers before claiming the AI employee can route tools safely.");
   }
   if (components.observability.status !== "ready") {
     actions.push("Configure both Sentry and Phoenix so sponsor-visible traces are real.");

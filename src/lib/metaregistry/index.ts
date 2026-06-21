@@ -33,6 +33,9 @@ export type CapabilityInstallState = {
   missingEnv: string[];
   active: boolean;
   reason: string;
+  allowlisted: boolean;
+  disabled: boolean;
+  installSource: "default" | "forced" | "manual";
 };
 
 export type ActiveTool = {
@@ -49,6 +52,15 @@ export type CapabilitySummary = {
   activeTools: ActiveTool[];
   starterBundle: string[];
   blockers: string[];
+  policy: CapabilityPolicy;
+};
+
+export type CapabilityPolicy = {
+  orgId?: string;
+  allowlist: string[];
+  disabled: string[];
+  forceInstalled: string[];
+  requireWriteAllowlist: boolean;
 };
 
 export const CAPABILITY_CATALOG: CapabilityManifest[] = [
@@ -261,11 +273,15 @@ export function getEnterpriseProofStarterBundle(): CapabilityManifest[] {
   );
 }
 
-export function summarizeCapabilities(env: Record<string, string | undefined>): CapabilitySummary {
-  const installed = CAPABILITY_CATALOG.map((manifest) => buildInstallState(manifest, env));
+export function summarizeCapabilities(
+  env: Record<string, string | undefined>,
+  input: { orgId?: string; policy?: Partial<CapabilityPolicy> } = {}
+): CapabilitySummary {
+  const policy = resolveCapabilityPolicy(env, input);
+  const installed = CAPABILITY_CATALOG.map((manifest) => buildInstallState(manifest, env, policy));
   const activeTools = buildActiveToolCatalog(installed);
   const blockers = installed
-    .filter((state) => state.installed && state.status === "degraded")
+    .filter((state) => state.installed && !state.active)
     .map((state) => `${state.id}: ${state.reason}`);
 
   return {
@@ -273,6 +289,7 @@ export function summarizeCapabilities(env: Record<string, string | undefined>): 
     activeTools,
     starterBundle: ENTERPRISE_PROOF_STARTER_BUNDLE,
     blockers,
+    policy,
   };
 }
 
@@ -299,19 +316,71 @@ export function getCapability(id: string): CapabilityManifest | undefined {
 
 function buildInstallState(
   manifest: CapabilityManifest,
-  env: Record<string, string | undefined>
+  env: Record<string, string | undefined>,
+  policy: CapabilityPolicy
 ): CapabilityInstallState {
   const missingEnv = manifest.env.filter((key) => !env[key]);
   const manifestFailures = validateCapabilityManifest(manifest);
+  const forced = policy.forceInstalled.includes(manifest.id);
+  const disabled = policy.disabled.includes(manifest.id);
+  const allowlistConfigured = policy.allowlist.length > 0;
+  const allowlisted = !allowlistConfigured || policy.allowlist.includes(manifest.id);
+  const installed = manifest.enabledByDefault || forced;
+  const installSource = forced ? "forced" : manifest.enabledByDefault ? "default" : "manual";
 
-  if (!manifest.enabledByDefault) {
+  if (disabled) {
+    return {
+      id: manifest.id,
+      installed,
+      status: "unavailable",
+      missingEnv,
+      active: false,
+      allowlisted,
+      disabled: true,
+      installSource,
+      reason: "Capability is disabled by org policy.",
+    };
+  }
+
+  if (!installed) {
     return {
       id: manifest.id,
       installed: false,
       status: "unavailable",
       missingEnv,
       active: false,
+      allowlisted,
+      disabled: false,
+      installSource,
       reason: "Capability is available in the registry but not enabled by default.",
+    };
+  }
+
+  if (!allowlisted) {
+    return {
+      id: manifest.id,
+      installed: true,
+      status: "unavailable",
+      missingEnv,
+      active: false,
+      allowlisted: false,
+      disabled: false,
+      installSource,
+      reason: "Capability is not allowlisted for this org.",
+    };
+  }
+
+  if (policy.requireWriteAllowlist && manifest.writes && !policy.allowlist.includes(manifest.id)) {
+    return {
+      id: manifest.id,
+      installed: true,
+      status: "unavailable",
+      missingEnv,
+      active: false,
+      allowlisted,
+      disabled: false,
+      installSource,
+      reason: "Write capability requires explicit org allowlisting.",
     };
   }
 
@@ -322,6 +391,9 @@ function buildInstallState(
       status: "unavailable",
       missingEnv,
       active: false,
+      allowlisted,
+      disabled: false,
+      installSource,
       reason: manifestFailures.join(", "),
     };
   }
@@ -333,6 +405,9 @@ function buildInstallState(
       status: "degraded",
       missingEnv,
       active: manifest.env.length === 0,
+      allowlisted,
+      disabled: false,
+      installSource,
       reason: `Missing ${missingEnv.join(", ")}.`,
     };
   }
@@ -343,6 +418,43 @@ function buildInstallState(
     status: "available",
     missingEnv: [],
     active: true,
+    allowlisted,
+    disabled: false,
+    installSource,
     reason: "Ready.",
   };
+}
+
+export function resolveCapabilityPolicy(
+  env: Record<string, string | undefined>,
+  input: { orgId?: string; policy?: Partial<CapabilityPolicy> } = {}
+): CapabilityPolicy {
+  return {
+    orgId: input.orgId,
+    allowlist: uniqueIds([
+      ...parseCapabilityList(env.QUAD_CAPABILITY_ALLOWLIST),
+      ...parseCapabilityList(input.policy?.allowlist?.join(",")),
+    ]),
+    disabled: uniqueIds([
+      ...parseCapabilityList(env.QUAD_CAPABILITY_DISABLED),
+      ...parseCapabilityList(input.policy?.disabled?.join(",")),
+    ]),
+    forceInstalled: uniqueIds([
+      ...parseCapabilityList(env.QUAD_CAPABILITY_FORCE_INSTALLED),
+      ...parseCapabilityList(input.policy?.forceInstalled?.join(",")),
+    ]),
+    requireWriteAllowlist: input.policy?.requireWriteAllowlist ?? env.QUAD_REQUIRE_WRITE_CAPABILITY_ALLOWLIST !== "false",
+  };
+}
+
+function parseCapabilityList(value: string | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function uniqueIds(ids: string[]): string[] {
+  return [...new Set(ids)];
 }

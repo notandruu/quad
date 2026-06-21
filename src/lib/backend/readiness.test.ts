@@ -14,6 +14,7 @@ const fullEnv = {
   DEEPGRAM_API_KEY: "deepgram",
   BROWSERBASE_API_KEY: "browserbase",
   BROWSERBASE_PROJECT_ID: "project",
+  OPENAI_API_KEY: "openai",
   QUAD_RETENTION_DAYS: "30",
   QUAD_WORKER_ENABLED: "true",
   QUAD_SERVICE_TOKENS: JSON.stringify([
@@ -64,6 +65,17 @@ describe("getBackendReadiness", () => {
     ]);
     expect(JSON.stringify(report)).not.toContain("worker-token");
     expect(report.components.worker.canary.ok).toBe(true);
+    expect(report.components.capabilities).toMatchObject({
+      status: "ready",
+      activeCount: 10,
+      blockedCount: 0,
+      policy: {
+        allowlistCount: 0,
+        disabledCount: 0,
+        forceInstalledCount: 0,
+        requireWriteAllowlist: true,
+      },
+    });
     expect(report.nextActions).toEqual([]);
   });
 
@@ -98,8 +110,35 @@ describe("getBackendReadiness", () => {
     expect(report.components.supabase.missingTables).toEqual([...PLATFORM_REQUIRED_TABLES]);
     expect(report.components.redis.status).toBe("missing");
     expect(report.components.serviceTokens.status).toBe("missing");
+    expect(report.components.capabilities.status).toBe("degraded");
+    expect(report.components.capabilities.blocked.map((capability) => capability.id)).toContain("openai.embeddings");
     expect(report.nextActions).toContain("Configure org-scoped QUAD_SERVICE_TOKENS for Railway workers and read-only operators.");
+    expect(report.nextActions).toContain("Resolve metaregistry capability blockers before claiming the AI employee can route tools safely.");
     expect(report.nextActions.length).toBeGreaterThan(5);
+  });
+
+  it("degrades readiness when org policy disables the verifier", async () => {
+    const report = await getBackendReadiness({
+      env: {
+        ...fullEnv,
+        QUAD_CAPABILITY_DISABLED: "quad.chain_verifier",
+      },
+      probeSupabase: async () => true,
+      probeRedis: async () => true,
+      probeWorker: async () => workerHealth({ alive: true }),
+      probeCanary: async () => canaryHealth({ ok: true }),
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.components.capabilities.status).toBe("degraded");
+    expect(report.components.capabilities.blocked).toContainEqual(
+      expect.objectContaining({
+        id: "quad.chain_verifier",
+        disabled: true,
+        reason: "Capability is disabled by org policy.",
+      })
+    );
+    expect(report.nextActions).toContain("Resolve metaregistry capability blockers before claiming the AI employee can route tools safely.");
   });
 
   it("degrades readiness when service tokens are admin-scoped", async () => {
