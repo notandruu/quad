@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeRunAccess } from "@/lib/runs/access";
-import { buildHostedTaskStream } from "@/lib/runs";
+import { buildReplayableHostedTaskStream } from "@/lib/runs";
 
 export const runtime = "nodejs";
 
@@ -12,7 +12,7 @@ export async function GET(
   if (!access.ok) return NextResponse.json(access.body, { status: access.status });
 
   const url = new URL(request.url);
-  const stream = buildHostedTaskStream(access.snapshot, {
+  const stream = await buildReplayableHostedTaskStream(access.snapshot, {
     afterSequence: Number(url.searchParams.get("after") ?? 0),
     limit: Number(url.searchParams.get("limit") ?? 50),
   });

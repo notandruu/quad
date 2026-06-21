@@ -82,6 +82,13 @@ Shipped v4:
 - Cross-org service tokens receive `404` for run detail routes so run ids do not reveal tenant existence.
 - Raw artifact reads remain admin-secret-only; service tokens receive redacted previews.
 
+Shipped v5:
+
+- normalized workflow task events now publish to a tenant-scoped Redis stream with memory fallback whenever a run mutates.
+- `GET /api/runs/:runId/events` prefers the live run event stream and falls back to the durable ledger snapshot when no stream is available.
+- hosted task stream responses now expose whether replay came from Redis, memory fallback, or the ledger, so dashboard, fetch agents, workers, and future cli/slack surfaces share one replay contract.
+- run-event replay preserves cursor semantics, org isolation, event ids, sequence numbers, linked task/artifact/approval/receipt ids, capability ids, and safe payload summaries.
+
 Next:
 
 - split snapshot storage into normalized tables once query needs exceed v1.

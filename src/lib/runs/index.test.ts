@@ -5,6 +5,7 @@ import {
   assertCustomerWriteAllowed,
   buildHostedRunDetail,
   buildHostedTaskStream,
+  buildReplayableHostedTaskStream,
   buildShipTrail,
   createReceipt,
   createWorkflowRun,
@@ -217,6 +218,41 @@ describe("run ledger", () => {
       kind: "task.running",
       actor: "quad",
       status: "running",
+    });
+  });
+
+  it("replays hosted task streams from the live run event stream before ledger fallback", async () => {
+    const run = createWorkflowRun({
+      id: `run_task_stream_replay_${crypto.randomUUID()}`,
+      orgId: "org_stream_replay",
+      workflowKind: "website_audit",
+      title: "Replay stream",
+      createdBy: "dashboard",
+      now: "2026-06-21T05:10:00.000Z",
+    });
+    addTask({
+      runId: run.id,
+      title: "Render page",
+      status: "completed",
+      owner: "quad",
+      detail: "Rendered page evidence.",
+      now: "2026-06-21T05:10:01.000Z",
+    });
+
+    const snapshot = getRunSnapshot(run.id)!;
+    const replayed = await buildReplayableHostedTaskStream(snapshot, { afterSequence: 1, limit: 5 });
+
+    expect(replayed.source).toBe("memory");
+    expect(replayed.events).toHaveLength(1);
+    expect(replayed.events[0]).toMatchObject({
+      sequence: 2,
+      kind: "task.completed",
+      status: "completed",
+    });
+    expect(replayed.cursor).toMatchObject({
+      afterSequence: 1,
+      latestSequence: 2,
+      nextAfterSequence: null,
     });
   });
 

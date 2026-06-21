@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { publishRunTaskEvent, replayRunTaskEvents } from "@/lib/redis/runEvents";
 
 export type WorkflowKind =
   | "website_audit"
@@ -227,6 +228,7 @@ export type HostedRunDetail = {
 export type HostedTaskStream = {
   run: Pick<WorkflowRunRecord, "id" | "orgId" | "title" | "status" | "targetUrl" | "updatedAt">;
   events: WorkflowTaskEventSummary[];
+  source: "redis" | "memory" | "ledger";
   cursor: {
     afterSequence: number;
     latestSequence: number;
@@ -704,6 +706,7 @@ export function appendTaskEvent(input: {
   };
   events.push(event);
   snapshot.run = { ...snapshot.run, updatedAt: now };
+  void publishRunTaskEvent(event, { orgId: snapshot.run.orgId }).catch(() => undefined);
   return event;
 }
 
@@ -762,6 +765,7 @@ export function buildHostedTaskStream(
       updatedAt: snapshot.run.updatedAt,
     },
     events,
+    source: "ledger",
     cursor: {
       afterSequence,
       latestSequence,
@@ -772,6 +776,39 @@ export function buildHostedTaskStream(
       self: `/api/runs/${snapshot.run.id}/events`,
       run: `/api/runs/${snapshot.run.id}`,
     },
+  };
+}
+
+export async function buildReplayableHostedTaskStream(
+  snapshot: RunLedgerSnapshot,
+  input: { afterSequence?: number; limit?: number } = {}
+): Promise<HostedTaskStream> {
+  const streamed = await replayRunTaskEvents(snapshot.run.id, { orgId: snapshot.run.orgId }).catch(() => []);
+  if (streamed.length === 0) return buildHostedTaskStream(snapshot, input);
+
+  const streamSnapshot: RunLedgerSnapshot = {
+    ...snapshot,
+    taskEvents: streamed.map((event) => ({
+      id: event.id,
+      runId: event.runId,
+      sequence: event.sequence,
+      kind: event.kind,
+      actor: event.actor,
+      message: event.message,
+      createdAt: event.createdAt,
+      taskId: event.taskId,
+      artifactId: event.artifactId,
+      approvalId: event.approvalId,
+      receiptId: event.receiptId,
+      capabilityId: event.capabilityId,
+      status: event.status,
+      payloadSummary: event.payloadSummary,
+    })),
+  };
+  const hosted = buildHostedTaskStream(streamSnapshot, input);
+  return {
+    ...hosted,
+    source: streamed.some((event) => event.storage === "redis") ? "redis" : "memory",
   };
 }
 

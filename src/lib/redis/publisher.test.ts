@@ -1,9 +1,64 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { publishAuditEvent } from "./publisher";
 import { replayAuditEvents } from "./replay";
+import { publishRunTaskEvent, replayRunTaskEvents } from "./runEvents";
 
 afterEach(() => {
   vi.unstubAllEnvs();
+});
+
+describe("run task event stream publisher", () => {
+  it("keeps normalized run events replayable in memory with org isolation", async () => {
+    vi.stubEnv("QUAD_REDIS_REST_URL", "");
+    vi.stubEnv("QUAD_REDIS_REST_TOKEN", "");
+    const runId = `run_task_event_memory_${crypto.randomUUID()}`;
+
+    await publishRunTaskEvent(
+      {
+        id: "event_a",
+        runId,
+        sequence: 1,
+        kind: "task.completed",
+        actor: "quad",
+        message: "Task completed.",
+        createdAt: "2026-06-21T00:00:00.000Z",
+        status: "completed",
+      },
+      { orgId: "org_run_a" }
+    );
+    await publishRunTaskEvent(
+      {
+        id: "event_b",
+        runId,
+        sequence: 1,
+        kind: "task.blocked",
+        actor: "connector",
+        message: "Task blocked.",
+        createdAt: "2026-06-21T00:00:01.000Z",
+        status: "blocked",
+      },
+      { orgId: "org_run_b" }
+    );
+
+    await expect(replayRunTaskEvents(runId, { orgId: "org_run_a" })).resolves.toMatchObject([
+      {
+        id: "event_a",
+        runId,
+        orgId: "org_run_a",
+        sequence: 1,
+        storage: "memory",
+      },
+    ]);
+    await expect(replayRunTaskEvents(runId, { orgId: "org_run_b" })).resolves.toMatchObject([
+      {
+        id: "event_b",
+        runId,
+        orgId: "org_run_b",
+        sequence: 1,
+        storage: "memory",
+      },
+    ]);
+  });
 });
 
 describe("audit event stream publisher", () => {

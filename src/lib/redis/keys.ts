@@ -9,6 +9,7 @@ export const streamKeys = {
   employeeEvents: (employeeId: string) => `employee:${employeeId}:events`,
   voiceEvents: (sessionId: string) => `voice:session:${sessionId}:events`,
   toolEvents: (toolRunId: string) => `tool:run:${toolRunId}:events`,
+  runEvents: (runId: string) => `workflow:run:${runId}:events`,
 };
 
 export const metaKeys = {
@@ -37,4 +38,5 @@ export const tenantScopedKeys = {
     tenantKey(orgId, "audit", "run", runId, counterName),
   modelCall: (orgId: string, requestId: string) => tenantKey(orgId, "model", "call", requestId),
   approval: (orgId: string, approvalId: string) => tenantKey(orgId, "approval", approvalId),
+  runEvents: (orgId: string, runId: string) => tenantKey(orgId, "workflow", "run", runId, "events"),
 };

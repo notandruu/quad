@@ -3,4 +3,5 @@ export * from "./keys";
 export * from "./events";
 export * from "./publisher";
 export * from "./replay";
+export * from "./runEvents";
 export * from "./counters";

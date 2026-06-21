@@ -81,9 +81,9 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [x] operator-visible memory trail with stale/scope/relationship signals
 - [x] event-driven context capture pipeline with signal/noise extraction before writeback
 - [x] audit run model with lifecycle states, retries, dead-letter recovery, and resumability
-- [ ] redis event stream and replay for every run
+- [x] redis event stream and replay for every run
 - [x] tenant-scoped redis/memory replay for audit and enterprise-proof workflow events
-- [ ] normalized task stream schema shared by dashboard, fetch agent, future cli, and replay
+- [x] normalized task stream schema shared by dashboard, fetch agent, future cli, and replay
 - [ ] quad chain certificate schema for audit briefs, customer trust packets, learned memory receipts, and agent handoffs
 - [x] dynamic tool catalog with eager hot tools, deferred cold tools, health state, and allowlist filtering
 - [ ] metaregistry catalog for installable connectors, publishers, skills, agents, approval policies, eval policies, and surfaces
@@ -242,6 +242,7 @@ hard constraints:
 - [x] make backend worker jobs use the same core runtime context and `agent_handoff` receipt helper before executing queued work
 - [x] make `/api/audit/stream` enter the same core runtime context and emit a dashboard `agent_handoff` receipt before worker execution
 - [x] add normalized task stream events to the run ledger so dashboard, fetch, workers, and future cli/slack surfaces can inspect the same durable workflow timeline
+- [x] publish normalized task stream events to redis/memory replay so every surface can rehydrate live run progress
 - [ ] keep the route-specific audit engine internals stable while the rest of the app migrates onto core
 - [x] verify the slice with unit tests, typecheck, and no changes to frozen `src/lib/types`
 
