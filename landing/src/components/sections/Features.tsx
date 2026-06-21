@@ -1,54 +1,105 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Panel from "@/components/Panel";
 import Reveal from "@/components/Reveal";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const CARDS = [
   {
     n: "001",
     title: "Company Brain",
     body: "Durable, org-scoped memory that holds only verified facts, with the source behind each one.",
-    icon: "venn" as const,
+    icon: "brain" as const,
   },
   {
     n: "002",
     title: "Approval Gates",
     body: "Every write action runs through a tier. Sensitive steps wait for the right human.",
-    icon: "triangle" as const,
+    icon: "gate" as const,
   },
   {
     n: "003",
     title: "QuadChain",
     body: "Proof-carrying compression. Every handoff ships with a tamper-evident receipt.",
-    icon: "arcs" as const,
+    icon: "chain" as const,
   },
 ];
 
-function FeatureIcon({ kind }: { kind: "venn" | "triangle" | "arcs" }) {
-  const s = "#1d1d1d";
+function FeatureIcon({ kind }: { kind: "brain" | "gate" | "chain" }) {
+  const ref = useRef<SVGSVGElement>(null);
+  const s = "#111111";
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const ctx = gsap.context(() => {
+      const draws = gsap.utils.toArray<SVGGeometryElement>("[data-draw]");
+      draws.forEach((d) => {
+        const len = d.getTotalLength();
+        d.style.strokeDasharray = `${len}`;
+        d.style.strokeDashoffset = `${len}`;
+      });
+      gsap.set("[data-fill]", { scale: 0, transformOrigin: "center", transformBox: "fill-box" } as gsap.TweenVars);
+
+      if (reduce) {
+        gsap.set(draws, { strokeDashoffset: 0 });
+        gsap.set("[data-fill]", { scale: 1 });
+        return;
+      }
+
+      const tl = gsap.timeline({ scrollTrigger: { trigger: el, start: "top 84%", once: true } });
+      tl.to(draws, { strokeDashoffset: 0, duration: 0.9, ease: "power2.inOut", stagger: 0.1 })
+        .to("[data-fill]", { scale: 1, duration: 0.45, ease: "back.out(2)", stagger: 0.06 }, "-=0.5");
+    }, el);
+    return () => ctx.revert();
+  }, []);
+
   return (
-    <svg viewBox="0 0 200 150" className="h-full w-full" fill="none" stroke={s}>
-      {kind === "venn" && (
-        <g strokeWidth="1.1" opacity="0.85">
-          <circle cx="100" cy="62" r="34" />
-          <circle cx="80" cy="92" r="34" />
-          <circle cx="120" cy="92" r="34" />
+    <svg ref={ref} viewBox="0 0 200 150" className="h-full w-full" fill="none" stroke={s}>
+      {kind === "brain" && (
+        <g strokeWidth="1.4" opacity="0.9">
+          {/* connections */}
+          <line data-draw x1="100" y1="75" x2="60" y2="46" />
+          <line data-draw x1="100" y1="75" x2="142" y2="48" />
+          <line data-draw x1="100" y1="75" x2="150" y2="96" />
+          <line data-draw x1="100" y1="75" x2="98" y2="116" />
+          <line data-draw x1="100" y1="75" x2="52" y2="98" />
+          <line data-draw x1="60" y1="46" x2="142" y2="48" />
+          <line data-draw x1="52" y1="98" x2="98" y2="116" />
+          <line data-draw x1="150" y1="96" x2="98" y2="116" />
+          {/* hub */}
+          <circle data-draw cx="100" cy="75" r="13" />
+          {/* nodes */}
+          {[[60, 46], [142, 48], [150, 96], [98, 116], [52, 98]].map(([x, y], i) => (
+            <circle key={i} data-fill cx={x} cy={y} r="4.5" fill={s} stroke="none" />
+          ))}
+          <circle data-fill cx="100" cy="75" r="3.4" fill={s} stroke="none" />
         </g>
       )}
-      {kind === "triangle" && (
-        <g strokeWidth="1.1" opacity="0.85">
-          <path d="M100 38 L150 112 L50 112 Z" />
-          <path d="M100 62 L132 110 L68 110 Z" />
-          <path d="M100 86 L116 110 L84 110 Z" />
+
+      {kind === "gate" && (
+        <g strokeWidth="1.4" opacity="0.9">
+          <path data-draw d="M100 26 L150 45 V84 C150 109 128 124 100 132 C72 124 50 109 50 84 V45 Z" />
+          <path data-draw d="M50 70 H150" strokeOpacity="0.45" />
+          <path data-draw d="M81 80 l13 13 27 -33" strokeWidth="1.7" />
+          <circle data-fill cx="63" cy="58" r="2.6" fill={s} stroke="none" />
+          <circle data-fill cx="137" cy="58" r="2.6" fill={s} stroke="none" />
         </g>
       )}
-      {kind === "arcs" && (
-        <g strokeWidth="1.1" opacity="0.85">
-          <path d="M44 112 A56 56 0 0 1 156 112" />
-          <path d="M58 112 A42 42 0 0 1 142 112" />
-          <path d="M72 112 A28 28 0 0 1 128 112" />
-          <path d="M86 112 A14 14 0 0 1 114 112" />
-          <circle cx="100" cy="112" r="2.5" fill={s} stroke="none" />
+
+      {kind === "chain" && (
+        <g strokeWidth="1.4" opacity="0.9">
+          <rect data-draw x="30" y="58" width="54" height="34" rx="17" />
+          <rect data-draw x="73" y="58" width="54" height="34" rx="17" />
+          <rect data-draw x="116" y="58" width="54" height="34" rx="17" />
+          {/* link joints */}
+          <circle data-fill cx="78.5" cy="75" r="3" fill={s} stroke="none" />
+          <circle data-fill cx="121.5" cy="75" r="3" fill={s} stroke="none" />
         </g>
       )}
     </svg>
@@ -92,18 +143,13 @@ export default function Features() {
                 "left-0 bottom-0 border-l border-b",
                 "right-0 bottom-0 border-r border-b",
               ].map((p) => (
-                <span
-                  key={p}
-                  className={`pointer-events-none absolute h-3 w-3 border-ink/40 ${p}`}
-                />
+                <span key={p} className={`pointer-events-none absolute h-3 w-3 border-ink/40 ${p}`} />
               ))}
               <div className="absolute inset-0 grid place-items-center p-6">
                 <FeatureIcon kind={c.icon} />
               </div>
             </div>
-            <p className="mt-6 text-[13px] leading-relaxed text-ink-soft">
-              {c.body}
-            </p>
+            <p className="mt-6 text-[13px] leading-relaxed text-ink-soft">{c.body}</p>
           </div>
         ))}
       </Reveal>
