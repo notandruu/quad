@@ -19,6 +19,8 @@ import { publishAuditEvent } from "@/lib/redis";
 import { classifyIntent, extractUrl } from "@/lib/runtime/intent";
 import { checkPermission, type PermissionDecision } from "@/lib/runtime/permissions";
 
+export * from "./agentLoop";
+
 export type QuadCoreSurface = "dashboard" | "chat" | "voice" | "fetch_agent" | "worker";
 
 export type QuadCoreEvent = {

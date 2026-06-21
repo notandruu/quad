@@ -13,6 +13,7 @@ import type { VoiceStoredResult } from "@/components/VoiceButton";
 import type { AuditReport } from "@/lib/types";
 import type { PublishedEvent } from "@/lib/redis/publisher";
 import type { BackendSettings } from "@/lib/debug/status";
+import type { QuadCoreAgentLoopTrace } from "@/lib/core";
 import type { QuadChainPacketSummary } from "@/lib/quad-chain";
 import type { VoiceInterviewQuestion } from "@/lib/voice/interview";
 import { classifyEnterpriseProofPrompt, formatEnterpriseProofMessage } from "@/lib/runtime/enterpriseProof";
@@ -22,6 +23,7 @@ type Message = {
   text: string;
   quadChain?: QuadChainPacketSummary | null;
   verifiedContext?: QuadChainPacketSummary[];
+  agentLoop?: QuadCoreAgentLoopTrace | null;
   action?: {
     label: string;
     targetUrl: string;
@@ -145,6 +147,7 @@ export default function Home() {
           text: message,
           quadChain: data.quadChain ?? null,
           verifiedContext: Array.isArray(data.verifiedContext) ? data.verifiedContext : [],
+          agentLoop: data.agentLoop ?? null,
         },
       ]);
     } catch {
@@ -204,6 +207,7 @@ export default function Home() {
           text: input.assistant?.message ?? "",
           quadChain: input.assistant?.quadChain ?? input.quadChain[0] ?? null,
           verifiedContext: input.assistant?.verifiedContext ?? [],
+          agentLoop: input.assistant?.agentLoop ?? null,
         },
       ]);
       return;
@@ -395,6 +399,19 @@ function MessageBubble({
             verified by quadchain · {message.quadChain.certificateId}
             {message.verifiedContext?.length ? ` · used ${message.verifiedContext.length} verified memories` : ""}
           </span>
+        </div>
+      )}
+      {message.agentLoop && (
+        <div className={message.role === "user" ? "mt-1 text-right" : "mt-1"}>
+          <div className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-edge bg-ink/70 px-2 py-1 font-mono text-[10px] text-neutral-400">
+            <span className="text-accent">agent loop</span>
+            {message.agentLoop.steps.map((step) => (
+              <span key={`${message.agentLoop?.runId}-${step.index}`} className="rounded border border-edge bg-panel px-1.5 py-0.5">
+                {step.kind.replace("_", " ")}
+              </span>
+            ))}
+            <span>{message.agentLoop.turnsUsed}/{message.agentLoop.turnBudget} turns</span>
+          </div>
         </div>
       )}
       {action && (

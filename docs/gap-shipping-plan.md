@@ -119,6 +119,13 @@ Shipped v3:
 - Voice chat receipts bind the spoken transcript as required evidence while keeping retrieved memory evidence optional unless it is directly preserved in the answer.
 - The dashboard renders one spoken turn as a user message plus a Quad answer instead of double-submitting the transcript through the text chat path.
 
+Shipped v4:
+
+- `buildQuadCoreAgentLoop()` creates a visible plan, tool-dispatch, observation, and final trace for every core runtime turn.
+- Chat and voice answers now return `agentLoop` with selected tool ids, blocked capability ids, per-step tool calls, and an `agent_handoff` receipt.
+- Fetch/Agentverse-style queued runs return the same agent loop trace beside job state and runtime capability state.
+- The dashboard message bubble renders a compact agent loop strip so the product shows the work shape without exposing hidden reasoning.
+
 ## Gap 2.5: post-audit chat grounding
 
 Status: shipped v1.

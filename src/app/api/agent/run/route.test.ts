@@ -36,6 +36,13 @@ describe("POST /api/agent/run", () => {
       runtime: {
         surface: "fetch_agent",
       },
+      agentLoop: {
+        surface: "fetch_agent",
+        quadChain: {
+          type: "agent_handoff",
+          accepted: true,
+        },
+      },
       quadChain: [
         {
           type: "agent_handoff",

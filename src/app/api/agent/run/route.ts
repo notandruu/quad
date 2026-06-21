@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
       summary: result.task,
       quadChain: result.quadChain,
       runtime: result.runtime,
+      agentLoop: result.agentLoop,
       job: result.job,
       mode: result.mode,
     });

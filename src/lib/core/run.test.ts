@@ -37,6 +37,20 @@ describe("quad core run facade", () => {
       type: "chat_answer",
       accepted: true,
     });
+    expect(result.agentLoop).toMatchObject({
+      intent: "general_chat",
+      turnsUsed: 4,
+      quadChain: {
+        type: "agent_handoff",
+        accepted: true,
+      },
+    });
+    expect(result.agentLoop.steps.map((step) => step.kind)).toEqual([
+      "plan",
+      "tool_dispatch",
+      "observation",
+      "final",
+    ]);
   });
 
   it("queues audit work through the same facade", async () => {
@@ -74,6 +88,14 @@ describe("quad core run facade", () => {
       task: {
         runId: "run_core_queue_facade",
         status: "queued",
+      },
+      agentLoop: {
+        surface: "dashboard",
+        intent: "website_audit",
+        quadChain: {
+          type: "agent_handoff",
+          accepted: true,
+        },
       },
     });
     expect(result.command).toBe("queue_audit");

@@ -7,6 +7,7 @@ import { getDeepgramSettings, transcribeWithDeepgram } from "@/lib/voice/deepgra
 import { createEvidenceBundle, summarizeEvidenceBundle } from "@/lib/storage/evidence";
 import { DEMO_ORG_ID } from "@/data/seed";
 import type { QuadChainPacketSummary } from "@/lib/quad-chain";
+import type { QuadCoreAgentLoopTrace } from "@/lib/core";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
 import {
   buildRequestFingerprint,
@@ -128,6 +129,7 @@ export async function POST(request: Request) {
       detectedUrl: string | null;
       quadChain: QuadChainPacketSummary;
       verifiedContext: QuadChainPacketSummary[];
+      agentLoop: QuadCoreAgentLoopTrace;
     } | null = null;
 
     if (shouldRememberTranscript(form) && transcript) {
@@ -171,8 +173,10 @@ export async function POST(request: Request) {
         detectedUrl: coreResult.detectedUrl,
         quadChain: coreResult.quadChain,
         verifiedContext: coreResult.verifiedContext,
+        agentLoop: coreResult.agentLoop,
       };
       quadChain.push(coreResult.quadChain);
+      if (coreResult.agentLoop.quadChain) quadChain.push(coreResult.agentLoop.quadChain);
     }
 
     const responseBody = { ...result, memory, assistant, quadChain, evidenceBundle: audioEvidence };

@@ -32,6 +32,12 @@ describe("POST /api/core/run", () => {
       quadChain: {
         accepted: true,
       },
+      agentLoop: {
+        turnsUsed: 4,
+        quadChain: {
+          accepted: true,
+        },
+      },
     });
   });
 
@@ -56,6 +62,9 @@ describe("POST /api/core/run", () => {
       job: {
         type: "audit",
         status: "queued",
+      },
+      agentLoop: {
+        intent: "website_audit",
       },
     });
   });

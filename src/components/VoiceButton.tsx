@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { buildVoiceSurfaceCapability } from "@/lib/voice/surface";
 import { appendVoiceTranscriptContext } from "@/lib/voice/upload";
+import type { QuadCoreAgentLoopTrace } from "@/lib/core";
 import type { QuadChainPacketSummary } from "@/lib/quad-chain";
 
 type VoiceStatus = "idle" | "listening" | "recording" | "blocked" | "error";
@@ -35,6 +36,7 @@ export type VoiceStoredResult = {
     message: string;
     quadChain: QuadChainPacketSummary;
     verifiedContext?: QuadChainPacketSummary[];
+    agentLoop?: QuadCoreAgentLoopTrace;
   } | null;
 };
 

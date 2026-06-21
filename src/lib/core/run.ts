@@ -12,7 +12,10 @@ import { buildAuditChatSystemPrompt } from "@/lib/runtime/prompts";
 import { loadAuditChatContext } from "@/lib/runtime/auditChatContext";
 import { runEmployee, type RuntimeResult } from "@/lib/runtime/runtime";
 import {
+  buildQuadCoreAgentLoop,
   buildQuadCoreContext,
+  saveQuadCoreAgentLoopReceipt,
+  type QuadCoreAgentLoopTrace,
   saveQuadCoreReceipt,
   type QuadCoreSurface,
 } from ".";
@@ -47,6 +50,7 @@ export type QuadCoreChatRunResult = {
   detectedUrl: string | null;
   quadChain: QuadChainPacketSummary;
   verifiedContext: QuadChainPacketSummary[];
+  agentLoop: QuadCoreAgentLoopTrace;
 };
 
 export type QuadCoreQueueAuditResult = {
@@ -73,6 +77,7 @@ export type QuadCoreQueueAuditResult = {
     maxAttempts: number;
   };
   task: Awaited<ReturnType<typeof enqueueAuditJob>>["task"];
+  agentLoop: QuadCoreAgentLoopTrace;
 };
 
 export type QuadCoreRunResult = QuadCoreChatRunResult | QuadCoreQueueAuditResult;
@@ -156,6 +161,9 @@ async function runQueueAuditCommand(
   });
   const savedHandoff = await saveQuadChainPacket(handoffPacket);
   const handoff = summarizeQuadChainPacket(handoffPacket) ?? savedHandoff.summary;
+  const agentLoop = buildQuadCoreAgentLoop(context, {
+    finalMessage: `queued ${input.workflow ?? "website_audit"} job ${result.job.id}`,
+  });
 
   return {
     ok: true,
@@ -181,6 +189,10 @@ async function runQueueAuditCommand(
       maxAttempts: result.job.maxAttempts,
     },
     task: result.task,
+    agentLoop: {
+      ...agentLoop,
+      quadChain: handoff,
+    },
   };
 }
 
@@ -207,6 +219,8 @@ async function runChatCommand(
     const auditContext = await loadAuditChatContext({ orgId: input.orgId, runId: input.runId });
     if (auditContext.report) {
       const grounded = await auditGroundedChat(text, input.orgId, employee, auditContext.report, input.requester);
+      const agentLoop = buildQuadCoreAgentLoop(coreContext, { finalMessage: grounded.reply });
+      const agentLoopReceipt = await saveQuadCoreAgentLoopReceipt(coreContext, agentLoop);
       const quadChain = await saveQuadCoreReceipt({
         context: coreContext,
         output: grounded.reply,
@@ -233,6 +247,10 @@ async function runChatCommand(
           ...auditContext.verifiedContext,
           ...grounded.verifiedContext,
         ]),
+        agentLoop: {
+          ...agentLoop,
+          quadChain: agentLoopReceipt,
+        },
       };
     }
   }
@@ -247,6 +265,8 @@ async function runChatCommand(
     surface: input.surface,
     coreContext,
   });
+  const agentLoop = buildQuadCoreAgentLoop(coreContext, { finalMessage: result.message });
+  const agentLoopReceipt = await saveQuadCoreAgentLoopReceipt(coreContext, agentLoop);
   const quadChain = await saveQuadCoreReceipt({
     context: coreContext,
     output: result.message,
@@ -267,6 +287,10 @@ async function runChatCommand(
     detectedUrl: result.detectedUrl,
     quadChain,
     verifiedContext: result.verifiedContext,
+    agentLoop: {
+      ...agentLoop,
+      quadChain: agentLoopReceipt,
+    },
   };
 }
 

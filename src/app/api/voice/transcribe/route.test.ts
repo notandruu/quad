@@ -63,6 +63,14 @@ describe("POST /api/voice/transcribe", () => {
           type: "chat_answer",
           accepted: true,
         },
+        agentLoop: {
+          surface: "voice",
+          turnsUsed: 4,
+          quadChain: {
+            type: "agent_handoff",
+            accepted: true,
+          },
+        },
       },
       evidenceBundle: {
         kind: "voice_audio",
@@ -73,6 +81,7 @@ describe("POST /api/voice/transcribe", () => {
     expect(body.quadChain).toEqual(expect.arrayContaining([
       expect.objectContaining({ type: "voice_transcript", accepted: true }),
       expect.objectContaining({ type: "chat_answer", accepted: true }),
+      expect.objectContaining({ type: "agent_handoff", accepted: true }),
     ]));
   });
 
