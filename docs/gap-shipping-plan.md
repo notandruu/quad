@@ -35,6 +35,12 @@ Shipped v1:
 - `/api/runs` lists recent runs and pending approvals.
 - memory fallback stays active for zero-key demos and ci.
 
+Shipped v1.5:
+
+- `workflow_task_events` table makes the normalized run event stream durable beside tasks, artifacts, approvals, and receipts.
+- `GET /api/runs/:runId/events` exposes cursorable hosted task-stream replay with org-scoped access control.
+- hosted run details now link task-event replay to `/api/runs/:runId/events` instead of overloading the task list route.
+
 Shipped v2:
 
 - `POST /api/approvals/[approvalId]/decision` records approve/reject decisions.

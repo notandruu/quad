@@ -208,6 +208,21 @@ export type HostedRunDetail = {
   };
 };
 
+export type HostedTaskStream = {
+  run: Pick<WorkflowRunRecord, "id" | "orgId" | "title" | "status" | "targetUrl" | "updatedAt">;
+  events: WorkflowTaskEventSummary[];
+  cursor: {
+    afterSequence: number;
+    latestSequence: number;
+    nextAfterSequence: number | null;
+    limit: number;
+  };
+  links: {
+    self: string;
+    run: string;
+  };
+};
+
 export type HostedArtifactDetail = Omit<WorkflowArtifactRecord, "data"> & {
   data: unknown;
   dataPreview: unknown;
@@ -695,6 +710,55 @@ export function summarizeTaskStream(snapshot: RunLedgerSnapshot, limit = 50): Wo
     }));
 }
 
+export function buildHostedTaskStream(
+  snapshot: RunLedgerSnapshot,
+  input: { afterSequence?: number; limit?: number } = {}
+): HostedTaskStream {
+  const limit = clampTaskEventLimit(input.limit);
+  const afterSequence = Number.isFinite(input.afterSequence) ? Math.max(0, Math.floor(input.afterSequence ?? 0)) : 0;
+  const events = ensureTaskEvents(snapshot)
+    .filter((event) => event.sequence > afterSequence)
+    .slice(0, limit)
+    .map((event) => ({
+      id: event.id,
+      sequence: event.sequence,
+      kind: event.kind,
+      actor: event.actor,
+      message: event.message,
+      createdAt: event.createdAt,
+      taskId: event.taskId,
+      artifactId: event.artifactId,
+      approvalId: event.approvalId,
+      receiptId: event.receiptId,
+      capabilityId: event.capabilityId,
+      status: event.status,
+    }));
+  const latestSequence = ensureTaskEvents(snapshot).at(-1)?.sequence ?? 0;
+  const lastReturnedSequence = events.at(-1)?.sequence ?? afterSequence;
+
+  return {
+    run: {
+      id: snapshot.run.id,
+      orgId: snapshot.run.orgId,
+      title: snapshot.run.title,
+      status: snapshot.run.status,
+      targetUrl: snapshot.run.targetUrl,
+      updatedAt: snapshot.run.updatedAt,
+    },
+    events,
+    cursor: {
+      afterSequence,
+      latestSequence,
+      nextAfterSequence: lastReturnedSequence < latestSequence ? lastReturnedSequence : null,
+      limit,
+    },
+    links: {
+      self: `/api/runs/${snapshot.run.id}/events`,
+      run: `/api/runs/${snapshot.run.id}`,
+    },
+  };
+}
+
 export function assertCustomerWriteAllowed(snapshot: RunLedgerSnapshot): void {
   const pending = snapshot.approvals.find((approval) => approval.decision === "pending");
   if (pending) throw new Error(`Approval pending: ${pending.id}`);
@@ -765,7 +829,7 @@ export function buildHostedRunDetail(snapshot: RunLedgerSnapshot): HostedRunDeta
       self: `/api/runs/${snapshot.run.id}`,
       artifacts: `/api/runs/${snapshot.run.id}/artifacts`,
       tasks: `/api/runs/${snapshot.run.id}/tasks`,
-      taskEvents: `/api/runs/${snapshot.run.id}/tasks`,
+      taskEvents: `/api/runs/${snapshot.run.id}/events`,
     },
   };
 }
@@ -1022,6 +1086,12 @@ async function saveNormalizedRunLedger(
       if (error) return false;
     }
 
+    const eventRows = ensureTaskEvents(snapshot).map(toWorkflowTaskEventRow);
+    if (eventRows.length > 0) {
+      const { error } = await db.from("workflow_task_events").upsert(eventRows, { onConflict: "id" });
+      if (error) return false;
+    }
+
     return true;
   } catch {
     return false;
@@ -1040,14 +1110,15 @@ async function loadNormalizedRunLedger(
       .maybeSingle();
     if (runError || !runRow) return null;
 
-    const [tasks, artifacts, approvals, receipts] = await Promise.all([
+    const [tasks, artifacts, approvals, receipts, taskEvents] = await Promise.all([
       db.from("workflow_tasks").select("*").eq("run_id", runId).order("created_at", { ascending: true }),
       db.from("workflow_artifacts").select("*").eq("run_id", runId).order("created_at", { ascending: true }),
       db.from("workflow_approvals").select("*").eq("run_id", runId).order("requested_at", { ascending: true }),
       db.from("workflow_receipts").select("*").eq("run_id", runId).order("created_at", { ascending: true }),
+      db.from("workflow_task_events").select("*").eq("run_id", runId).order("sequence", { ascending: true }),
     ]);
 
-    if (tasks.error || artifacts.error || approvals.error || receipts.error) return null;
+    if (tasks.error || artifacts.error || approvals.error || receipts.error || taskEvents.error) return null;
 
     const taskRecords = (tasks.data ?? []).map(fromWorkflowTaskRow);
     const artifactRecords = (artifacts.data ?? []).map(fromWorkflowArtifactRow);
@@ -1066,7 +1137,7 @@ async function loadNormalizedRunLedger(
       artifacts: artifactRecords,
       approvals: approvalRecords,
       receipts: receiptRecords,
-      taskEvents: [],
+      taskEvents: (taskEvents.data ?? []).map(fromWorkflowTaskEventRow),
     };
     ledger.set(snapshot.run.id, cloneSnapshot(snapshot));
     pruneLedger();
@@ -1103,6 +1174,25 @@ export function toWorkflowTaskRow(task: WorkflowTaskRecord) {
     detail: task.detail,
     created_at: task.createdAt,
     updated_at: task.updatedAt,
+  };
+}
+
+export function toWorkflowTaskEventRow(event: WorkflowTaskEventRecord) {
+  return {
+    id: event.id,
+    run_id: event.runId,
+    sequence: event.sequence,
+    event_kind: event.kind,
+    actor: event.actor,
+    message: event.message,
+    task_id: event.taskId ?? null,
+    artifact_id: event.artifactId ?? null,
+    approval_id: event.approvalId ?? null,
+    receipt_id: event.receiptId ?? null,
+    capability_id: event.capabilityId ?? null,
+    status: event.status ?? null,
+    payload_summary: event.payloadSummary ?? null,
+    created_at: event.createdAt,
   };
 }
 
@@ -1187,6 +1277,26 @@ export function fromWorkflowTaskRow(row: Record<string, unknown>): WorkflowTaskR
   };
 }
 
+export function fromWorkflowTaskEventRow(row: Record<string, unknown>): WorkflowTaskEventRecord {
+  const payloadSummary = isPayloadSummary(row.payload_summary);
+  return {
+    id: String(row.id),
+    runId: String(row.run_id),
+    sequence: Number(row.sequence),
+    kind: row.event_kind as WorkflowTaskEventKind,
+    actor: row.actor as WorkflowTaskEventActor,
+    message: String(row.message),
+    createdAt: String(row.created_at),
+    taskId: optionalString(row.task_id),
+    artifactId: optionalString(row.artifact_id),
+    approvalId: optionalString(row.approval_id),
+    receiptId: optionalString(row.receipt_id),
+    capabilityId: optionalString(row.capability_id),
+    status: optionalString(row.status) as WorkflowTaskEventRecord["status"],
+    payloadSummary,
+  };
+}
+
 export function fromWorkflowArtifactRow(row: Record<string, unknown>): WorkflowArtifactRecord {
   return {
     id: String(row.id),
@@ -1233,6 +1343,20 @@ function optionalString(value: unknown): string | undefined {
 function clampListLimit(value: number | undefined): number {
   if (!Number.isFinite(value)) return 25;
   return Math.max(1, Math.min(100, Math.floor(value ?? 25)));
+}
+
+function clampTaskEventLimit(value: number | undefined): number {
+  if (!Number.isFinite(value)) return 50;
+  return Math.max(1, Math.min(200, Math.floor(value ?? 50)));
+}
+
+function isPayloadSummary(value: unknown): WorkflowTaskEventRecord["payloadSummary"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.every(([, item]) => ["string", "number", "boolean"].includes(typeof item) || item === null)) {
+    return value as WorkflowTaskEventRecord["payloadSummary"];
+  }
+  return undefined;
 }
 
 function runReference(run: WorkflowRunRecord): HostedArtifactDetail["run"] {

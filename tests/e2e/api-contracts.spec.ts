@@ -67,6 +67,37 @@ test.describe("api contracts", () => {
     expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
   });
 
+  test("replays the hosted task stream for a queued backend run", async ({ request }) => {
+    const runId = `run_events_contract_${Date.now()}`;
+    const created = await request.post("/api/jobs", {
+      data: {
+        orgId: "org_brightpath",
+        targetUrl: "https://example.com",
+        runId,
+      },
+    });
+    expect(created.ok()).toBe(true);
+
+    const response = await request.get(`/api/runs/${runId}/events?after=0&limit=10`);
+    expect(response.ok()).toBe(true);
+    const json = await response.json();
+
+    expect(json.ok).toBe(true);
+    expect(json.stream.run).toMatchObject({
+      id: runId,
+      orgId: "org_brightpath",
+      status: "queued",
+    });
+    expect(json.stream.events.map((event: { kind: string }) => event.kind)).toContain("run.created");
+    expect(json.stream.events.map((event: { kind: string }) => event.kind)).toContain("task.queued");
+    expect(json.stream.cursor).toMatchObject({
+      afterSequence: 0,
+      latestSequence: expect.any(Number),
+      limit: 10,
+    });
+    expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+  });
+
   test("returns a safe operator summary", async ({ request }) => {
     const response = await request.get("/api/operator?orgId=org_brightpath&limit=5");
 

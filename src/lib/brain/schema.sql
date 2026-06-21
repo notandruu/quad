@@ -112,6 +112,27 @@ CREATE TABLE IF NOT EXISTS workflow_tasks (
 CREATE INDEX IF NOT EXISTS workflow_tasks_run_idx ON workflow_tasks (run_id);
 CREATE INDEX IF NOT EXISTS workflow_tasks_status_idx ON workflow_tasks (status);
 
+CREATE TABLE IF NOT EXISTS workflow_task_events (
+  id               TEXT PRIMARY KEY,
+  run_id           TEXT NOT NULL REFERENCES workflow_runs(id) ON DELETE CASCADE,
+  sequence         INTEGER NOT NULL,
+  event_kind       TEXT NOT NULL,
+  actor            TEXT NOT NULL,
+  message          TEXT NOT NULL,
+  task_id          TEXT,
+  artifact_id      TEXT,
+  approval_id      TEXT,
+  receipt_id       TEXT,
+  capability_id    TEXT,
+  status           TEXT,
+  payload_summary  JSONB,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS workflow_task_events_run_sequence_idx ON workflow_task_events (run_id, sequence);
+CREATE INDEX IF NOT EXISTS workflow_task_events_kind_idx ON workflow_task_events (event_kind);
+CREATE INDEX IF NOT EXISTS workflow_task_events_created_idx ON workflow_task_events (created_at DESC);
+
 CREATE TABLE IF NOT EXISTS workflow_artifacts (
   id          TEXT PRIMARY KEY,
   run_id      TEXT NOT NULL REFERENCES workflow_runs(id) ON DELETE CASCADE,

@@ -4,6 +4,7 @@ import {
   addTask,
   assertCustomerWriteAllowed,
   buildHostedRunDetail,
+  buildHostedTaskStream,
   buildShipTrail,
   createReceipt,
   createWorkflowRun,
@@ -21,12 +22,14 @@ import {
   toWorkflowArtifactRow,
   toWorkflowReceiptRow,
   toWorkflowRunRow,
+  toWorkflowTaskEventRow,
   toWorkflowTaskRow,
   transitionRun,
   fromWorkflowApprovalRow,
   fromWorkflowArtifactRow,
   fromWorkflowReceiptRow,
   fromWorkflowRunRow,
+  fromWorkflowTaskEventRow,
   fromWorkflowTaskRow,
 } from ".";
 
@@ -160,6 +163,61 @@ describe("run ledger", () => {
     });
     expect(summarizeAgentTask(snapshot).taskEvents.map((event) => event.kind)).toContain("approval.decided");
     expect(buildHostedRunDetail(snapshot).taskEvents).toHaveLength(7);
+  });
+
+  it("builds cursorable hosted task streams and round-trips event rows", () => {
+    const run = createWorkflowRun({
+      id: "run_task_stream_cursor",
+      orgId: "org_stream",
+      workflowKind: "website_audit",
+      title: "Cursor stream",
+      createdBy: "dashboard",
+      now: "2026-06-21T05:00:00.000Z",
+    });
+    addTask({
+      runId: run.id,
+      title: "Render page",
+      status: "running",
+      owner: "quad",
+      detail: "Rendering page evidence.",
+      now: "2026-06-21T05:00:01.000Z",
+    });
+    addArtifact({
+      runId: run.id,
+      kind: "receipt",
+      title: "Render receipt",
+      data: { publicSummary: "rendered", privateEvidence: "hidden" },
+      now: "2026-06-21T05:00:02.000Z",
+    });
+
+    const snapshot = getRunSnapshot(run.id)!;
+    const stream = buildHostedTaskStream(snapshot, { afterSequence: 1, limit: 1 });
+
+    expect(stream.events).toHaveLength(1);
+    expect(stream.events[0]).toMatchObject({
+      sequence: 2,
+      kind: "task.running",
+    });
+    expect(stream.cursor).toMatchObject({
+      afterSequence: 1,
+      latestSequence: 3,
+      nextAfterSequence: 2,
+      limit: 1,
+    });
+    expect(stream.links).toMatchObject({
+      self: `/api/runs/${run.id}/events`,
+      run: `/api/runs/${run.id}`,
+    });
+
+    const row = toWorkflowTaskEventRow(snapshot.taskEvents[1]);
+    expect(fromWorkflowTaskEventRow(row)).toMatchObject({
+      id: snapshot.taskEvents[1].id,
+      runId: run.id,
+      sequence: 2,
+      kind: "task.running",
+      actor: "quad",
+      status: "running",
+    });
   });
 
   it("blocks customer writes until approval is decided", () => {
@@ -392,7 +450,7 @@ describe("run ledger", () => {
       self: "/api/runs/run_hosted_detail",
       artifacts: "/api/runs/run_hosted_detail/artifacts",
       tasks: "/api/runs/run_hosted_detail/tasks",
-      taskEvents: "/api/runs/run_hosted_detail/tasks",
+      taskEvents: "/api/runs/run_hosted_detail/events",
     });
     expect(detail.artifacts[0]).toMatchObject({
       id: artifact.id,
