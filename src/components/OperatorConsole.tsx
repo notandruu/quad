@@ -117,6 +117,7 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
   const [artifactDetailStatus, setArtifactDetailStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [decisionState, setDecisionState] = useState<{ id: string; decision: "approved" | "rejected" } | null>(null);
   const [publishingRunId, setPublishingRunId] = useState<string | null>(null);
+  const [verifyingRunId, setVerifyingRunId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const response = await fetch(`/api/operator?orgId=${encodeURIComponent(orgId)}&limit=8`, {
@@ -245,6 +246,27 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
     }
   }
 
+  async function verifyFix(run: OperatorRun) {
+    setVerifyingRunId(run.runId);
+    const response = await fetch("/api/verify-fix", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        runId: run.runId,
+        orgId: data?.orgId,
+        actor: "demo.operator",
+      }),
+    }).catch(() => null);
+    setVerifyingRunId(null);
+    if (response?.ok) {
+      const result = (await response.json().catch(() => null)) as { task?: OperatorRun } | null;
+      const verificationArtifact = result?.task?.artifacts?.find((artifact) => artifact.kind === "verification_report");
+      if (verificationArtifact) setActiveArtifactId(`artifact_${verificationArtifact.id}`);
+      setArtifactTab("preview");
+      await load();
+    }
+  }
+
   return (
     <section className="rounded-lg border border-accent/25 bg-panel p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -279,7 +301,9 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
                 run={run}
                 active={activeArtifact?.runId === run.runId}
                 publishing={publishingRunId === run.runId}
+                verifying={verifyingRunId === run.runId}
                 onPublish={() => void stagePublish(run)}
+                onVerify={() => void verifyFix(run)}
                 onInspect={() => {
                   setActiveArtifactId(`artifact_${run.runId}`);
                   setArtifactTab("preview");
@@ -384,20 +408,25 @@ function RunCard({
   run,
   active,
   publishing,
+  verifying,
   onInspect,
   onPublish,
+  onVerify,
 }: {
   run: OperatorRun;
   active: boolean;
   publishing: boolean;
+  verifying: boolean;
   onInspect: () => void;
   onPublish: () => void;
+  onVerify: () => void;
 }) {
   const receipt = run.receipts[0];
   const canStage = run.approvals.some((approval) => approval.decision === "approved");
   const hasStaged = run.artifacts.some((artifact) =>
     artifact.kind === "cms_draft" || artifact.kind === "task_draft" || artifact.kind === "trust_packet_export"
   );
+  const hasVerified = run.artifacts.some((artifact) => artifact.kind === "verification_report");
 
   return (
     <div className={active ? "rounded border border-accent/40 bg-accent/5 p-2" : "rounded border border-edge bg-ink/45 p-2"}>
@@ -436,6 +465,21 @@ function RunCard({
           >
             {hasStaged ? "Fix staged" : publishing ? "Staging fix" : "Stage fix"}
           </button>
+        )}
+        {hasStaged && !hasVerified && (
+          <button
+            type="button"
+            onClick={onVerify}
+            disabled={verifying}
+            className="rounded-full border border-pink-300/40 bg-pink-950/20 px-2 py-0.5 text-[10px] text-pink-100 hover:border-pink-200/70 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {verifying ? "Verifying fix" : "Verify fix"}
+          </button>
+        )}
+        {hasVerified && (
+          <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] text-accent">
+            Fix verified
+          </span>
         )}
       </div>
       <p className="mt-2 line-clamp-2 text-[10px] leading-4 text-neutral-500">{run.nextAction}</p>
