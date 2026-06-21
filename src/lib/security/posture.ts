@@ -56,8 +56,30 @@ export type SecurityPacket = {
     approvalMode: string;
     active: boolean;
   }>;
+  registryBoundary: SecurityRegistryBoundary;
   redactionGuarantees: string[];
   warnings: string[];
+};
+
+export type SecurityRegistryBoundary = {
+  publicRegistry: Array<{
+    layer: string;
+    allowedData: string[];
+    forbiddenData: string[];
+    enforcement: string[];
+  }>;
+  privateStores: Array<{
+    store: string;
+    protectedData: string[];
+    access: string;
+    shareableReference: string;
+  }>;
+  anchoringPolicy: {
+    v1: "local_receipts_only";
+    blockchain: "optional_future";
+    publicAnchorData: string[];
+    privateDataNeverAnchored: string[];
+  };
 };
 
 export type SecurityPacketSummary = {
@@ -310,6 +332,7 @@ export function buildSecurityPacket(input: {
         active: true,
       };
     }),
+    registryBoundary: buildRegistryBoundary(),
     redactionGuarantees: [
       "restricted payloads are blocked from model calls unless explicitly overridden",
       "non-public payloads are redacted before provider calls",
@@ -318,6 +341,118 @@ export function buildSecurityPacket(input: {
       "security packet summaries never include env secret values",
     ],
     warnings,
+  };
+}
+
+export function buildRegistryBoundary(): SecurityRegistryBoundary {
+  return {
+    publicRegistry: [
+      {
+        layer: "quadchain packet summaries",
+        allowedData: [
+          "packet id",
+          "packet type",
+          "org/run/source ids",
+          "certificate id",
+          "verification status",
+          "token counts",
+          "evidence counts",
+          "visibility label",
+        ],
+        forbiddenData: [
+          "raw prompts",
+          "raw model responses",
+          "raw company brain memory",
+          "raw transcripts",
+          "raw screenshots",
+          "connector credentials",
+          "env secret values",
+        ],
+        enforcement: [
+          "summarizeQuadChainPacket() returns counts and ids only",
+          "raw packet access requires explicit raw=1 plus hosted secret auth",
+          "public payload secret scanner tests public summary routes",
+        ],
+      },
+      {
+        layer: "agent and sponsor descriptors",
+        allowedData: [
+          "route names",
+          "capability ids",
+          "missing env key names",
+          "safe-to-claim status",
+          "demo runbook text",
+        ],
+        forbiddenData: [
+          "api keys",
+          "service tokens",
+          "database urls",
+          "dsns with secret components",
+          "connector credential envelopes",
+        ],
+        enforcement: [
+          "descriptor builders consume capability state, not credential values",
+          "public payload tests compare responses against configured secret values",
+        ],
+      },
+    ],
+    privateStores: [
+      {
+        store: "company brain",
+        protectedData: [
+          "memory content",
+          "evidence quotes",
+          "embeddings",
+          "permission metadata",
+        ],
+        access: "org-scoped retrieval with company/team/personal permission filters",
+        shareableReference: "brain_memory_write packet summary or source hash",
+      },
+      {
+        store: "workflow artifact ledger",
+        protectedData: [
+          "draft copy",
+          "trust packet markdown",
+          "finding evidence payloads",
+          "approval previews",
+        ],
+        access: "org-scoped run routes, redacted previews by default, raw access requires hosted secret auth",
+        shareableReference: "artifact id, receipt id, verification report summary",
+      },
+      {
+        store: "external providers",
+        protectedData: [
+          "Deepgram audio",
+          "model provider prompts",
+          "Browserbase sessions",
+          "Sentry/Phoenix tenant events",
+        ],
+        access: "provider-side credentials plus quad route auth where surfaced",
+        shareableReference: "evidence bundle hash, model receipt hash, trace status",
+      },
+    ],
+    anchoringPolicy: {
+      v1: "local_receipts_only",
+      blockchain: "optional_future",
+      publicAnchorData: [
+        "certificate id",
+        "packet id",
+        "source/output hashes",
+        "merkle root",
+        "verifier version",
+        "handoff id",
+      ],
+      privateDataNeverAnchored: [
+        "raw context",
+        "raw evidence quotes",
+        "audio bytes",
+        "screenshots",
+        "model prompts",
+        "model responses",
+        "credentials",
+        "customer documents",
+      ],
+    },
   };
 }
 

@@ -551,9 +551,16 @@ Shipped v10:
 - `/api/settings`, `/api/sponsor/proof`, and `/api/agent/describe` now have route tests that seed fake API keys, service tokens, DSNs, and connector secrets, then prove response bodies expose only booleans, statuses, env key names, or safe caveats.
 - the scanner allows public readiness text and missing env key names, but fails if an actual configured secret value appears anywhere in a nested payload.
 
+Shipped v11:
+
+- the security packet now includes `registryBoundary`, a machine-readable policy for what can appear in public registries, private stores, and optional future anchors.
+- v1 anchoring is explicitly `local_receipts_only`; blockchain anchoring remains optional future work, not a product dependency.
+- public anchor data is limited to packet/certificate ids, hashes, merkle roots, verifier versions, and handoff ids.
+- raw context, evidence quotes, audio bytes, screenshots, model prompts/responses, credentials, and customer documents are listed as never anchored.
+- route and unit tests prove the boundary policy is present and still does not leak configured secret values.
+
 Build:
 
-- document what stays off-chain/off-registry.
 - extend secret leak coverage to future public summary routes as they are added.
 
 Acceptance:

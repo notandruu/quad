@@ -73,6 +73,8 @@ Hosted API routes accept `Authorization: Bearer $QUAD_API_SECRET` or `x-quad-api
 
 `GET /api/security/packet` returns an org-scoped security posture packet: data flows, model routing, storage posture, retention/deletion gaps, connector scopes, redaction guarantees, and warnings. It is protected by the same hosted API guard and never includes raw env secret values.
 
+The security packet also includes a `registryBoundary` policy. It states that v1 uses local receipts only, blockchain anchoring is optional future work, and public anchors can contain only packet ids, certificate ids, hashes, Merkle roots, verifier versions, and handoff ids. Raw context, evidence quotes, audio bytes, screenshots, prompts, responses, credentials, and customer documents stay off-chain and out of public registries.
+
 Public summary routes are covered by secret-leak tests. `src/lib/security/publicPayload.ts` scans nested response payloads against configured secret env values, and the settings, sponsor-proof, and public agent descriptor routes prove they expose statuses and env key names without returning API keys, DSNs, service tokens, connector secrets, or database credentials.
 
 High-risk mutation routes are protected by org-scoped rate limits and optional `Idempotency-Key` replay. Configure `QUAD_MUTATION_RATE_LIMIT`, `QUAD_MUTATION_RATE_WINDOW_SECONDS`, and `QUAD_IDEMPOTENCY_TTL_SECONDS` for hosted deployments.

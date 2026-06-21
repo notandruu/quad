@@ -120,6 +120,39 @@ describe("security posture packet", () => {
     expect(serialized).not.toContain("phoenix.internal");
   });
 
+  it("documents what stays off-chain and out of public registries", () => {
+    const packet = buildSecurityPacket({ orgId: "org_boundary", env: {} });
+    const serialized = JSON.stringify(packet.registryBoundary);
+
+    expect(packet.registryBoundary.anchoringPolicy).toMatchObject({
+      v1: "local_receipts_only",
+      blockchain: "optional_future",
+      publicAnchorData: expect.arrayContaining([
+        "certificate id",
+        "merkle root",
+        "verifier version",
+      ]),
+      privateDataNeverAnchored: expect.arrayContaining([
+        "raw context",
+        "raw evidence quotes",
+        "audio bytes",
+        "credentials",
+        "customer documents",
+      ]),
+    });
+    expect(packet.registryBoundary.publicRegistry[0]).toMatchObject({
+      layer: "quadchain packet summaries",
+      forbiddenData: expect.arrayContaining([
+        "raw prompts",
+        "raw company brain memory",
+        "connector credentials",
+        "env secret values",
+      ]),
+    });
+    expect(serialized).not.toContain("super-secret-value");
+    expect(serialized).not.toContain("raw customer doc body");
+  });
+
   it("summarizes controls without raw evidence lists", () => {
     const packet = buildSecurityPacket({ orgId: "org_summary", env: {} });
     const summary = summarizeSecurityPacket(packet);
