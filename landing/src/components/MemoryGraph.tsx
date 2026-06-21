@@ -1,167 +1,211 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-gsap.registerPlugin(ScrollTrigger);
+/**
+ * Force-directed company-brain graph (Obsidian graph-view style).
+ * Nodes start collapsed at the hub and self-organize via repulsion + edge
+ * springs + center gravity, then idle with gentle drift. Hover a node to
+ * highlight it and its neighbors.
+ */
 
-type N = { x: number; y: number; r: number; label: string; hub?: boolean };
+type Node = { label: string; type: "hub" | "anchor" | "leaf"; group: number };
 
-const NODES: N[] = [
-  { x: 330, y: 215, r: 34, label: "Company brain", hub: true },
-  { x: 150, y: 95, r: 18, label: "SOC 2 v3.2" },
-  { x: 470, y: 92, r: 16, label: "MFA policy" },
-  { x: 565, y: 178, r: 17, label: "Encryption" },
-  { x: 545, y: 300, r: 18, label: "Access reviews" },
-  { x: 452, y: 366, r: 16, label: "Tickets" },
-  { x: 250, y: 376, r: 17, label: "Repos" },
-  { x: 118, y: 292, r: 18, label: "Policies" },
-  { x: 72, y: 188, r: 15, label: "Uptime SLA" },
-  { x: 322, y: 66, r: 17, label: "RFP answers" },
-  { x: 602, y: 252, r: 14, label: "Data residency" },
-  { x: 178, y: 366, r: 15, label: "Prior Q&A" },
+const NODES: Node[] = [
+  { label: "Company brain", type: "hub", group: 0 }, // 0
+  { label: "Security", type: "anchor", group: 1 }, // 1
+  { label: "Support", type: "anchor", group: 2 }, // 2
+  { label: "Code", type: "anchor", group: 3 }, // 3
+  { label: "Docs", type: "anchor", group: 4 }, // 4
+  { label: "Sales", type: "anchor", group: 5 }, // 5
+  { label: "SOC 2", type: "leaf", group: 1 },
+  { label: "MFA", type: "leaf", group: 1 },
+  { label: "Encryption", type: "leaf", group: 1 },
+  { label: "Access reviews", type: "leaf", group: 1 },
+  { label: "Tickets", type: "leaf", group: 2 },
+  { label: "Macros", type: "leaf", group: 2 },
+  { label: "SLAs", type: "leaf", group: 2 },
+  { label: "Repos", type: "leaf", group: 3 },
+  { label: "PRs", type: "leaf", group: 3 },
+  { label: "Infra", type: "leaf", group: 3 },
+  { label: "Policies", type: "leaf", group: 4 },
+  { label: "Runbooks", type: "leaf", group: 4 },
+  { label: "Wiki", type: "leaf", group: 4 },
+  { label: "RFPs", type: "leaf", group: 5 },
+  { label: "Trust center", type: "leaf", group: 5 },
+  { label: "Prior Q&A", type: "leaf", group: 5 },
 ];
 
-const EDGES: [number, number][] = [
-  [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7], [0, 8], [0, 9], [0, 10], [0, 11],
-  [1, 9], [3, 10], [3, 4], [4, 5], [6, 11], [7, 11], [7, 8], [2, 4],
+type Edge = { a: number; b: number; l: number };
+const EDGES: Edge[] = [
+  { a: 0, b: 1, l: 120 }, { a: 0, b: 2, l: 120 }, { a: 0, b: 3, l: 120 }, { a: 0, b: 4, l: 120 }, { a: 0, b: 5, l: 120 },
+  { a: 1, b: 6, l: 60 }, { a: 1, b: 7, l: 60 }, { a: 1, b: 8, l: 60 }, { a: 1, b: 9, l: 60 },
+  { a: 2, b: 10, l: 60 }, { a: 2, b: 11, l: 60 }, { a: 2, b: 12, l: 60 },
+  { a: 3, b: 13, l: 60 }, { a: 3, b: 14, l: 60 }, { a: 3, b: 15, l: 60 },
+  { a: 4, b: 16, l: 60 }, { a: 4, b: 17, l: 60 }, { a: 4, b: 18, l: 60 },
+  { a: 5, b: 19, l: 60 }, { a: 5, b: 20, l: 60 }, { a: 5, b: 21, l: 60 },
+  { a: 1, b: 3, l: 150 }, { a: 4, b: 2, l: 150 }, { a: 5, b: 4, l: 150 }, { a: 8, b: 15, l: 150 },
 ];
 
-// outer nodes whose edges carry a traveling pulse into the hub
-const PULSE_FROM = [1, 4, 6, 9, 3, 7];
+const W = 660;
+const H = 440;
+const CX = W / 2;
+const CY = H / 2;
+
+function radius(t: Node["type"]) {
+  return t === "hub" ? 22 : t === "anchor" ? 9 : 5.5;
+}
 
 export default function MemoryGraph({ className = "" }: { className?: string }) {
   const ref = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+    const svg = ref.current;
+    if (!svg) return;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-    const ctx = gsap.context(() => {
-      const edges = gsap.utils.toArray<SVGLineElement>("[data-edge]");
-      edges.forEach((e) => {
-        const len = e.getTotalLength();
-        e.style.strokeDasharray = `${len}`;
-        e.style.strokeDashoffset = `${len}`;
-      });
-      gsap.set("[data-node]", { scale: 0, transformOrigin: "center", transformBox: "fill-box" } as gsap.TweenVars);
-      gsap.set("[data-label]", { opacity: 0 });
-      gsap.set("[data-pulse]", { opacity: 0 });
+    const nodeEls = NODES.map((_, i) => svg.querySelector<SVGGElement>(`[data-node="${i}"]`));
+    const edgeEls = EDGES.map((_, i) => svg.querySelector<SVGLineElement>(`[data-edge="${i}"]`));
 
-      if (reduce) {
-        gsap.set(edges, { strokeDashoffset: 0 });
-        gsap.set("[data-node]", { scale: 1 });
-        gsap.set("[data-label]", { opacity: 1 });
-        return;
+    // neighbor map for hover highlight
+    const nbr: number[][] = NODES.map(() => []);
+    EDGES.forEach((e) => { nbr[e.a].push(e.b); nbr[e.b].push(e.a); });
+
+    // start collapsed near the hub with a tiny deterministic offset
+    const P = NODES.map((_, i) => ({
+      x: CX + ((i * 37) % 13) - 6,
+      y: CY + ((i * 53) % 13) - 6,
+      vx: 0,
+      vy: 0,
+    }));
+
+    let hovered = -1;
+    const setHover = (i: number) => () => (hovered = i);
+    const clearHover = () => (hovered = -1);
+    nodeEls.forEach((el, i) => {
+      el?.addEventListener("mouseenter", setHover(i));
+      el?.addEventListener("mouseleave", clearHover);
+    });
+
+    const step = () => {
+      const REP = 1500;
+      const SPRING = 0.045;
+      const GRAV = 0.006;
+      const DAMP = 0.86;
+      for (let i = 0; i < P.length; i++) {
+        let fx = (CX - P[i].x) * GRAV;
+        let fy = (CY - P[i].y) * GRAV;
+        for (let j = 0; j < P.length; j++) {
+          if (i === j) continue;
+          const dx = P[i].x - P[j].x;
+          const dy = P[i].y - P[j].y;
+          const d2 = dx * dx + dy * dy + 0.01;
+          const f = REP / d2;
+          fx += (dx / Math.sqrt(d2)) * f;
+          fy += (dy / Math.sqrt(d2)) * f;
+        }
+        P[i].vx = (P[i].vx + fx) * DAMP;
+        P[i].vy = (P[i].vy + fy) * DAMP;
       }
-
-      const tl = gsap.timeline({
-        scrollTrigger: { trigger: el, start: "top 80%", once: true },
-      });
-      tl.to(edges, { strokeDashoffset: 0, duration: 0.9, ease: "power2.inOut", stagger: 0.03 })
-        .to("[data-node]", { scale: 1, duration: 0.6, ease: "back.out(2)", stagger: 0.04 }, "-=0.6")
-        .to("[data-label]", { opacity: 1, duration: 0.4, stagger: 0.03 }, "-=0.4")
-        .add(() => startAmbient());
-
-      function startAmbient() {
-        // gentle float per node
-        gsap.utils.toArray<SVGGElement>("[data-float]").forEach((g, i) => {
-          gsap.to(g, {
-            y: i % 2 ? 6 : -6,
-            x: i % 3 ? -4 : 4,
-            duration: 2.4 + (i % 5) * 0.4,
-            ease: "sine.inOut",
-            yoyo: true,
-            repeat: -1,
-          });
-        });
-        // hub halo pulse
-        gsap.to("[data-halo]", { scale: 1.18, opacity: 0.05, transformOrigin: "center", transformBox: "fill-box", duration: 1.8, ease: "sine.inOut", yoyo: true, repeat: -1 });
-        // data pulses travelling outer -> hub
-        const hub = NODES[0];
-        PULSE_FROM.forEach((ni, k) => {
-          const from = NODES[ni];
-          const dot = el!.querySelector<SVGCircleElement>(`[data-pulse="${k}"]`);
-          if (!dot) return;
-          gsap.set(dot, { opacity: 1 });
-          gsap.fromTo(
-            dot,
-            { attr: { cx: from.x, cy: from.y } },
-            {
-              attr: { cx: hub.x, cy: hub.y },
-              duration: 1.6,
-              ease: "power1.in",
-              repeat: -1,
-              delay: k * 0.5,
-              repeatDelay: 1.6,
-            },
-          );
-        });
+      for (const e of EDGES) {
+        const dx = P[e.b].x - P[e.a].x;
+        const dy = P[e.b].y - P[e.a].y;
+        const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+        const diff = ((d - e.l) / d) * SPRING;
+        P[e.a].vx += dx * diff; P[e.a].vy += dy * diff;
+        P[e.b].vx -= dx * diff; P[e.b].vy -= dy * diff;
       }
-    }, el);
-    return () => ctx.revert();
+      for (let i = 0; i < P.length; i++) {
+        if (i === 0) { P[i].x = CX; P[i].y = CY; P[i].vx = 0; P[i].vy = 0; continue; }
+        P[i].x = Math.max(16, Math.min(W - 16, P[i].x + P[i].vx));
+        P[i].y = Math.max(16, Math.min(H - 16, P[i].y + P[i].vy));
+      }
+    };
+
+    const draw = () => {
+      const active = hovered >= 0;
+      const lit = (i: number) => !active || i === hovered || nbr[hovered].includes(i);
+      nodeEls.forEach((el, i) => {
+        if (!el) return;
+        el.setAttribute("transform", `translate(${P[i].x.toFixed(1)} ${P[i].y.toFixed(1)})`);
+        el.style.opacity = lit(i) ? "1" : "0.18";
+      });
+      edgeEls.forEach((el, i) => {
+        if (!el) return;
+        const e = EDGES[i];
+        el.setAttribute("x1", P[e.a].x.toFixed(1));
+        el.setAttribute("y1", P[e.a].y.toFixed(1));
+        el.setAttribute("x2", P[e.b].x.toFixed(1));
+        el.setAttribute("y2", P[e.b].y.toFixed(1));
+        const on = !active || e.a === hovered || e.b === hovered;
+        el.style.opacity = on ? "1" : "0.08";
+      });
+    };
+
+    if (reduce) {
+      for (let k = 0; k < 400; k++) step();
+      draw();
+      return;
+    }
+
+    let raf = 0;
+    let frame = 0;
+    const loop = () => {
+      step();
+      // tiny perpetual drift so it stays alive after settling
+      if (frame > 200) for (let i = 1; i < P.length; i++) {
+        P[i].vx += Math.sin(frame * 0.01 + i) * 0.06;
+        P[i].vy += Math.cos(frame * 0.013 + i) * 0.06;
+      }
+      draw();
+      frame++;
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      nodeEls.forEach((el, i) => {
+        el?.removeEventListener("mouseenter", setHover(i));
+        el?.removeEventListener("mouseleave", clearHover);
+      });
+    };
   }, []);
 
-  const edgeColor = "rgba(255,182,214,0.22)";
-
   return (
-    <svg ref={ref} viewBox="0 0 660 430" className={className} fill="none">
-      {/* edges */}
-      {EDGES.map(([a, b], i) => (
-        <line
-          key={i}
-          data-edge
-          x1={NODES[a].x}
-          y1={NODES[a].y}
-          x2={NODES[b].x}
-          y2={NODES[b].y}
-          stroke={edgeColor}
-          strokeWidth={1}
-        />
+    <svg ref={ref} viewBox={`0 0 ${W} ${H}`} className={className} fill="none">
+      {EDGES.map((_, i) => (
+        <line key={i} data-edge={i} x1={CX} y1={CY} x2={CX} y2={CY} stroke="rgba(255,182,214,0.2)" strokeWidth={1} />
       ))}
-
-      {/* travelling data pulses */}
-      {PULSE_FROM.map((_, k) => (
-        <circle key={k} data-pulse={k} r={3} fill="#FF5CAB" />
-      ))}
-
-      {/* nodes */}
-      {NODES.map((n, i) => (
-        <g key={i} data-float>
-          {n.hub && (
-            <circle data-halo cx={n.x} cy={n.y} r={n.r + 12} fill="#FF5CAB" opacity={0.12} />
-          )}
-          <circle
-            data-node
-            cx={n.x}
-            cy={n.y}
-            r={n.r}
-            fill={n.hub ? "#FF5CAB" : "#1c1c1c"}
-            stroke={n.hub ? "#FF5CAB" : "rgba(255,182,214,0.5)"}
-            strokeWidth={n.hub ? 0 : 1.2}
-          />
-          {n.hub && (
-            <text data-label x={n.x} y={n.y + 4} textAnchor="middle" fontSize="12" fontWeight="600" fill="#111111" fontFamily="var(--font-geist), sans-serif">
-              brain
-            </text>
-          )}
-          {!n.hub && (
-            <text
-              data-label
-              x={n.x}
-              y={n.y + n.r + 13}
-              textAnchor="middle"
-              fontSize="11"
-              fill="rgba(243,239,243,0.7)"
-              fontFamily="var(--font-mono), monospace"
-            >
-              {n.label}
-            </text>
-          )}
-        </g>
-      ))}
+      {NODES.map((n, i) => {
+        const r = radius(n.type);
+        return (
+          <g key={i} data-node={i} transform={`translate(${CX} ${CY})`} style={{ cursor: "pointer" }}>
+            {n.type === "hub" && <circle r={r + 12} fill="#FF5CAB" opacity={0.12} />}
+            <circle
+              r={r}
+              fill={n.type === "hub" ? "#FF5CAB" : "#1c1c1c"}
+              stroke={n.type === "hub" ? "#FF5CAB" : "rgba(255,182,214,0.6)"}
+              strokeWidth={n.type === "hub" ? 0 : 1.3}
+            />
+            {n.type === "hub" && (
+              <text textAnchor="middle" y={4} fontSize="11" fontWeight="600" fill="#111111" fontFamily="var(--font-geist), sans-serif">
+                brain
+              </text>
+            )}
+            {n.type === "anchor" && (
+              <text textAnchor="middle" y={r + 14} fontSize="11" fill="rgba(243,239,243,0.85)" fontFamily="var(--font-mono), monospace">
+                {n.label}
+              </text>
+            )}
+            {n.type === "leaf" && (
+              <text textAnchor="middle" y={r + 12} fontSize="9.5" fill="rgba(243,239,243,0.5)" fontFamily="var(--font-mono), monospace">
+                {n.label}
+              </text>
+            )}
+          </g>
+        );
+      })}
     </svg>
   );
 }
