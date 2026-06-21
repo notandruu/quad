@@ -19,17 +19,19 @@ export const SPONSORS: { name: string; mark: ReactNode }[] = [
     ),
   },
   {
+    // Fetch.ai — 3x3 grid: squares filling in, circles on the lower-right diagonal
     name: "Fetch.ai",
     mark: (
-      <g stroke="currentColor" strokeWidth="1.5" fill="none">
-        <circle cx="12" cy="12" r="9" />
-        <line x1="12" y1="12" x2="12" y2="4.6" />
-        <line x1="12" y1="12" x2="18.4" y2="15.7" />
-        <line x1="12" y1="12" x2="5.6" y2="15.7" />
-        <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none" />
-        <circle cx="12" cy="4.6" r="1.7" fill="currentColor" stroke="none" />
-        <circle cx="18.4" cy="15.7" r="1.7" fill="currentColor" stroke="none" />
-        <circle cx="5.6" cy="15.7" r="1.7" fill="currentColor" stroke="none" />
+      <g fill="currentColor">
+        <rect x="2.9" y="2.9" width="4.8" height="4.8" />
+        <rect x="9.6" y="2.9" width="4.8" height="4.8" />
+        <rect x="16.3" y="2.9" width="4.8" height="4.8" />
+        <rect x="2.9" y="9.6" width="4.8" height="4.8" />
+        <rect x="9.6" y="9.6" width="4.8" height="4.8" />
+        <circle cx="18.7" cy="12" r="2.4" />
+        <rect x="2.9" y="16.3" width="4.8" height="4.8" />
+        <circle cx="12" cy="18.7" r="2.4" />
+        <circle cx="18.7" cy="18.7" r="2.4" />
       </g>
     ),
   },
