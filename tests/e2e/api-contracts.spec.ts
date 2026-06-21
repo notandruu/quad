@@ -235,8 +235,9 @@ test.describe("api contracts", () => {
     const events = body
       .split("\n")
       .filter((line) => line.startsWith("data: "))
-      .map((line) => JSON.parse(line.slice(6)) as { type?: string; workflow?: Record<string, unknown> });
+      .map((line) => JSON.parse(line.slice(6)) as { type?: string; workflow?: Record<string, unknown>; agentverse?: Record<string, unknown> });
     const result = events.find((event) => event.type === "meeting.result");
+    const agentverseCompleted = events.find((event) => event.type === "meeting.agentverse.completed");
     const workflow = result?.workflow as
       | { artifacts?: unknown[]; packets?: Array<{ accepted: boolean }> }
       | undefined;
@@ -253,6 +254,13 @@ test.describe("api contracts", () => {
     });
     expect(workflow?.artifacts?.length).toBeGreaterThanOrEqual(4);
     expect(workflow?.packets?.every((packet) => packet.accepted)).toBe(true);
+    expect(agentverseCompleted).toBeTruthy();
+    expect(result?.agentverse).toMatchObject({
+      surface: "fetch_agent",
+      workflow: "enterprise_proof",
+      jobStatus: "queued",
+    });
+    expect(result?.agentverse?.selectedTools).toContain("fetch.agent_bridge");
   });
 
   test("runs shared core commands for chat and queued audit", async ({ request }) => {

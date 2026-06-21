@@ -3,6 +3,7 @@ import { DEMO_ORG_ID } from "@/data/seed";
 import { DEMO_MEETING } from "@/data/demo/meeting";
 import { createMeetingSession, updateMeetingSession } from "@/lib/meeting/sessions";
 import { buildMeetingIntelligence } from "@/lib/meeting/intelligence";
+import { runMeetingAgentverseHandoff } from "@/lib/meeting/agentverse";
 import { learnFromMeeting } from "@/lib/skills/learnFromMeeting";
 import { publishAuditEvent } from "@/lib/redis/publisher";
 import type { PublishedEvent } from "@/lib/redis/publisher";
@@ -83,6 +84,14 @@ export async function POST(req: NextRequest) {
         });
 
         const intelligence = await buildMeetingIntelligence(result);
+        const targetUrl = new URL("/demo", req.nextUrl.origin).toString();
+        const agentverse = await runMeetingAgentverseHandoff({
+          orgId,
+          meetingRunId: runId,
+          targetUrl,
+          workflow: "enterprise_proof",
+          onEvent,
+        });
 
         send({
           type: "meeting.result",
@@ -106,6 +115,7 @@ export async function POST(req: NextRequest) {
             followups: intelligence.followups,
             nextAction: intelligence.task.nextAction,
           },
+          agentverse,
         });
       } catch (err) {
         updateMeetingSession(runId, { status: "failed" });

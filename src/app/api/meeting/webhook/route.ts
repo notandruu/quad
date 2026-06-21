@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDurableMeetingSessionByBotId, updateDurableMeetingSession } from "@/lib/meeting/sessions";
 import { recallEntryToText, type RecallWebhookEvent } from "@/lib/meeting/recall";
+import { buildMeetingIntelligence } from "@/lib/meeting/intelligence";
+import { runMeetingAgentverseHandoff } from "@/lib/meeting/agentverse";
 import { learnFromMeeting } from "@/lib/skills/learnFromMeeting";
 import { publishAuditEvent } from "@/lib/redis/publisher";
 
@@ -46,7 +48,7 @@ export async function POST(req: NextRequest) {
       }, { orgId: session.orgId });
 
       if (status === "ended" && !session.endedAt) {
-        await finalizeMeetingSession(session);
+        await finalizeMeetingSession(session, req.nextUrl.origin);
         await updateDurableMeetingSession(session.runId, {
           status,
           endedAt: new Date().toISOString(),
@@ -98,7 +100,10 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
-async function finalizeMeetingSession(session: Awaited<ReturnType<typeof getDurableMeetingSessionByBotId>>) {
+async function finalizeMeetingSession(
+  session: Awaited<ReturnType<typeof getDurableMeetingSessionByBotId>>,
+  origin: string
+) {
   if (!session?.transcript.trim()) return;
   const utterances = session.transcript
     .split("\n")
@@ -127,6 +132,13 @@ async function finalizeMeetingSession(session: Awaited<ReturnType<typeof getDura
   });
 
   if (result) {
+    await buildMeetingIntelligence(result);
+    await runMeetingAgentverseHandoff({
+      orgId: session.orgId,
+      meetingRunId: session.runId,
+      targetUrl: new URL("/demo", origin).toString(),
+      workflow: "enterprise_proof",
+    });
     await updateDurableMeetingSession(session.runId, {
       learnedCount: result.learnedCount,
       rejectedCount: result.rejectedCount,

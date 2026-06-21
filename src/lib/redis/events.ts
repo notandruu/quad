@@ -77,6 +77,9 @@ export const MEETING_EVENTS = [
   "fact.rejected",
   "meeting.summarized",
   "meeting.ended",
+  "meeting.agentverse.started",
+  "meeting.agentverse.completed",
+  "meeting.agentverse.failed",
   "meeting.failed",
 ] as const;
 

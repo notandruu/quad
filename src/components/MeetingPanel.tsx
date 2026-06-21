@@ -26,6 +26,23 @@ type LearnedFact = {
   confidence?: number;
 };
 
+type AgentverseState = {
+  status: "idle" | "running" | "queued" | "failed";
+  detail: string;
+  targetUrl?: string;
+  workflow?: string;
+  queuedRunId?: string;
+  jobId?: string;
+  jobStatus?: string;
+  selectedTools: string[];
+  missingCapabilities: string[];
+  quadChain?: {
+    certificateId?: string;
+    accepted?: boolean;
+    type?: string;
+  } | null;
+};
+
 const THINKING_META: Record<string, { label: string; tone: ThinkingStep["tone"] }> = {
   "meeting.started":    { label: "Meeting started",      tone: "active" },
   "meeting.session":    { label: "Session linked",       tone: "active" },
@@ -41,6 +58,9 @@ const THINKING_META: Record<string, { label: string; tone: ThinkingStep["tone"] 
   "fact.rejected":     { label: "Not durable",           tone: "error" },
   "meeting.summarized":{ label: "Summary ready",         tone: "success" },
   "meeting.ended":     { label: "Meeting ended",         tone: "success" },
+  "meeting.agentverse.started": { label: "Agentverse handoff", tone: "active" },
+  "meeting.agentverse.completed": { label: "Agentverse queued", tone: "success" },
+  "meeting.agentverse.failed": { label: "Agentverse failed", tone: "error" },
   "meeting.failed":    { label: "Error",                 tone: "error" },
 };
 
@@ -59,6 +79,12 @@ export function MeetingPanel({ onEnded }: MeetingPanelProps) {
   const [summary, setSummary]     = useState<string | null>(null);
   const [learnedCount, setLearned] = useState(0);
   const [error, setError]         = useState<string | null>(null);
+  const [agentverse, setAgentverse] = useState<AgentverseState>({
+    status: "idle",
+    detail: "",
+    selectedTools: [],
+    missingCapabilities: [],
+  });
 
   const transcriptRef = useRef<HTMLDivElement>(null);
   const thinkingRef   = useRef<HTMLDivElement>(null);
@@ -83,6 +109,39 @@ export function MeetingPanel({ onEnded }: MeetingPanelProps) {
     if (type === "meeting.ended")   { setStatus("ended"); }
     if (type === "meeting.failed")  { setError(String(evt.error ?? "Meeting failed")); setStatus("failed"); }
     if (type === "meeting.result")  { setSummary(String(evt.summary ?? "")); setLearned(Number(evt.learnedCount ?? 0)); }
+    if (type === "meeting.agentverse.started") {
+      setAgentverse({
+        status: "running",
+        detail: String(evt.detail ?? "Agentverse handoff started."),
+        targetUrl: String(evt.targetUrl ?? ""),
+        workflow: String(evt.workflow ?? ""),
+        selectedTools: [],
+        missingCapabilities: [],
+      });
+    }
+    if (type === "meeting.agentverse.completed") {
+      setAgentverse({
+        status: "queued",
+        detail: String(evt.detail ?? "Agentverse handoff queued."),
+        targetUrl: String(evt.targetUrl ?? ""),
+        workflow: String(evt.workflow ?? ""),
+        queuedRunId: String(evt.queuedRunId ?? ""),
+        jobId: String(evt.jobId ?? ""),
+        jobStatus: String(evt.jobStatus ?? ""),
+        selectedTools: stringList(evt.selectedTools),
+        missingCapabilities: stringList(evt.missingCapabilities),
+        quadChain: packetSummary(evt.quadChain),
+      });
+    }
+    if (type === "meeting.agentverse.failed") {
+      setAgentverse((current) => ({
+        ...current,
+        status: "failed",
+        detail: String(evt.detail ?? "Agentverse handoff failed."),
+        targetUrl: String(evt.targetUrl ?? current.targetUrl ?? ""),
+        workflow: String(evt.workflow ?? current.workflow ?? ""),
+      }));
+    }
 
     if (type === "meeting.transcript") {
       const speaker = String(evt.speaker ?? "Speaker");
@@ -104,6 +163,9 @@ export function MeetingPanel({ onEnded }: MeetingPanelProps) {
         type === "fact.rejected"      ? `${String(evt.claim ?? "")} — ${String(evt.reason ?? "")}` :
         type === "fact.evaluated"     ? `${String(evt.claim ?? "")} (${Math.round(Number(evt.confidence ?? 0) * 100)}% confidence)` :
         type === "meeting.summarized" ? String(evt.summary ?? "") :
+        type === "meeting.agentverse.started" ? String(evt.detail ?? "external agent handoff started") :
+        type === "meeting.agentverse.completed" ? String(evt.detail ?? "external agent handoff queued") :
+        type === "meeting.agentverse.failed" ? String(evt.detail ?? "external agent handoff failed") :
         String(evt.error ?? "");
       setThinking((t) => [...t, { id: crypto.randomUUID(), type, label: meta.label, detail, tone: meta.tone }]);
     }
@@ -188,6 +250,7 @@ export function MeetingPanel({ onEnded }: MeetingPanelProps) {
 
   function reset() {
     setError(null); setTranscript([]); setThinking([]); setFacts([]); setSummary(null); setLearned(0);
+    setAgentverse({ status: "idle", detail: "", selectedTools: [], missingCapabilities: [] });
   }
 
   const isRunning = status === "joining" || status === "live";
@@ -332,6 +395,8 @@ export function MeetingPanel({ onEnded }: MeetingPanelProps) {
                 ))}
               </div>
             </div>
+
+            <AgentverseMeetingCard agentverse={agentverse} />
           </div>
         </div>
       )}
@@ -345,4 +410,91 @@ export function MeetingPanel({ onEnded }: MeetingPanelProps) {
       )}
     </div>
   );
+}
+
+function AgentverseMeetingCard({ agentverse }: { agentverse: AgentverseState }) {
+  const statusTone =
+    agentverse.status === "queued"
+      ? "border-accent/30 bg-accent/10 text-accent"
+      : agentverse.status === "running"
+        ? "border-sky-300/30 bg-sky-950/20 text-sky-200"
+        : agentverse.status === "failed"
+          ? "border-red-300/30 bg-red-950/20 text-red-200"
+          : "border-edge bg-panel text-neutral-500";
+
+  return (
+    <div className="flex flex-col rounded border border-pink-300/25 bg-ink overflow-hidden" style={{ flex: "0 0 auto" }}>
+      <div className="border-b border-edge px-3 py-1.5 flex items-center justify-between gap-2">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Agentverse / ASI:One</span>
+        <span className={`rounded-full border px-2 py-0.5 text-[9px] ${statusTone}`}>
+          {agentverse.status === "idle" ? "waiting" : agentverse.status}
+        </span>
+      </div>
+      <div className="p-3">
+        <p className="line-clamp-2 text-xs leading-5 text-neutral-400">
+          {agentverse.detail || "Meeting-derived context will hand off to the external agent surface after summary."}
+        </p>
+        <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
+          <MeetingMetric label="tools" value={String(agentverse.selectedTools.length)} accent={agentverse.selectedTools.length > 0} />
+          <MeetingMetric label="blocked" value={String(agentverse.missingCapabilities.length)} accent={agentverse.missingCapabilities.length === 0 && agentverse.status !== "idle"} />
+          <MeetingMetric label="proof" value={agentverse.quadChain?.accepted ? "ok" : agentverse.quadChain ? "check" : "-"} accent={agentverse.quadChain?.accepted === true} />
+        </div>
+        {(agentverse.targetUrl || agentverse.queuedRunId || agentverse.jobId) && (
+          <div className="mt-2 rounded border border-edge bg-panel px-2 py-1.5">
+            {agentverse.targetUrl && (
+              <div className="truncate font-mono text-[9px] text-neutral-600">target {agentverse.targetUrl}</div>
+            )}
+            {agentverse.queuedRunId && (
+              <div className="mt-0.5 truncate font-mono text-[9px] text-neutral-600">run {agentverse.queuedRunId}</div>
+            )}
+            {agentverse.jobId && (
+              <div className="mt-0.5 truncate font-mono text-[9px] text-neutral-600">job {agentverse.jobId} · {agentverse.jobStatus}</div>
+            )}
+          </div>
+        )}
+        {agentverse.selectedTools.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {agentverse.selectedTools.slice(0, 4).map((tool) => (
+              <span key={tool} className="rounded-full border border-pink-300/25 bg-pink-950/20 px-1.5 py-0.5 text-[9px] text-pink-100">
+                {tool}
+              </span>
+            ))}
+          </div>
+        )}
+        {agentverse.missingCapabilities.length > 0 && (
+          <div className="mt-2 truncate text-[10px] text-amber-100">
+            blocked: {agentverse.missingCapabilities.join(", ")}
+          </div>
+        )}
+        {agentverse.quadChain?.certificateId && (
+          <div className="mt-2 truncate font-mono text-[9px] text-neutral-600">
+            certificate {agentverse.quadChain.certificateId}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MeetingMetric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="rounded border border-edge bg-panel px-2 py-1.5">
+      <div className={accent ? "text-xs font-semibold text-accent" : "text-xs font-semibold text-neutral-200"}>{value}</div>
+      <div className="mt-0.5 text-[9px] text-neutral-600">{label}</div>
+    </div>
+  );
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function packetSummary(value: unknown): AgentverseState["quadChain"] {
+  if (!value || typeof value !== "object") return null;
+  const packet = value as Record<string, unknown>;
+  return {
+    certificateId: typeof packet.certificateId === "string" ? packet.certificateId : undefined,
+    accepted: typeof packet.accepted === "boolean" ? packet.accepted : undefined,
+    type: typeof packet.type === "string" ? packet.type : undefined,
+  };
 }
