@@ -3,6 +3,7 @@ import type { Intent } from "@/lib/types";
 export type CapabilityKind =
   | "connector"
   | "publisher"
+  | "skill"
   | "agent"
   | "policy"
   | "surface"
@@ -333,6 +334,58 @@ export const CAPABILITY_CATALOG: CapabilityManifest[] = [
     tags: ["trust", "compression"],
   },
   {
+    id: "playbook.enterprise_proof",
+    name: "Enterprise proof playbook",
+    kind: "skill",
+    description: "Runs the retrieve, collect, ground, evaluate, and validated writeback loop for customer trust answers.",
+    owner: "stephen",
+    env: [],
+    scopes: ["playbook:run", "memory:propose"],
+    writes: false,
+    approvalMode: "dry_run",
+    enabledByDefault: true,
+    tags: ["skill", "enterprise-proof"],
+  },
+  {
+    id: "playbook.trust_packet",
+    name: "Trust packet playbook",
+    kind: "skill",
+    description: "Assembles evidence-backed trust packets with quadchain proof, approvals, and publisher dry-runs.",
+    owner: "andrew",
+    env: [],
+    scopes: ["playbook:run", "packets:export"],
+    writes: false,
+    approvalMode: "dry_run",
+    enabledByDefault: true,
+    tags: ["skill", "trust-packet"],
+  },
+  {
+    id: "playbook.meeting_memory",
+    name: "Meeting memory playbook",
+    kind: "skill",
+    description: "Turns meeting and voice signals into scoped memory proposals with retention and proof guardrails.",
+    owner: "stephen",
+    env: [],
+    scopes: ["playbook:run", "memory:propose", "voice:transcribe"],
+    writes: false,
+    approvalMode: "dry_run",
+    enabledByDefault: true,
+    tags: ["skill", "voice", "memory"],
+  },
+  {
+    id: "playbook.approved_fix",
+    name: "Approved fix playbook",
+    kind: "skill",
+    description: "Stages customer-facing fixes through approval receipts, connector execution, and post-ship verification.",
+    owner: "andrew",
+    env: [],
+    scopes: ["playbook:run", "publish:stage"],
+    writes: false,
+    approvalMode: "dry_run",
+    enabledByDefault: true,
+    tags: ["skill", "fde", "publish"],
+  },
+  {
     id: "trust_packet.exporter",
     name: "Trust packet exporter",
     kind: "publisher",
@@ -391,6 +444,8 @@ const ENTERPRISE_PROOF_STARTER_BUNDLE = [
   "quad.chain_verifier",
   "trust_packet.exporter",
   "quad.company_brain",
+  "playbook.enterprise_proof",
+  "playbook.trust_packet",
   "browserbase.read_browser",
   "arize.phoenix",
   "sentry.reliability",
@@ -892,7 +947,7 @@ function summarizeBySponsor(entries: CapabilityCatalogEntry[]): CapabilitySponso
 }
 
 function allKinds(): CapabilityKind[] {
-  return ["connector", "publisher", "agent", "policy", "surface", "verifier"];
+  return ["connector", "publisher", "skill", "agent", "policy", "surface", "verifier"];
 }
 
 export function resolveCapabilityPolicy(
@@ -932,16 +987,16 @@ function uniqueIds(ids: string[]): string[] {
 function capabilityIdsForIntent(intent: Intent): string[] {
   switch (intent) {
     case "website_audit":
-      return ["quad.company_brain", "browserbase.read_browser", "quad.chain_verifier", "arize.phoenix", "sentry.reliability"];
+      return ["quad.company_brain", "browserbase.read_browser", "quad.chain_verifier", "playbook.trust_packet", "arize.phoenix", "sentry.reliability"];
     case "audit_follow_up":
-      return ["quad.company_brain", "quad.chain_verifier", "trust_packet.exporter"];
+      return ["quad.company_brain", "quad.chain_verifier", "playbook.enterprise_proof", "playbook.trust_packet", "trust_packet.exporter"];
     case "draft_content":
-      return ["quad.company_brain", "quad.chain_verifier", "cms.publisher"];
+      return ["quad.company_brain", "quad.chain_verifier", "playbook.approved_fix", "cms.publisher"];
     case "create_task":
-      return ["quad.company_brain", "quad.chain_verifier", "task.publisher"];
+      return ["quad.company_brain", "quad.chain_verifier", "playbook.approved_fix", "task.publisher"];
     case "save_memory":
     case "summarize_meeting":
-      return ["quad.company_brain", "quad.chain_verifier"];
+      return ["quad.company_brain", "quad.chain_verifier", "playbook.meeting_memory"];
     case "send_email":
     case "post_slack":
     case "update_crm":
@@ -972,6 +1027,7 @@ function capabilityIdsForSurface(surface: RuntimeToolSurface): string[] {
 function loadModeForTool(tool: ActiveTool, intent: Intent, surface: RuntimeToolSurface): RuntimeToolLoadMode {
   if (tool.approvalMode === "human_approval" || tool.approvalMode === "admin_approval") return "deferred";
   if (tool.id === "arize.phoenix" || tool.id === "sentry.reliability") return "deferred";
+  if (tool.kind === "skill") return "eager";
   if (tool.kind === "publisher" && intent !== "audit_follow_up") return "deferred";
   if (surface === "worker" && tool.id === "redis.event_spine") return "eager";
   if (surface === "voice" && tool.id === "deepgram.voice_memory") return "eager";
@@ -986,6 +1042,7 @@ function routeReasonForTool(tool: ActiveTool, intent: Intent, surface: RuntimeTo
   if (tool.id === "arize.phoenix" || tool.id === "sentry.reliability") {
     return "observability capability remains deferred until a trace or error event is emitted.";
   }
+  if (tool.kind === "skill") return "playbook is the operating procedure for this intent.";
   if (tool.kind === "publisher" && intent !== "audit_follow_up") {
     return "publisher capability is available but deferred until a draft artifact exists.";
   }

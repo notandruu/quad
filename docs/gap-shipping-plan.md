@@ -147,6 +147,30 @@ Acceptance:
 - sponsor alignment is grounded in live capability state instead of deck-only claims.
 - production readiness can now explain which registry checks are actually failing.
 
+## Gap 2.0.2: skill and playbook registry
+
+Status: shipped v1.
+
+What was missing:
+
+- quad had reusable workflows, but they were not registered as named operating procedures.
+- the metaregistry could expose tools, but not the guarded playbooks that make the AI employee behave like a reliable worker.
+- operator surfaces could not show which workflows were ready, blocked, approval-gated, or verifier-backed.
+
+Shipped v1:
+
+- `src/lib/playbooks` registers enterprise proof answering, trust packet building, meeting memory capture, and approved fix publishing as playbooks.
+- each playbook declares intents, required capabilities, required evidence, guardrails, output artifacts, approval tier, and verifier checks.
+- the metaregistry now includes first-class `skill` capabilities for these playbooks and routes them eagerly for matching intents.
+- `GET /api/playbooks` exposes a safe playbook catalog with ready/blocked state and no raw evidence or prompts.
+- `/api/operator` and the operator console surface playbook readiness beside capability readiness.
+
+Acceptance:
+
+- product demos can explain the AI employee's operating procedures, not just list tools.
+- future agents can choose a playbook by intent and inspect missing capabilities before acting.
+- playbooks keep high-risk writes behind approval and verifier requirements.
+
 ## Gap 2.1: runtime observability receipts
 
 Status: shipped v1.

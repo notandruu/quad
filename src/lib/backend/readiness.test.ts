@@ -67,7 +67,7 @@ describe("getBackendReadiness", () => {
     expect(report.components.worker.canary.ok).toBe(true);
     expect(report.components.capabilities).toMatchObject({
       status: "ready",
-      activeCount: 10,
+      activeCount: 14,
       blockedCount: 0,
       validation: {
         failing: 0,

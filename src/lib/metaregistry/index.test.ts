@@ -26,6 +26,7 @@ describe("metaregistry", () => {
 
     expect(activeIds).toContain("quad.chain_verifier");
     expect(activeIds).toContain("trust_packet.exporter");
+    expect(activeIds).toContain("playbook.enterprise_proof");
     expect(activeIds).not.toContain("browserbase.read_browser");
     expect(activeIds).not.toContain("sentry.reliability");
   });
@@ -47,6 +48,10 @@ describe("metaregistry", () => {
     expect(catalog.kinds.find((kind) => kind.kind === "publisher")).toMatchObject({
       total: 3,
       writes: 2,
+    });
+    expect(catalog.kinds.find((kind) => kind.kind === "skill")).toMatchObject({
+      total: 4,
+      active: 0,
     });
     expect(catalog.sponsors.find((sponsor) => sponsor.sponsor === "Browserbase")).toMatchObject({
       total: 2,
@@ -107,6 +112,8 @@ describe("metaregistry", () => {
     const bundle = getEnterpriseProofStarterBundle().map((manifest) => manifest.id);
 
     expect(bundle).toContain("quad.chain_verifier");
+    expect(bundle).toContain("playbook.enterprise_proof");
+    expect(bundle).toContain("playbook.trust_packet");
     expect(bundle).toContain("trust_packet.exporter");
     expect(bundle).toContain("fetch.agent_bridge");
   });
@@ -274,7 +281,7 @@ describe("metaregistry", () => {
       ])
     );
     expect(plan.activeAfterInstall.map((tool) => tool.id)).toEqual(
-      expect.arrayContaining(["quad.chain_verifier", "trust_packet.exporter", "browserbase.read_browser"])
+      expect.arrayContaining(["quad.chain_verifier", "playbook.enterprise_proof", "playbook.trust_packet", "trust_packet.exporter", "browserbase.read_browser"])
     );
   });
 
@@ -356,7 +363,7 @@ describe("metaregistry", () => {
       BROWSERBASE_PROJECT_ID: "project",
       PHOENIX_COLLECTOR_ENDPOINT: "https://phoenix.example.test",
       SENTRY_DSN: "https://sentry.example.test",
-      QUAD_CAPABILITY_ALLOWLIST: "quad.chain_verifier,browserbase.read_browser,arize.phoenix,sentry.reliability",
+      QUAD_CAPABILITY_ALLOWLIST: "quad.chain_verifier,browserbase.read_browser,playbook.trust_packet,arize.phoenix,sentry.reliability",
     });
     const plan = buildRuntimeToolRoutingPlan({
       intent: "website_audit",
@@ -368,11 +375,12 @@ describe("metaregistry", () => {
       "quad.company_brain",
       "browserbase.read_browser",
       "quad.chain_verifier",
+      "playbook.trust_packet",
       "arize.phoenix",
       "sentry.reliability",
     ]);
     expect(plan.eagerTools.map((route) => route.tool.id)).toEqual(
-      expect.arrayContaining(["browserbase.read_browser", "quad.chain_verifier"])
+      expect.arrayContaining(["browserbase.read_browser", "quad.chain_verifier", "playbook.trust_packet"])
     );
     expect(plan.deferredTools.map((route) => route.tool.id)).toEqual(
       expect.arrayContaining(["arize.phoenix", "sentry.reliability"])

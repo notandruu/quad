@@ -273,6 +273,25 @@ type OperatorResponse = {
       entries: OperatorCapability[];
     };
   };
+  playbooks?: {
+    total: number;
+    ready: number;
+    blocked: number;
+    approvalGated: number;
+    verifierRequired: number;
+    playbooks: Array<{
+      id: string;
+      capabilityId: string;
+      name: string;
+      intents: string[];
+      requiredCapabilityCount: number;
+      missingCapabilityCount: number;
+      approvalTier: "read" | "draft" | "confirm" | "approve";
+      verifierRequired: boolean;
+      ready: boolean;
+      reason: string;
+    }>;
+  };
   worker?: {
     queue: {
       queueDepth: number;
@@ -742,6 +761,7 @@ export function OperatorConsole({ orgId = "org_redcross", watchRunId }: { orgId?
           </div>
 
           <CapabilityCatalogPanel capabilities={data.capabilities} />
+          {data.playbooks && <PlaybookPanel playbooks={data.playbooks} />}
 
           <CapabilityInstallPlan
             plan={installPlan}
@@ -1578,6 +1598,49 @@ function CapabilityCatalogPanel({ capabilities }: { capabilities: OperatorRespon
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function PlaybookPanel({ playbooks }: { playbooks: NonNullable<OperatorResponse["playbooks"]> }) {
+  return (
+    <div className="rounded border border-edge bg-ink/30 p-2">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h3 className="text-xs font-medium text-neutral-200">Playbook registry</h3>
+          <p className="mt-1 text-[10px] leading-4 text-neutral-500">
+            {playbooks.ready}/{playbooks.total} ready · {playbooks.approvalGated} approval gated
+          </p>
+        </div>
+        <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] text-accent">
+          verifier {playbooks.verifierRequired}
+        </span>
+      </div>
+
+      <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+        {playbooks.playbooks.slice(0, 4).map((playbook) => (
+          <div
+            key={playbook.id}
+            className={
+              playbook.ready
+                ? "rounded border border-accent/20 bg-accent/5 px-2 py-1.5"
+                : "rounded border border-amber-300/25 bg-amber-950/10 px-2 py-1.5"
+            }
+            title={playbook.reason}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate text-[10px] font-medium text-neutral-200">{playbook.name}</span>
+              <span className={playbook.ready ? "text-[9px] text-accent" : "text-[9px] text-amber-100"}>
+                {playbook.ready ? "ready" : "blocked"}
+              </span>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-2 text-[9px] text-neutral-600">
+              <span>{playbook.approvalTier}</span>
+              <span>{playbook.requiredCapabilityCount - playbook.missingCapabilityCount}/{playbook.requiredCapabilityCount} caps</span>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

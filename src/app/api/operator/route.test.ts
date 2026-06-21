@@ -100,6 +100,19 @@ describe("GET /api/operator", () => {
         }),
       ])
     );
+    expect(body.playbooks).toMatchObject({
+      total: expect.any(Number),
+      approvalGated: expect.any(Number),
+      verifierRequired: expect.any(Number),
+    });
+    expect(body.playbooks.playbooks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "approved_fix.publish",
+          capabilityId: "playbook.approved_fix",
+        }),
+      ])
+    );
     expect(JSON.stringify(body)).not.toMatch(/cms_test|linear_test|section body value|sk-ant-|sk-proj-/);
   });
 });

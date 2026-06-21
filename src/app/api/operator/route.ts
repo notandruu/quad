@@ -8,6 +8,7 @@ import { getWorkerCanaryHealth, getWorkerQueueHealth, getWorkerRuntimeHealth } f
 import { getLatestModelCallReceipts, type ModelCallReceipt } from "@/lib/llm/gateway";
 import { summarizeCapabilities, summarizeCapabilityCatalog } from "@/lib/metaregistry";
 import { getLatestRuntimeTraceReceipts, summarizeRuntimeTraceReceipts } from "@/lib/observability";
+import { summarizePlaybookCatalog } from "@/lib/playbooks";
 import { getOrgWorkspaceContext } from "@/lib/orgs";
 import { getQuadChainPackets, summarizeQuadChainPackets } from "@/lib/quad-chain/registry";
 import { buildShipTrail, listRunSnapshots, summarizeAgentTask } from "@/lib/runs";
@@ -41,6 +42,9 @@ export async function GET(request: Request) {
   const snapshots = await listRunSnapshots({ orgId, limit }).catch(() => []);
   const capabilities = summarizeCapabilities(process.env, { orgId });
   const capabilityCatalog = summarizeCapabilityCatalog(capabilities, { entryLimit: 14 });
+  const playbooks = summarizePlaybookCatalog({
+    activeCapabilityIds: capabilities.activeTools.map((tool) => tool.id),
+  });
   const [workspaceContext, connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness, quadChainPackets, memoryTrail, contextGraph, modelReceipts, runtimeTraces, evidenceBundles] = await Promise.all([
     getOrgWorkspaceContext({ orgId }).catch(() => null),
     listConnectorCredentials({ orgId }).catch(() => []),
@@ -106,6 +110,7 @@ export async function GET(request: Request) {
         requireWriteAllowlist: capabilities.policy.requireWriteAllowlist,
       },
     },
+    playbooks,
     worker: {
       queue: workerQueue,
       runtime: workerRuntime,

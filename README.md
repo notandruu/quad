@@ -82,6 +82,7 @@ Private raw context, evidence strings, transcripts, screenshots, prompts, respon
 | `POST /api/ingest` | Stage or write company memory with scope and approval metadata |
 | `POST /api/context/capture` | Normalize meeting, voice, chat, docs, or connector events into durable context signals |
 | `GET /api/brain/graph` | Safe context graph with freshness, scope, relationship, and receipt summaries |
+| `GET /api/playbooks` | Safe skill/playbook registry with guardrails, evidence requirements, approval tiers, and verifier checks |
 | `POST /api/enterprise-proof` | Answer trust/security questions from brain memory plus connector documents |
 | `GET /api/quadchain/packets` | List packet summaries for runs and handoffs |
 | `POST /api/quadchain/verify` | Verify a packet certificate and declared obligations |
