@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+@theme {
+  /* Quad primary palette */
+  --color-ink: #111111;          /* Ink — darkest surface / dark text */
+  --color-ink-2: #161616;        /* intro bg */
+  --color-ink-soft: rgba(17, 17, 17, 0.78);
+  --color-ink-mute: rgba(17, 17, 17, 0.6);
+  --color-coal: #1a1a1a;         /* content section dark bg */
+  --color-coal-2: #2a2a2a;
+  --color-coal-3: #383838;
+  --color-coal-4: #232323;
+
+  --color-paper: #FAFBF6;        /* Paper — light panel bg */
+  --color-paper-2: #FAFBF6;
+  --color-mist: #F3EFF3;         /* Mist — neutral surface */
+  --color-cream: #F3EFF3;        /* card surface (mist) */
+  --color-cream-2: #e7e1e7;
+  --color-blush: #FFE6F6;        /* Soft Blush — pink-tinted surface */
+  --color-signal: #FFB6D6;       /* Signal Pink */
+  --color-tan: #a9a3ac;          /* muted text on dark */
+  --color-tan-soft: rgba(169, 163, 172, 0.66);
+  --color-bone: #FAFBF6;         /* light text on dark */
+
+  --color-flame: #FF5CAB;        /* Quad Pink — primary accent */
+  --color-flame-2: #E63E96;      /* darker pink (hover) */
+
+  --font-sans: var(--font-geist), system-ui, sans-serif;
+  --font-mono: var(--font-mono), "IBM Plex Mono", monospace;
+}
+
+:root {
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-framer: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ink);
+  color: var(--color-bone);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+/* Lenis */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: var(--color-flame);
+  color: #fff;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+.serif {
+  font-family: var(--font-serif), "Times New Roman", Georgia, serif;
+}
+
+@keyframes tw-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.tw-caret {
+  display: inline-block;
+  width: 0.5ch;
+  margin-left: 1px;
+  background: currentColor;
+  animation: tw-blink 0.9s steps(1) infinite;
+  align-self: stretch;
+}
+
+/* ── texture system: 45° hatch + halftone dots ── */
+.hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(209, 194, 165, 0.18) 0 1px,
+    transparent 1px 6px
+  );
+}
+.hatch-ink {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(28, 28, 28, 0.16) 0 1px,
+    transparent 1px 6px
+  );
+}
+.halftone {
+  background-image: radial-gradient(circle, currentColor 1px, transparent 1.5px);
+  background-size: 6px 6px;
+}
+
+/* card hover lift — unified premium affordance */
+.card-hover {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.22s ease, background-color 0.22s ease;
+}
+.card-hover:hover {
+  transform: translateY(-3px);
+}
+
+/* nav link underline-grow */
+.navlink {
+  position: relative;
+}
+.navlink::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  height: 1px;
+  width: 100%;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.navlink:hover::after {
+  transform: scaleX(1);
+}
+
+/* tactile button press */
+button:active,
+a.press:active {
+  transform: scale(0.985);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* HoverText — per-letter vertical slide-swap on button/link hover */
+.ht-top,
+.ht-bot {
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+a:hover .ht-top,
+button:hover .ht-top,
+.hovertext:hover .ht-top,
+a:hover .ht-bot,
+button:hover .ht-bot,
+.hovertext:hover .ht-bot {
+  transform: translateY(-100%);
+}
