@@ -40,6 +40,16 @@ export type RecallTranscriptEntry = {
   words: RecallTranscriptWord[];
 };
 
+export type RecallTranscriptionProvider =
+  | "assembly_ai_v3"
+  | "assembly_ai_async_chunked"
+  | "aws_transcribe"
+  | "deepgram"
+  | "meeting_captions"
+  | "rev"
+  | "recallai"
+  | "speechmatics";
+
 export type RecallWebhookEvent = {
   event: string;
   data: {
@@ -55,11 +65,13 @@ export type RecallWebhookEvent = {
 
 export function getRecallSettings(env: Partial<NodeJS.ProcessEnv> = process.env) {
   const apiKey = env.RECALL_API_KEY?.trim() || null;
+  const transcriptionProvider = normalizeTranscriptionProvider(env.RECALL_TRANSCRIPTION_PROVIDER);
   return {
     configured: Boolean(apiKey),
     apiKey,
     botName: env.RECALL_BOT_NAME?.trim() || "Quad AI",
     webhookUrl: env.RECALL_WEBHOOK_URL?.trim() || null,
+    transcriptionProvider,
   };
 }
 
@@ -73,8 +85,10 @@ export async function createRecallBot(input: {
   apiKey: string;
   botName?: string;
   webhookUrl?: string;
+  transcriptionProvider?: RecallTranscriptionProvider;
   joinAt?: string;
 }): Promise<RecallBot> {
+  const transcriptionProvider = input.transcriptionProvider ?? "meeting_captions";
   const response = await fetch(`${RECALL_API_BASE}/bot/`, {
     method: "POST",
     headers: {
@@ -87,7 +101,7 @@ export async function createRecallBot(input: {
       ...(input.joinAt ? { join_at: input.joinAt } : {}),
       ...(input.webhookUrl
         ? {
-            transcription_options: { provider: "deepgram" },
+            transcription_options: { provider: transcriptionProvider },
             real_time_transcription: {
               destination_url: input.webhookUrl,
               partial_results: false,
@@ -103,6 +117,23 @@ export async function createRecallBot(input: {
   }
 
   return response.json() as Promise<RecallBot>;
+}
+
+function normalizeTranscriptionProvider(value?: string | null): RecallTranscriptionProvider {
+  const provider = value?.trim();
+  switch (provider) {
+    case "assembly_ai_v3":
+    case "assembly_ai_async_chunked":
+    case "aws_transcribe":
+    case "deepgram":
+    case "meeting_captions":
+    case "rev":
+    case "recallai":
+    case "speechmatics":
+      return provider;
+    default:
+      return "meeting_captions";
+  }
 }
 
 /**

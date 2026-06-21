@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
       apiKey: recall.apiKey,
       botName: recall.botName,
       webhookUrl,
+      transcriptionProvider: recall.transcriptionProvider,
     });
 
     updateMeetingSession(runId, { botId: bot.id, status: "joining" });
