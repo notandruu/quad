@@ -746,6 +746,14 @@ Shipped v11:
 - raw context, evidence quotes, audio bytes, screenshots, model prompts/responses, credentials, and customer documents are listed as never anchored.
 - route and unit tests prove the boundary policy is present and still does not leak configured secret values.
 
+Shipped v12:
+
+- `src/lib/usage` builds an internal usage meter from existing receipts instead of raw prompts, raw evidence, or connector payloads.
+- usage snapshots count runs, approvals, artifacts, receipts, connector actions, quadchain packets, token savings, evidence bundles/bytes, model calls, model token usage, runtime traces, failures, and estimated internal cost.
+- `/api/operator` now returns the usage meter beside backend, worker, model gateway, runtime trace, evidence, security, and quadchain summaries.
+- the operator console renders a compact usage panel with runs, actions, tokens, evidence, model-call health, trace health, top artifact kind, and cost posture.
+- cost stays `internal only` unless `QUAD_BILLING_METERING_ENABLED=true` and token rates are configured.
+
 Build:
 
 - extend secret leak coverage to future public summary routes as they are added.

@@ -65,6 +65,19 @@ describe("GET /api/operator", () => {
       }),
       openObligations: expect.arrayContaining(["Human must review the filled browser session before final submit."]),
     });
+    expect(body.usage).toMatchObject({
+      posture: {
+        source: "receipt_sample",
+      },
+      totals: {
+        runs: expect.any(Number),
+        connectorActions: expect.any(Number),
+        quadchainPackets: expect.any(Number),
+        evidenceBundles: expect.any(Number),
+        modelCalls: expect.any(Number),
+        estimatedCostUsd: expect.any(Number),
+      },
+    });
     expect(JSON.stringify(body)).not.toMatch(/cms_test|linear_test|section body value|sk-ant-|sk-proj-/);
   });
 });

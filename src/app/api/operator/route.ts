@@ -14,6 +14,7 @@ import { buildShipTrail, listRunSnapshots, summarizeAgentTask } from "@/lib/runs
 import { authorizeRequest, requestAuthError } from "@/lib/security";
 import { buildSecurityPacket, summarizeSecurityPacket } from "@/lib/security/posture";
 import { getEvidenceBundles, summarizeEvidenceBundles } from "@/lib/storage/evidence";
+import { summarizeUsageMetering } from "@/lib/usage";
 
 export const runtime = "nodejs";
 
@@ -117,6 +118,14 @@ export async function GET(request: Request) {
     contextGraph: contextGraph ? summarizeScopedContextGraph(contextGraph) : null,
     connectorCredentials,
     security,
+    usage: summarizeUsageMetering({
+      orgId,
+      runs: snapshots,
+      packets: quadChainPackets,
+      evidence: evidenceBundles,
+      modelReceipts,
+      runtimeTraces,
+    }),
   });
 }
 

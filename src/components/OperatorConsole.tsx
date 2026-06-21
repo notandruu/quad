@@ -260,6 +260,41 @@ type OperatorResponse = {
     latest: QuadChainPacketSummary[];
   };
   memory?: MemoryTrailSummary | null;
+  usage?: {
+    posture: {
+      billingReady: boolean;
+      source: "receipt_sample";
+      warning: string | null;
+    };
+    totals: {
+      runs: number;
+      approvals: number;
+      artifacts: number;
+      receipts: number;
+      connectorActions: number;
+      quadchainPackets: number;
+      acceptedPackets: number;
+      rejectedPackets: number;
+      tokensSaved: number;
+      evidenceBundles: number;
+      evidenceBytes: number;
+      modelCalls: number;
+      completedModelCalls: number;
+      failedModelCalls: number;
+      blockedModelCalls: number;
+      inputTokens: number;
+      outputTokens: number;
+      runtimeTraces: number;
+      failedRuntimeTraces: number;
+      estimatedCostUsd: number;
+    };
+    byKind: {
+      artifacts: Record<string, number>;
+      evidence: Record<string, number>;
+      runtime: Record<string, number>;
+      modelPurpose: Record<string, number>;
+    };
+  };
 };
 
 type InstallPlanResponse = {
@@ -551,6 +586,7 @@ export function OperatorConsole({ orgId = "org_redcross", watchRunId }: { orgId?
 
       {data.backendReadiness && <BackendReadinessPanel readiness={data.backendReadiness} />}
       {data.worker && <WorkerUptimePanel worker={data.worker} />}
+      {data.usage && <UsageMeteringPanel usage={data.usage} />}
       {data.quadChain && <QuadChainTrustTrail quadChain={data.quadChain} />}
       {data.memory && (
         <MemoryTrailPanel
@@ -734,6 +770,62 @@ function QuadChainTrustTrail({ quadChain }: { quadChain: NonNullable<OperatorRes
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function UsageMeteringPanel({ usage }: { usage: NonNullable<OperatorResponse["usage"]> }) {
+  const evidenceMb = usage.totals.evidenceBytes > 0
+    ? `${(usage.totals.evidenceBytes / 1_000_000).toFixed(2)}mb`
+    : "0mb";
+  const modelIssueCount = usage.totals.failedModelCalls + usage.totals.blockedModelCalls;
+  const topArtifact = topEntry(usage.byKind.artifacts);
+
+  return (
+    <div className="mt-3 rounded border border-edge bg-ink/45 p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="text-xs font-medium text-neutral-200">Usage meter</h3>
+          <p className="mt-1 font-mono text-[9px] text-neutral-600">
+            receipt-derived internal metering for hosted runs
+          </p>
+        </div>
+        <span className={usage.posture.billingReady ? "rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] text-accent" : "rounded-full border border-amber-300/30 bg-amber-950/20 px-2 py-0.5 text-[10px] text-amber-100"}>
+          {usage.posture.billingReady ? "billing ready" : "internal only"}
+        </span>
+      </div>
+
+      <div className="mt-3 grid grid-cols-5 gap-1.5">
+        <OperatorStat label="runs" value={String(usage.totals.runs)} />
+        <OperatorStat label="actions" value={String(usage.totals.connectorActions)} accent={usage.totals.connectorActions > 0} />
+        <OperatorStat label="tokens" value={String(usage.totals.inputTokens + usage.totals.outputTokens)} />
+        <OperatorStat label="evidence" value={evidenceMb} />
+        <OperatorStat label="cost" value={`$${usage.totals.estimatedCostUsd.toFixed(4)}`} />
+      </div>
+
+      <div className="mt-2 grid gap-1.5 md:grid-cols-3">
+        <UsageRow label="model calls" value={`${usage.totals.completedModelCalls}/${usage.totals.modelCalls}`} />
+        <UsageRow label="model issues" value={String(modelIssueCount)} />
+        <UsageRow label="quadchain" value={`${usage.totals.acceptedPackets}/${usage.totals.quadchainPackets}`} />
+        <UsageRow label="receipts" value={String(usage.totals.receipts)} />
+        <UsageRow label="traces" value={`${usage.totals.runtimeTraces - usage.totals.failedRuntimeTraces}/${usage.totals.runtimeTraces}`} />
+        <UsageRow label="top artifact" value={topArtifact ? `${topArtifact[0]}:${topArtifact[1]}` : "none"} />
+      </div>
+
+      {usage.posture.warning && (
+        <div className="mt-2 rounded border border-amber-300/25 bg-amber-950/20 px-2 py-1 text-[10px] text-amber-100">
+          {usage.posture.warning}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UsageRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded border border-edge bg-panel px-2 py-1.5">
+      <div className="text-[9px] text-neutral-600">{label}</div>
+      <div className="mt-0.5 truncate font-mono text-[10px] text-neutral-300">{value}</div>
     </div>
   );
 }
@@ -1552,6 +1644,11 @@ function freshnessClass(freshness: "fresh" | "stale" | "unknown") {
 
 function formatStatus(status: string) {
   return status.replace("_", " ");
+}
+
+function topEntry(record: Record<string, number>): [string, number] | null {
+  const [entry] = Object.entries(record).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  return entry ?? null;
 }
 
 function formatDuration(durationMs: number | null): string {

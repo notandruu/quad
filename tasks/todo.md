@@ -102,7 +102,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [ ] sentry monitoring for api routes, workers, browser sessions, redis calls, and model calls
 - [x] telemetry redaction policy for sentry, arize, replay events, and logs
 - [ ] retention/deletion controls for runs, artifacts, learned memories, connector tokens, and personal context
-- [ ] billing/usage posture, even if only internal metering at first
+- [x] billing/usage posture, even if only internal metering at first
 - [ ] seed demo org that feels like a real b2b startup customer, not fake hackathon filler
 
 ## current repo audit delta, 2026-06-20

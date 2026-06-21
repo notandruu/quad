@@ -163,6 +163,8 @@ Evidence artifacts are now summarized through a shared evidence bundle layer. Sc
 
 The operator console also shows worker uptime from the same backend health surface: latest canary age, canary duration, heartbeat state, queue depth, retrying jobs, dead-letter count, processed count, and latest job age.
 
+`/api/operator` also includes an internal usage meter derived from receipts, not raw payloads: runs, approvals, artifacts, connector actions, quadchain packets, evidence bytes, model calls, token counts, runtime traces, and estimated cost when metering rates are configured.
+
 Audit and enterprise-proof progress events use the shared Redis event spine. Hosted runs write org-scoped stream, counter, and run-meta keys; zero-key local mode keeps bounded in-memory replay so live-log restoration and tests still work without Upstash.
 
 `GET /api/sponsor/proof` returns a booth-safe sponsor proof manifest: live/fallback/planned status, product claim, demo moment, route or surface, and explicit `safeToClaim` / `doNotClaim` lists. It never returns secret values.
