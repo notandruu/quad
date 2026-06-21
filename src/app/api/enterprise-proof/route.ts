@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
     headers: req.headers,
     requestedOrgId: orgId,
     defaultOrgId: ENTERPRISE_PROOF_ORG_ID,
+    env: orgId === ENTERPRISE_PROOF_ORG_ID ? publicEnterpriseProofDemoEnv() : undefined,
     requiredScopes: ["runs:write"],
   });
   if (!auth.ok) {
@@ -210,4 +211,13 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function publicEnterpriseProofDemoEnv() {
+  return {
+    ...process.env,
+    QUAD_API_SECRET: undefined,
+    QUAD_SERVICE_TOKENS: undefined,
+    QUAD_ALLOWED_ORGS: ENTERPRISE_PROOF_ORG_ID,
+  };
 }

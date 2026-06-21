@@ -23,6 +23,7 @@ export async function GET(request: Request) {
     headers: request.headers,
     requestedOrgId,
     defaultOrgId: requestedOrgId === ENTERPRISE_PROOF_ORG_ID ? ENTERPRISE_PROOF_ORG_ID : DEMO_ORG_ID,
+    env: requestedOrgId === ENTERPRISE_PROOF_ORG_ID ? publicEnterpriseProofDemoEnv() : undefined,
   });
   if (!auth.ok) {
     return NextResponse.json(requestAuthError(auth), { status: auth.status });
@@ -112,6 +113,15 @@ export async function GET(request: Request) {
     connectorCredentials,
     security,
   });
+}
+
+function publicEnterpriseProofDemoEnv() {
+  return {
+    ...process.env,
+    QUAD_API_SECRET: undefined,
+    QUAD_SERVICE_TOKENS: undefined,
+    QUAD_ALLOWED_ORGS: ENTERPRISE_PROOF_ORG_ID,
+  };
 }
 
 type OperatorRunSummary = ReturnType<typeof summarizeAgentTask>;

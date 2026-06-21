@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
     headers: request.headers,
     requestedOrgId: body.orgId ?? DEMO_ORG_ID,
     defaultOrgId: body.orgId === ENTERPRISE_PROOF_ORG_ID ? ENTERPRISE_PROOF_ORG_ID : DEMO_ORG_ID,
+    env: body.orgId === ENTERPRISE_PROOF_ORG_ID ? publicEnterpriseProofDemoEnv() : undefined,
     requiredScopes: body.command === "queue_audit" ? ["jobs:write"] : ["runs:read"],
   });
   if (!auth.ok) {
@@ -99,6 +100,15 @@ export async function POST(request: NextRequest) {
     const status = /required/.test(message) ? 400 : 500;
     return NextResponse.json({ ok: false, error: message }, { status });
   }
+}
+
+function publicEnterpriseProofDemoEnv() {
+  return {
+    ...process.env,
+    QUAD_API_SECRET: undefined,
+    QUAD_SERVICE_TOKENS: undefined,
+    QUAD_ALLOWED_ORGS: ENTERPRISE_PROOF_ORG_ID,
+  };
 }
 
 function buildRequester(body: z.infer<typeof CoreRunBody>) {
