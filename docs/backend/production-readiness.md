@@ -16,6 +16,7 @@ Quad can run with zero keys for demos, but the production backend is only green 
 - Queue/runtime health route: `GET /api/jobs/health`.
 - Backend readiness route: `GET /api/health/backend`.
 - Retention and deletion policy route: `GET /api/security/data`.
+- Retention sweep route: `POST /api/security/retention/sweep`. Dry-run returns expired run candidates and deletion receipts; execute requires a sweep confirmation string.
 - Supabase-backed workflow ledger and quadchain packet registry, with Redis/memory fallback.
 - Normalized task stream events in run snapshots for run lifecycle changes, tasks, artifacts, approvals, decisions, and receipts. The hosted run detail and task endpoints expose the same stream for dashboard, external agents, workers, and future CLI or Slack surfaces.
 - Hosted run, task, and artifact reads are org-scoped. Tokens scoped to another org receive `404` for run detail routes so run ids do not become an existence oracle.
@@ -188,6 +189,7 @@ Backend readiness and security packets only expose token labels, scopes, counts,
 - metaregistry runtime gate: `src/lib/metaregistry`
 - backend readiness: `src/lib/backend/readiness.ts`
 - security and retention: `src/lib/security`
+- retention sweep route: `src/app/api/security/retention/sweep/route.ts`
 - platform schema: `docs/backend/platform-schema.sql`
 - production smoke: `scripts/prod-smoke.mjs`
 

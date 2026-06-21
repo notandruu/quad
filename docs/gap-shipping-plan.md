@@ -267,9 +267,14 @@ Shipped v3:
 - retention policy warns when durable retention is missing, redis ttl is missing, or redis ttl exceeds the configured retention window.
 - `QUAD_ORG_RETENTION_DAYS` supports per-org retention overrides on top of global `QUAD_RETENTION_DAYS`.
 
+Shipped v4:
+
+- `POST /api/security/retention/sweep` plans expired run cleanup from the configured retention policy.
+- dry-run sweep returns candidate runs plus the deletion receipts that would execute.
+- execute sweep requires a deterministic confirmation string and then reuses the protected run deletion path.
+
 Build:
 
-- enforce org-scoped access on durable run reads.
 - document what stays off-chain/off-registry.
 - add secret leak tests for all public settings and summaries.
 

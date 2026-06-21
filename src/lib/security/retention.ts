@@ -66,10 +66,45 @@ export type DataDeletionReceipt = {
   warnings: string[];
 };
 
+export type RetentionSweepMode = DeletionMode;
+
+export type RetentionSweepRequest = {
+  orgId: string;
+  mode: RetentionSweepMode;
+  requestedBy?: string;
+  confirmation?: string;
+  env?: Record<string, string | undefined>;
+  now?: string;
+  limit?: number;
+};
+
+export type RetentionSweepCandidate = {
+  runId: string;
+  title: string;
+  status: string;
+  updatedAt: string;
+  ageDays: number;
+};
+
+export type RetentionSweepReceipt = {
+  id: string;
+  orgId: string;
+  mode: RetentionSweepMode;
+  requestedBy: string;
+  createdAt: string;
+  retentionDays: number;
+  cutoffAt: string;
+  requiredConfirmation: string;
+  executed: boolean;
+  candidates: RetentionSweepCandidate[];
+  receipts: DataDeletionReceipt[];
+  warnings: string[];
+};
+
 export class DataDeletionError extends Error {
   constructor(
     message: string,
-    public readonly code: "run_required" | "confirmation_required",
+    public readonly code: "run_required" | "confirmation_required" | "retention_not_configured",
     public readonly status: 400 | 409
   ) {
     super(message);
@@ -177,6 +212,67 @@ export function buildRetentionPolicy(input: {
   };
 }
 
+export async function buildRetentionSweepReceipt(input: RetentionSweepRequest): Promise<RetentionSweepReceipt> {
+  const now = input.now ?? new Date().toISOString();
+  const policy = buildRetentionPolicy({ orgId: input.orgId, env: input.env, now });
+  if (policy.retentionDays === null) {
+    throw new DataDeletionError(
+      "Retention policy must be configured before running a retention sweep.",
+      "retention_not_configured",
+      400
+    );
+  }
+
+  const cutoffAt = new Date(Date.parse(now) - policy.retentionDays * 86400 * 1000).toISOString();
+  const requiredConfirmation = retentionSweepConfirmationFor({
+    orgId: input.orgId,
+    cutoffAt,
+  });
+  if (input.mode === "execute" && input.confirmation !== requiredConfirmation) {
+    throw new DataDeletionError(
+      `Confirmation must equal ${requiredConfirmation}.`,
+      "confirmation_required",
+      409
+    );
+  }
+
+  const candidates = await findRetentionSweepCandidates({
+    orgId: input.orgId,
+    cutoffAt,
+    now,
+    limit: input.limit,
+  });
+  const receipts: DataDeletionReceipt[] = [];
+  for (const candidate of candidates) {
+    receipts.push(await buildDataDeletionReceipt({
+      orgId: input.orgId,
+      scope: "run",
+      mode: input.mode,
+      runId: candidate.runId,
+      requestedBy: input.requestedBy ?? "retention.sweep",
+      confirmation: input.mode === "execute"
+        ? confirmationFor({ orgId: input.orgId, scope: "run", runId: candidate.runId })
+        : undefined,
+      now,
+    }));
+  }
+
+  return {
+    id: `retention_sweep_${hashParts(input.orgId, cutoffAt, now)}`,
+    orgId: input.orgId,
+    mode: input.mode,
+    requestedBy: input.requestedBy ?? "retention.sweep",
+    createdAt: now,
+    retentionDays: policy.retentionDays,
+    cutoffAt,
+    requiredConfirmation,
+    executed: input.mode === "execute",
+    candidates,
+    receipts,
+    warnings: buildRetentionSweepWarnings(policy),
+  };
+}
+
 export async function buildDataDeletionReceipt(input: DataDeletionRequest): Promise<DataDeletionReceipt> {
   if (input.scope === "run" && !input.runId) {
     throw new DataDeletionError("runId is required for run-scoped deletion.", "run_required", 400);
@@ -214,6 +310,35 @@ export async function buildDataDeletionReceipt(input: DataDeletionRequest): Prom
 
 export function confirmationFor(input: Pick<DataDeletionRequest, "scope" | "orgId" | "runId">): string {
   return input.scope === "run" ? `delete:${input.orgId}:${input.runId}` : `delete:${input.orgId}`;
+}
+
+export function retentionSweepConfirmationFor(input: { orgId: string; cutoffAt: string }): string {
+  return `retention:${input.orgId}:${input.cutoffAt.slice(0, 10)}`;
+}
+
+async function findRetentionSweepCandidates(input: {
+  orgId: string;
+  cutoffAt: string;
+  now: string;
+  limit?: number;
+}): Promise<RetentionSweepCandidate[]> {
+  const limit = Math.max(1, Math.min(input.limit ?? 50, 100));
+  const snapshots = await listRunSnapshots({ orgId: input.orgId, limit: 100 });
+  const cutoffMs = Date.parse(input.cutoffAt);
+  const nowMs = Date.parse(input.now);
+
+  return snapshots
+    .map((snapshot) => ({
+      runId: snapshot.run.id,
+      title: snapshot.run.title,
+      status: snapshot.run.status,
+      updatedAt: snapshot.run.updatedAt,
+      ageDays: Math.max(0, Math.floor((nowMs - Date.parse(snapshot.run.updatedAt)) / 86400000)),
+    }))
+    .filter((candidate) => Number.isFinite(Date.parse(candidate.updatedAt)))
+    .filter((candidate) => Date.parse(candidate.updatedAt) <= cutoffMs)
+    .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))
+    .slice(0, limit);
 }
 
 async function countDeletionTargets(input: DataDeletionRequest): Promise<Array<Omit<DeletionStoreResult, "deleted" | "mode">>> {
@@ -279,6 +404,14 @@ function buildDeletionWarnings(input: DataDeletionRequest): string[] {
     warnings.push("Run-scoped deletion does not delete general company brain memories unless sourceId is provided.");
   }
   return warnings;
+}
+
+function buildRetentionSweepWarnings(policy: RetentionPolicy): string[] {
+  return [
+    ...policy.warnings,
+    "Retention sweep only deletes Quad-controlled run-scoped stores; external provider telemetry still requires provider-side retention or deletion.",
+    "Company brain memories are only deleted by org/source deletion receipts, not by run retention sweeps.",
+  ];
 }
 
 function buildRetentionWarnings(input: {

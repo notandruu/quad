@@ -3,9 +3,15 @@ import { addMemory } from "@/lib/brain";
 import { enqueueAuditJob, listJobs } from "@/lib/jobs/queue";
 import { createQuadChainPacket } from "@/lib/quad-chain";
 import { getQuadChainPackets, saveQuadChainPacket } from "@/lib/quad-chain/registry";
-import { listRunSnapshots } from "@/lib/runs";
+import { createWorkflowRun, listRunSnapshots } from "@/lib/runs";
 import type { BrainMemory } from "@/lib/types";
-import { buildDataDeletionReceipt, buildRetentionPolicy, confirmationFor } from "./retention";
+import {
+  buildDataDeletionReceipt,
+  buildRetentionPolicy,
+  buildRetentionSweepReceipt,
+  confirmationFor,
+  retentionSweepConfirmationFor,
+} from "./retention";
 
 describe("data retention deletion receipts", () => {
   it("builds a configured retention policy across quad stores", () => {
@@ -160,6 +166,95 @@ describe("data retention deletion receipts", () => {
     expect(await listRunSnapshots({ orgId })).toEqual([]);
     expect(await listJobs({ orgId })).toEqual([]);
     expect(await getQuadChainPackets({ orgId, runId })).toEqual([]);
+  });
+
+  it("plans retention sweeps for runs older than the configured cutoff", async () => {
+    const orgId = "org_retention_sweep_plan";
+    createWorkflowRun({
+      id: "run_retention_old",
+      orgId,
+      workflowKind: "website_audit",
+      title: "Old run",
+      createdBy: "dashboard",
+      now: "2026-06-01T00:00:00.000Z",
+    });
+    createWorkflowRun({
+      id: "run_retention_fresh",
+      orgId,
+      workflowKind: "website_audit",
+      title: "Fresh run",
+      createdBy: "dashboard",
+      now: "2026-06-20T00:00:00.000Z",
+    });
+
+    const sweep = await buildRetentionSweepReceipt({
+      orgId,
+      mode: "dry_run",
+      env: {
+        QUAD_RETENTION_DAYS: "7",
+      },
+      now: "2026-06-21T00:00:00.000Z",
+    });
+
+    expect(sweep.executed).toBe(false);
+    expect(sweep.retentionDays).toBe(7);
+    expect(sweep.cutoffAt).toBe("2026-06-14T00:00:00.000Z");
+    expect(sweep.requiredConfirmation).toBe("retention:org_retention_sweep_plan:2026-06-14");
+    expect(sweep.candidates.map((candidate) => candidate.runId)).toEqual(["run_retention_old"]);
+    expect(sweep.receipts[0]).toMatchObject({
+      scope: "run",
+      mode: "dry_run",
+      runId: "run_retention_old",
+      executed: false,
+    });
+  });
+
+  it("executes retention sweeps only with explicit sweep confirmation", async () => {
+    const orgId = "org_retention_sweep_execute";
+    const runId = "run_retention_execute_old";
+    createWorkflowRun({
+      id: runId,
+      orgId,
+      workflowKind: "website_audit",
+      title: "Old execute run",
+      createdBy: "dashboard",
+      now: "2026-06-01T00:00:00.000Z",
+    });
+
+    await expect(buildRetentionSweepReceipt({
+      orgId,
+      mode: "execute",
+      env: {
+        QUAD_RETENTION_DAYS: "7",
+      },
+      now: "2026-06-21T00:00:00.000Z",
+      confirmation: "retention:wrong",
+    })).rejects.toMatchObject({
+      code: "confirmation_required",
+      status: 409,
+    });
+
+    const confirmation = retentionSweepConfirmationFor({
+      orgId,
+      cutoffAt: "2026-06-14T00:00:00.000Z",
+    });
+    const sweep = await buildRetentionSweepReceipt({
+      orgId,
+      mode: "execute",
+      env: {
+        QUAD_RETENTION_DAYS: "7",
+      },
+      now: "2026-06-21T00:00:00.000Z",
+      confirmation,
+    });
+
+    expect(sweep.executed).toBe(true);
+    expect(sweep.receipts[0]).toMatchObject({
+      mode: "execute",
+      runId,
+      executed: true,
+    });
+    expect(await listRunSnapshots({ orgId })).toEqual([]);
   });
 });
 
