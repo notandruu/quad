@@ -190,9 +190,10 @@ Shipped v4:
 - The dashboard shows a voice prompt with an evidence hint and a next control, so voice mode actively guides what to capture.
 - The interview question set covers buyer trust proof, compliance claims, customer fit, approved execution workflows, and differentiated claims.
 
-Build:
+Shipped v5:
 
-- next audit compares website against newly captured voice context.
+- After a voice answer is saved as memory, the dashboard shows a `Rerun audit` action on the memory receipt.
+- The action reruns the same target URL and org, so the next audit compares the website against newly captured voice context.
 
 Acceptance:
 

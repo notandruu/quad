@@ -20,6 +20,11 @@ type Message = {
   text: string;
   quadChain?: QuadChainPacketSummary | null;
   verifiedContext?: QuadChainPacketSummary[];
+  action?: {
+    label: string;
+    targetUrl: string;
+    orgId: string;
+  };
 };
 type DemoState = "idle" | "loading" | "done";
 
@@ -126,12 +131,20 @@ export default function Home() {
   function handleVoiceStored(input: { memory: { id: string; title: string } | null; quadChain: QuadChainPacketSummary[] }) {
     const memory = input.memory;
     if (!memory) return;
+    const currentReport = report;
     setMessages((m) => [
       ...m,
       {
         role: "quad",
         text: `Saved that as company memory: ${memory.title}.`,
         quadChain: input.quadChain.find((packet) => packet.type === "brain_memory_write") ?? input.quadChain[0] ?? null,
+        action: currentReport
+          ? {
+              label: "Rerun audit",
+              targetUrl: currentReport.targetUrl,
+              orgId: currentReport.orgId,
+            }
+          : undefined,
       },
     ]);
   }
@@ -243,19 +256,7 @@ export default function Home() {
 
         <div className="flex-1 space-y-3 overflow-y-auto">
           {messages.map((m, i) => (
-            <div key={i} className={m.role === "user" ? "text-right" : ""}>
-              <span className="inline-block rounded-lg bg-panel px-3 py-2 text-sm text-neutral-200">
-                {m.text}
-              </span>
-              {m.quadChain && (
-                <div className={m.role === "user" ? "mt-1 text-right" : "mt-1"}>
-                  <span className="inline-block rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 font-mono text-[10px] text-accent">
-                    verified by quadchain · {m.quadChain.certificateId}
-                    {m.verifiedContext?.length ? ` · used ${m.verifiedContext.length} verified memories` : ""}
-                  </span>
-                </div>
-              )}
-            </div>
+            <MessageBubble key={i} message={m} active={active} onAction={startAudit} />
           ))}
           <OperatorConsole watchRunId={report?.runId ?? null} />
           <TrustTrail runId={report?.runId ?? null} />
@@ -289,6 +290,46 @@ export default function Home() {
 
       <DebugDrawer />
     </main>
+  );
+}
+
+function MessageBubble({
+  message,
+  active,
+  onAction,
+}: {
+  message: Message;
+  active: boolean;
+  onAction: (targetUrl: string, orgId?: string) => void;
+}) {
+  const align = message.role === "user" ? "text-right" : "";
+  const action = message.action;
+  return (
+    <div className={align}>
+      <span className="inline-block rounded-lg bg-panel px-3 py-2 text-sm text-neutral-200">
+        {message.text}
+      </span>
+      {message.quadChain && (
+        <div className={message.role === "user" ? "mt-1 text-right" : "mt-1"}>
+          <span className="inline-block rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 font-mono text-[10px] text-accent">
+            verified by quadchain · {message.quadChain.certificateId}
+            {message.verifiedContext?.length ? ` · used ${message.verifiedContext.length} verified memories` : ""}
+          </span>
+        </div>
+      )}
+      {action && (
+        <div className={message.role === "user" ? "mt-2 text-right" : "mt-2"}>
+          <button
+            type="button"
+            onClick={() => onAction(action.targetUrl, action.orgId)}
+            disabled={active}
+            className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-medium text-accent hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {action.label}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
