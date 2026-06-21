@@ -97,11 +97,25 @@ The async backend path is now available:
 ```bash
 npm run worker       # long-running worker loop for Railway
 npm run worker:once  # process one queued job locally
+npm run canary:worker # run the hosted worker canary and verify jobs health
 ```
 
 `POST /api/jobs` queues a website audit or enterprise proof run, `GET /api/jobs` lists queued/running/completed jobs, `GET /api/jobs/:jobId` inspects a job, `POST /api/jobs/process` processes one job for cron-style or protected worker calls, and `POST /api/jobs/canary` enqueues, claims, and processes a synthetic worker canary. Redis is used when configured; local demos fall back to in-memory jobs.
 
 Set `QUAD_WORKER_SECRET` for protected worker processing calls. When it is configured, `POST /api/jobs/process` requires the same bearer/api-key auth shape as the rest of the hosted API. Set `QUAD_WORKER_ENABLED=true` on hosted environments that expect a long-running worker; backend readiness will stay degraded until a fresh heartbeat appears. Worker claims use a short Redis-backed lease so duplicate queue ids or multiple worker processes do not execute the same job at once; tune it with `QUAD_WORKER_JOB_LEASE_SECONDS`.
+
+For Vercel plus Railway:
+
+1. Deploy the Next.js app on Vercel with the shared app env.
+2. Run the Railway worker service with `npm run worker`.
+3. Set `QUAD_WORKER_ENABLED=true`, `QUAD_WORKER_SECRET`, `QUAD_REDIS_REST_URL`, and `QUAD_REDIS_REST_TOKEN` in both hosted environments.
+4. After deploy, run:
+
+```bash
+QUAD_CANARY_BASE_URL=https://quad.stephenhung.me npm run canary:worker
+```
+
+The canary posts to `/api/jobs/canary`, verifies `/api/jobs/health`, checks that the latest canary receipt matches the job it just created, and fails if the queue has dead-lettered jobs. It never prints the worker secret.
 
 ## What is stubbed
 

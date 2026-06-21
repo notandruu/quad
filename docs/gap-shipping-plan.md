@@ -140,10 +140,17 @@ Shipped v3:
 - `GET /api/jobs/health`, `GET /api/health/backend`, and `/api/operator` expose the latest canary receipt.
 - operator console shows a compact backend status derived from worker runtime and canary state.
 
+Shipped v4:
+
+- `npm run canary:worker` runs the worker canary against a local or hosted base URL.
+- the script verifies both `/api/jobs/canary` and `/api/jobs/health`.
+- the health check fails on stale canary receipts, failed canaries, or dead-lettered jobs.
+- the README documents the Vercel app plus Railway worker deployment path.
+
 Next:
 
-- add deployment docs for Railway env and start command.
 - run the canary from a scheduled monitor after deploy.
+- add an uptime dashboard or Railway cron that calls the same canary script.
 
 ## Gap 5: voice-led enterprise proof interview
 
