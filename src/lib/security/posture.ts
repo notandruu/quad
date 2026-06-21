@@ -153,6 +153,22 @@ export function buildSecurityPacket(input: {
       ),
     }),
     control({
+      id: "mutation_rate_limits",
+      label: "Mutation rate limits",
+      ok: true,
+      passDetail: "Hosted mutation routes share org-scoped rate-limit guards with Redis and memory fallback.",
+      missingDetail: "Mutation routes are not rate limited.",
+      evidence: ["checkMutationGuards()", "checkRateLimit()", "QUAD_MUTATION_RATE_LIMIT"],
+    }),
+    control({
+      id: "idempotent_mutations",
+      label: "Idempotent mutations",
+      ok: true,
+      passDetail: "High-risk mutation routes support Idempotency-Key replay and conflict detection.",
+      missingDetail: "Mutation routes do not support safe retries.",
+      evidence: ["Idempotency-Key", "saveIdempotentResult()", "buildRequestFingerprint()"],
+    }),
+    control({
       id: "quadchain_receipts",
       label: "Quadchain receipts",
       ok: capabilities.activeTools.some((tool) => tool.id === "quad.chain_verifier"),

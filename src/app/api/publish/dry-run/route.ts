@@ -3,6 +3,13 @@ import { z } from "zod";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { DryRunPublishError, dryRunPublish } from "@/lib/fde/publisher";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
+import {
+  buildRequestFingerprint,
+  checkMutationGuards,
+  idempotencyReplayBody,
+  mutationGuardError,
+  saveIdempotentResult,
+} from "@/lib/security/mutations";
 
 export const runtime = "nodejs";
 
@@ -27,6 +34,19 @@ export async function POST(request: NextRequest) {
   if (!auth.ok) {
     return NextResponse.json(requestAuthError(auth), { status: auth.status });
   }
+  const fingerprint = buildRequestFingerprint(body);
+  const guard = await checkMutationGuards({
+    orgId: auth.orgId,
+    route: "publish.dry_run",
+    headers: request.headers,
+    fingerprint,
+  });
+  if (!guard.ok) {
+    return NextResponse.json(mutationGuardError(guard), { status: guard.status });
+  }
+  if (guard.replay) {
+    return NextResponse.json(idempotencyReplayBody(guard.replay), { status: guard.replay.status });
+  }
 
   try {
     const result = await dryRunPublish({
@@ -35,7 +55,7 @@ export async function POST(request: NextRequest) {
       actor: body.actor,
     });
 
-    return NextResponse.json({
+    const responseBody = {
       ok: true,
       task: result.task,
       staged: result.staged.map((item) => ({
@@ -48,7 +68,15 @@ export async function POST(request: NextRequest) {
         receiptId: item.receiptId,
         packet: item.packet,
       })),
+    };
+    await saveIdempotentResult({
+      orgId: auth.orgId,
+      route: "publish.dry_run",
+      headers: request.headers,
+      fingerprint,
+      body: responseBody,
     });
+    return NextResponse.json(responseBody);
   } catch (error) {
     if (error instanceof DryRunPublishError) {
       return NextResponse.json({ ok: false, error: error.message, code: error.code }, { status: error.status });

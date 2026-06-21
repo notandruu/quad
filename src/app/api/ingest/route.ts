@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { ingestMemory } from "@/lib/brain";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
+import {
+  buildRequestFingerprint,
+  checkMutationGuards,
+  idempotencyReplayBody,
+  mutationGuardError,
+  saveIdempotentResult,
+} from "@/lib/security/mutations";
 import type { SourceType } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -35,6 +42,24 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) {
     return NextResponse.json(requestAuthError(auth), { status: auth.status });
   }
+  const fingerprint = buildRequestFingerprint({
+    title: body.title,
+    content: body.content,
+    sourceId: body.sourceId,
+    sourceType: body.sourceType,
+  });
+  const guard = await checkMutationGuards({
+    orgId: auth.orgId,
+    route: "brain.ingest",
+    headers: req.headers,
+    fingerprint,
+  });
+  if (!guard.ok) {
+    return NextResponse.json(mutationGuardError(guard), { status: guard.status });
+  }
+  if (guard.replay) {
+    return NextResponse.json(idempotencyReplayBody(guard.replay), { status: guard.replay.status });
+  }
 
   try {
     const memory = await ingestMemory({
@@ -49,7 +74,15 @@ export async function POST(req: NextRequest) {
       permissions: body.permissions,
       evidence: body.evidence,
     });
-    return NextResponse.json({ id: memory.id, ok: true });
+    const responseBody = { id: memory.id, ok: true };
+    await saveIdempotentResult({
+      orgId: auth.orgId,
+      route: "brain.ingest",
+      headers: req.headers,
+      fingerprint,
+      body: responseBody,
+    });
+    return NextResponse.json(responseBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 500 });

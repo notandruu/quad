@@ -3,6 +3,13 @@ import { z } from "zod";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { enqueueAuditJob, listJobs, type JobStatus } from "@/lib/jobs/queue";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
+import {
+  buildRequestFingerprint,
+  checkMutationGuards,
+  idempotencyReplayBody,
+  mutationGuardError,
+  saveIdempotentResult,
+} from "@/lib/security/mutations";
 
 export const runtime = "nodejs";
 
@@ -55,6 +62,19 @@ export async function POST(request: NextRequest) {
   if (!auth.ok) {
     return NextResponse.json(requestAuthError(auth), { status: auth.status });
   }
+  const fingerprint = buildRequestFingerprint(body);
+  const guard = await checkMutationGuards({
+    orgId: auth.orgId,
+    route: "jobs.create",
+    headers: request.headers,
+    fingerprint,
+  });
+  if (!guard.ok) {
+    return NextResponse.json(mutationGuardError(guard), { status: guard.status });
+  }
+  if (guard.replay) {
+    return NextResponse.json(idempotencyReplayBody(guard.replay), { status: guard.replay.status });
+  }
 
   const result = await enqueueAuditJob({
     orgId: auth.orgId,
@@ -65,10 +85,19 @@ export async function POST(request: NextRequest) {
     createdBy: body.createdBy,
   });
 
-  return NextResponse.json({
+  const responseBody = {
     ok: true,
     mode: result.mode,
     job: result.job,
     task: result.task,
+  };
+  await saveIdempotentResult({
+    orgId: auth.orgId,
+    route: "jobs.create",
+    headers: request.headers,
+    fingerprint,
+    body: responseBody,
   });
+
+  return NextResponse.json(responseBody);
 }

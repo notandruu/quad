@@ -65,6 +65,8 @@ Hosted API routes accept `Authorization: Bearer $QUAD_API_SECRET` or `x-quad-api
 
 `GET /api/security/packet` returns an org-scoped security posture packet: data flows, model routing, storage posture, retention/deletion gaps, connector scopes, redaction guarantees, and warnings. It is protected by the same hosted API guard and never includes raw env secret values.
 
+High-risk mutation routes are protected by org-scoped rate limits and optional `Idempotency-Key` replay. Configure `QUAD_MUTATION_RATE_LIMIT`, `QUAD_MUTATION_RATE_WINDOW_SECONDS`, and `QUAD_IDEMPOTENCY_TTL_SECONDS` for hosted deployments.
+
 ## Verification
 
 ```bash

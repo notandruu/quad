@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildDashboardTrustPacket } from "@/lib/fde/trustPacketService";
 import { loadCachedReport } from "@/lib/runtime/reportCache";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
+import {
+  buildRequestFingerprint,
+  checkMutationGuards,
+  idempotencyReplayBody,
+  mutationGuardError,
+  saveIdempotentResult,
+} from "@/lib/security/mutations";
 
 export const runtime = "nodejs";
 
@@ -25,10 +32,23 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) {
     return NextResponse.json(requestAuthError(auth), { status: auth.status });
   }
+  const fingerprint = buildRequestFingerprint({ runId, reportOrgId: report.orgId });
+  const guard = await checkMutationGuards({
+    orgId: auth.orgId,
+    route: "trust_packet.create",
+    headers: req.headers,
+    fingerprint,
+  });
+  if (!guard.ok) {
+    return NextResponse.json(mutationGuardError(guard), { status: guard.status });
+  }
+  if (guard.replay) {
+    return NextResponse.json(idempotencyReplayBody(guard.replay), { status: guard.replay.status });
+  }
 
   const result = await buildDashboardTrustPacket({ report });
 
-  return NextResponse.json({
+  const responseBody = {
     ok: true,
     packet: result.packet,
     task: result.task,
@@ -41,5 +61,14 @@ export async function POST(req: NextRequest) {
       steps: result.workflow.steps,
       openObligations: result.workflow.openObligations,
     },
+  };
+  await saveIdempotentResult({
+    orgId: auth.orgId,
+    route: "trust_packet.create",
+    headers: req.headers,
+    fingerprint,
+    body: responseBody,
   });
+
+  return NextResponse.json(responseBody);
 }

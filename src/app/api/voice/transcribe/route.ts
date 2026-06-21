@@ -4,6 +4,13 @@ import { DEMO_ORG_ID } from "@/data/seed";
 import { createQuadChainPacket, summarizeQuadChainPacket } from "@/lib/quad-chain";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
+import {
+  buildRequestFingerprint,
+  checkMutationGuards,
+  idempotencyReplayBody,
+  mutationGuardError,
+  saveIdempotentResult,
+} from "@/lib/security/mutations";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -32,6 +39,25 @@ export async function POST(request: Request) {
   if (!auth.ok) {
     return NextResponse.json(requestAuthError(auth), { status: auth.status });
   }
+  const runId = typeof form.get("runId") === "string" ? String(form.get("runId")) : `voice_${crypto.randomUUID()}`;
+  const fingerprint = buildRequestFingerprint({
+    runId,
+    audioType: audio.type || "application/octet-stream",
+    audioSize: audio.size,
+  });
+  const guard = await checkMutationGuards({
+    orgId: auth.orgId,
+    route: "voice.transcribe",
+    headers: request.headers,
+    fingerprint,
+    limit: 10,
+  });
+  if (!guard.ok) {
+    return NextResponse.json(mutationGuardError(guard), { status: guard.status });
+  }
+  if (guard.replay) {
+    return NextResponse.json(idempotencyReplayBody(guard.replay), { status: guard.replay.status });
+  }
 
   try {
     const result = await transcribeWithDeepgram({
@@ -44,7 +70,7 @@ export async function POST(request: Request) {
     const packet = createQuadChainPacket({
       type: "voice_transcript",
       orgId: auth.orgId,
-      runId: typeof form.get("runId") === "string" ? String(form.get("runId")) : `voice_${crypto.randomUUID()}`,
+      runId,
       producer: "quad.voice.deepgram",
       consumer: "quad.chat",
       sources: [
@@ -64,7 +90,15 @@ export async function POST(request: Request) {
     });
     await saveQuadChainPacket(packet);
 
-    return NextResponse.json({ ...result, quadChain: summarizeQuadChainPacket(packet) });
+    const responseBody = { ...result, quadChain: summarizeQuadChainPacket(packet) };
+    await saveIdempotentResult({
+      orgId: auth.orgId,
+      route: "voice.transcribe",
+      headers: request.headers,
+      fingerprint,
+      body: responseBody,
+    });
+    return NextResponse.json(responseBody);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Transcription failed." },
