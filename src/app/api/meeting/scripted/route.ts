@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { DEMO_MEETING } from "@/data/demo/meeting";
 import { createMeetingSession, updateMeetingSession } from "@/lib/meeting/sessions";
+import { buildMeetingIntelligence } from "@/lib/meeting/intelligence";
 import { learnFromMeeting } from "@/lib/skills/learnFromMeeting";
 import { publishAuditEvent } from "@/lib/redis/publisher";
 import type { PublishedEvent } from "@/lib/redis/publisher";
@@ -58,12 +59,19 @@ export async function POST(req: NextRequest) {
           title,
           context: DEMO_MEETING.context,
           utterances: DEMO_MEETING.utterances,
+          writePolicy: "approval",
           onEvent,
           // Inject a per-utterance delay so the live log scrolls in real time.
           _extractOverride: async (segment, context) => {
             await sleep(delayMs);
             return defaultExtract(segment, context);
           },
+          _judgeOverride: async () => ({
+            passed: true,
+            durable: true,
+            confidence: 0.88,
+            reason: "scripted demo fixture",
+          }),
         });
 
         updateMeetingSession(runId, {
@@ -74,10 +82,13 @@ export async function POST(req: NextRequest) {
           transcript: result.transcript,
         });
 
+        const intelligence = await buildMeetingIntelligence(result);
+
         send({
           type: "meeting.result",
           runId,
           learnedCount: result.learnedCount,
+          proposedCount: result.proposedCount,
           rejectedCount: result.rejectedCount,
           summary: result.summary,
           facts: result.facts.map((f) => ({
@@ -85,6 +96,16 @@ export async function POST(req: NextRequest) {
             status: f.status,
             confidence: f.confidence,
           })),
+          workflow: {
+            runId: intelligence.runId,
+            status: intelligence.task.status,
+            approval: intelligence.approval,
+            receipt: intelligence.receipt,
+            artifacts: intelligence.artifacts,
+            packets: intelligence.packets,
+            followups: intelligence.followups,
+            nextAction: intelligence.task.nextAction,
+          },
         });
       } catch (err) {
         updateMeetingSession(runId, { status: "failed" });

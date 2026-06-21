@@ -55,7 +55,7 @@ describe("POST /api/enterprise-proof", () => {
     vi.stubEnv("QUAD_API_SECRET", "secret_test");
 
     const response = await POST(jsonRequest({
-      orgId: ENTERPRISE_PROOF_ORG_ID,
+      orgId: "org_locked_enterprise",
       question: "Do you have MFA?",
     }));
     const body = await response.json();

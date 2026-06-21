@@ -6,7 +6,8 @@ export type WorkflowKind =
   | "trust_packet"
   | "agent_bridge"
   | "capability_install"
-  | "memory_write";
+  | "memory_write"
+  | "meeting_agent";
 
 export type WorkflowRunStatus =
   | "queued"
@@ -21,6 +22,10 @@ export type ArtifactKind =
   | "quad_chain_certificate"
   | "approval_request"
   | "receipt"
+  | "meeting_transcript"
+  | "meeting_summary"
+  | "meeting_memory_proposal"
+  | "meeting_followup"
   | "cms_draft"
   | "task_draft"
   | "trust_packet_export"

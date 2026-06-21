@@ -21,7 +21,7 @@ export type MeetingFactVerdict = {
 
 export type MeetingFactResult = {
   fact: ExtractedFact;
-  status: "learned" | "rejected" | "reused";
+  status: "learned" | "proposed" | "rejected" | "reused";
   confidence?: number;
   reason?: string;
   memoryId?: string;
@@ -35,6 +35,7 @@ export type LearnFromMeetingResult = {
   transcript: string;
   facts: MeetingFactResult[];
   learnedCount: number;
+  proposedCount: number;
   rejectedCount: number;
   summary: string;
 };
@@ -46,6 +47,7 @@ export type LearnFromMeetingInput = {
   context?: string;
   utterances: MeetingUtterance[];
   onEvent?: (event: PublishedEvent) => void;
+  writePolicy?: "direct" | "approval";
   /** Test/seam overrides. */
   _extractOverride?: (segment: string, context: string) => Promise<ExtractedFact[]>;
   _judgeOverride?: (fact: ExtractedFact, transcript: string) => Promise<MeetingFactVerdict | null>;
@@ -77,6 +79,7 @@ export async function learnFromMeeting(input: LearnFromMeetingInput): Promise<Le
   const extract = input._extractOverride ?? defaultExtract;
   const judge = input._judgeOverride ?? defaultJudge;
   const ingestImpl = input._ingestOverride ?? ingestMemory;
+  const writePolicy = input.writePolicy ?? "direct";
 
   const emit = async (type: string, payload: Record<string, unknown>) => {
     const event = await publishAuditEvent(runId, type, payload);
@@ -133,6 +136,18 @@ export async function learnFromMeeting(input: LearnFromMeetingInput): Promise<Le
 
       await emit("fact.evaluated", { claim: fact.claim, passed: true, confidence: verdict.confidence });
 
+      if (writePolicy === "approval") {
+        facts.push({ fact, status: "proposed", confidence: verdict.confidence, sourceId });
+        await emit("fact.proposed", {
+          claim: fact.claim,
+          category: fact.category,
+          sourceId,
+          confidence: verdict.confidence,
+          approvalRequired: true,
+        });
+        continue;
+      }
+
       const memory = await ingestImpl({
         orgId,
         sourceId,
@@ -152,11 +167,13 @@ export async function learnFromMeeting(input: LearnFromMeetingInput): Promise<Le
   }
 
   const learned = facts.filter((f) => f.status === "learned" || f.status === "reused");
+  const proposed = facts.filter((f) => f.status === "proposed");
   const rejected = facts.filter((f) => f.status === "rejected");
-  const summary = await summarizeMeeting(title, learned.map((f) => f.fact.claim)).catch(() => buildHeuristicSummary(learned));
+  const retainedFacts = learned.length > 0 ? learned : proposed;
+  const summary = await summarizeMeeting(title, retainedFacts.map((f) => f.fact.claim)).catch(() => buildHeuristicSummary(retainedFacts));
 
-  await emit("meeting.summarized", { summary, learnedCount: learned.length, rejectedCount: rejected.length });
-  await emit("meeting.ended", { runId, learnedCount: learned.length, rejectedCount: rejected.length });
+  await emit("meeting.summarized", { summary, learnedCount: learned.length, proposedCount: proposed.length, rejectedCount: rejected.length });
+  await emit("meeting.ended", { runId, learnedCount: learned.length, proposedCount: proposed.length, rejectedCount: rejected.length });
 
   return {
     runId,
@@ -165,6 +182,7 @@ export async function learnFromMeeting(input: LearnFromMeetingInput): Promise<Le
     transcript: transcriptLines.join("\n"),
     facts,
     learnedCount: learned.length,
+    proposedCount: proposed.length,
     rejectedCount: rejected.length,
     summary,
   };

@@ -20,7 +20,7 @@ test.describe("quad production flows", () => {
 
     await expect(page.getByRole("heading", { name: "Quad", exact: true })).toBeVisible();
     await expect(page.getByPlaceholder(/Ask Quad/)).toBeVisible();
-    await expect(page.getByRole("link", { name: "Quadchain" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Quadchain", exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: /Backends/ }).click();
     await expect(page.getByText("Stack status")).toBeVisible();

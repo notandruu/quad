@@ -105,6 +105,41 @@ test.describe("api contracts", () => {
     expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
   });
 
+  test("runs the scripted meeting agent into governed artifacts", async ({ request }) => {
+    const response = await request.post("/api/meeting/scripted", {
+      timeout: 60_000,
+      data: {
+        orgId: "org_redcross",
+        title: "Playwright meeting proof",
+        delayMs: 0,
+      },
+    });
+
+    expect(response.ok()).toBe(true);
+    const body = await response.text();
+    const events = body
+      .split("\n")
+      .filter((line) => line.startsWith("data: "))
+      .map((line) => JSON.parse(line.slice(6)) as { type?: string; workflow?: Record<string, unknown> });
+    const result = events.find((event) => event.type === "meeting.result");
+    const workflow = result?.workflow as
+      | { artifacts?: unknown[]; packets?: Array<{ accepted: boolean }> }
+      | undefined;
+
+    expect(events.some((event) => event.type === "fact.proposed")).toBe(true);
+    expect(result?.workflow).toMatchObject({
+      status: "needs_approval",
+      approval: {
+        decision: "pending",
+      },
+      receipt: {
+        status: "blocked",
+      },
+    });
+    expect(workflow?.artifacts?.length).toBeGreaterThanOrEqual(4);
+    expect(workflow?.packets?.every((packet) => packet.accepted)).toBe(true);
+  });
+
   test("runs shared core commands for chat and queued audit", async ({ request }) => {
     const chat = await request.post("/api/core/run", {
       data: {

@@ -466,12 +466,21 @@ Shipped v6:
 - A spoken command creates a restricted audio evidence bundle, a `voice_transcript` packet, an optional `brain_memory_write` packet, and a core `chat_answer` packet in one response.
 - The dashboard displays the spoken command and the assistant answer immediately when the backend returns a core voice response.
 
+Shipped v7:
+
+- Scripted meeting mode now runs `learnFromMeeting` in approval mode, so verified facts are staged instead of silently writing to the shared brain.
+- `buildMeetingIntelligence()` turns a meeting transcript into a `meeting_agent` workflow with transcript, summary, memory proposal, follow-up, approval, and blocked receipt artifacts.
+- Meeting intelligence emits accepted `voice_transcript`, `approval`, and `agent_handoff` quadchain packet summaries without putting raw transcript text in packet source content.
+- Approving the meeting memory proposal uses the existing approval decision path and writes the derived meeting memory to the company brain as a real side effect.
+- The meeting page now surfaces staged approvals, artifact count, and accepted packet count after the scripted run.
+
 Acceptance:
 
 - user can speak company facts into quad.
-- quad writes verified memory.
+- quad stages verified memory for approval before shared-brain writeback.
 - quad answers spoken commands through the same runtime as chat.
 - audit finds website gaps based on the voice interview.
+- meeting-derived follow-ups become governed artifacts instead of loose notes.
 
 ## Gap 6: sponsor proof
 

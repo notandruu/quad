@@ -24,8 +24,29 @@ type LearnedFact = {
   id: string;
   claim: string;
   category: string;
-  status: "learned" | "reused" | "rejected";
+  status: "learned" | "proposed" | "reused" | "rejected";
   confidence?: number;
+};
+
+type MeetingWorkflow = {
+  runId: string;
+  status: string;
+  nextAction: string;
+  approval?: {
+    id: string;
+    decision: string;
+    reason: string;
+    evidenceVisible: boolean;
+  };
+  receipt?: {
+    id: string;
+    status: string;
+    summary: string;
+    artifactHash: string;
+  };
+  artifacts?: Array<{ id: string; kind: string; title: string; hash: string }>;
+  packets?: Array<{ id: string; type: string; accepted: boolean; evidencePreserved: number; tokensSaved: number }>;
+  followups?: Array<{ id: string; title: string; status: string; reason: string }>;
 };
 
 const THINKING_LABELS: Record<string, { label: string; tone: ThinkingStep["tone"] }> = {
@@ -34,6 +55,7 @@ const THINKING_LABELS: Record<string, { label: string; tone: ThinkingStep["tone"
   "meeting.thinking":   { label: "Scanning…",               tone: "active" },
   "fact.extracted":     { label: "Fact extracted",          tone: "warning" },
   "fact.evaluated":     { label: "Verified",                tone: "success" },
+  "fact.proposed":      { label: "Approval staged",         tone: "warning" },
   "fact.learned":       { label: "Brain updated",           tone: "success" },
   "fact.rejected":      { label: "Rejected",                tone: "error" },
   "meeting.summarized": { label: "Summary complete",        tone: "success" },
@@ -51,6 +73,7 @@ export default function MeetingPage() {
   const [thinking, setThinking]     = useState<ThinkingStep[]>([]);
   const [facts, setFacts]           = useState<LearnedFact[]>([]);
   const [summary, setSummary]       = useState<string | null>(null);
+  const [workflow, setWorkflow]     = useState<MeetingWorkflow | null>(null);
   const [error, setError]           = useState<string | null>(null);
   const [learnedCount, setLearnedCount] = useState(0);
 
@@ -134,6 +157,7 @@ export default function MeetingPage() {
     if (type === "meeting.result") {
       setSummary(String(evt.summary ?? ""));
       setLearnedCount(Number(evt.learnedCount ?? 0));
+      setWorkflow(isMeetingWorkflow(evt.workflow) ? evt.workflow : null);
     }
 
     if (type === "meeting.transcript") {
@@ -154,6 +178,7 @@ export default function MeetingPage() {
         type === "meeting.thinking"  ? String(evt.detail ?? "") :
         type === "fact.extracted"    ? String(evt.claim ?? "") :
         type === "fact.learned"      ? String(evt.claim ?? "") :
+        type === "fact.proposed"     ? `${String(evt.claim ?? "")} - approval required` :
         type === "fact.rejected"     ? `${String(evt.claim ?? "")} — ${String(evt.reason ?? "")}` :
         type === "fact.evaluated"    ? `${String(evt.claim ?? "")} (${Math.round(Number(evt.confidence ?? 0) * 100)}%)` :
         type === "meeting.summarized"? String(evt.summary ?? "") :
@@ -182,6 +207,18 @@ export default function MeetingPage() {
       ]);
       if (!reused) setLearnedCount((c) => c + 1);
     }
+    if (type === "fact.proposed") {
+      setFacts((f) => [
+        ...f,
+        {
+          id: crypto.randomUUID(),
+          claim: String(evt.claim ?? ""),
+          category: String(evt.category ?? "fact"),
+          status: "proposed",
+          confidence: typeof evt.confidence === "number" ? evt.confidence : undefined,
+        },
+      ]);
+    }
     if (type === "fact.rejected") {
       setFacts((f) => [
         ...f,
@@ -201,6 +238,7 @@ export default function MeetingPage() {
     setThinking([]);
     setFacts([]);
     setSummary(null);
+    setWorkflow(null);
     setLearnedCount(0);
     setStatus("joining");
 
@@ -230,6 +268,7 @@ export default function MeetingPage() {
     setThinking([]);
     setFacts([]);
     setSummary(null);
+    setWorkflow(null);
     setLearnedCount(0);
     setStatus("joining");
 
@@ -252,7 +291,7 @@ export default function MeetingPage() {
         <div className="flex items-center gap-3">
           <a href="/" className="text-xs text-neutral-500 hover:text-neutral-300">← Dashboard</a>
           <span className="text-neutral-700">|</span>
-          <span className="text-sm font-semibold text-neutral-200">Quad — Meeting Agent</span>
+          <span className="text-sm font-semibold text-neutral-200">Quad - meeting agent</span>
           {status === "live" && (
             <span className="flex items-center gap-1.5 text-xs text-red-400">
               <span className="inline-block h-2 w-2 rounded-full bg-red-500" style={{ animation: "pulse 1.2s infinite" }} />
@@ -337,12 +376,12 @@ export default function MeetingPage() {
       {status === "idle" && (
         <div className="flex flex-1 items-center justify-center">
           <div className="max-w-sm text-center">
-            <div className="mb-4 text-5xl">🎙</div>
-            <h2 className="mb-2 text-lg font-semibold">Meeting Agent</h2>
+            <div className="mb-4 text-5xl">[rec]</div>
+            <h2 className="mb-2 text-lg font-semibold">Meeting agent</h2>
             <p className="mb-6 text-sm text-neutral-400">
               {mode === "recall"
-                ? "Paste a Google Meet URL and send Quad AI to the meeting. The agent joins as a participant, listens, and learns verified facts into the company brain in real time."
-                : "Run the scripted Red Cross staff sync demo. The agent processes each utterance live — you see the transcript, the thinking log, and the brain updating."}
+                ? "Paste a Google Meet URL and send Quad AI to the meeting. The agent joins as a participant, listens, and stages verified facts for approval."
+                : "Run the scripted Red Cross staff sync demo. The agent processes each utterance live, builds a governed memory proposal, and leaves a trust trail."}
             </p>
             <p className="text-xs text-neutral-600">
               {mode === "recall"
@@ -433,24 +472,27 @@ export default function MeetingPage() {
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-2">
                 {facts.length === 0 && (
-                  <p className="text-xs text-neutral-600">Verified facts will appear here as the agent learns them…</p>
+                  <p className="text-xs text-neutral-600">Verified facts will appear here as the agent stages them for approval…</p>
                 )}
                 {facts.map((fact) => (
                   <div
                     key={fact.id}
                     className={`rounded border px-3 py-2 text-xs ${
-                      fact.status === "learned" ? "border-emerald-800 bg-emerald-950/30" :
-                      fact.status === "reused"  ? "border-blue-800 bg-blue-950/30" :
+                      fact.status === "learned"  ? "border-emerald-800 bg-emerald-950/30" :
+                      fact.status === "proposed" ? "border-yellow-800 bg-yellow-950/25" :
+                      fact.status === "reused"   ? "border-blue-800 bg-blue-950/30" :
                                                    "border-neutral-800 bg-neutral-900/40 opacity-50"
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`font-semibold ${
-                        fact.status === "learned" ? "text-emerald-400" :
-                        fact.status === "reused"  ? "text-blue-400" :
+                        fact.status === "learned"  ? "text-emerald-400" :
+                        fact.status === "proposed" ? "text-yellow-400" :
+                        fact.status === "reused"   ? "text-blue-400" :
                                                      "text-neutral-600"
                       }`}>
                         {fact.status === "learned" ? "✓ Learned" :
+                         fact.status === "proposed" ? "Approval staged" :
                          fact.status === "reused"  ? "↩ Already known" :
                                                       "✗ Not verified"}
                       </span>
@@ -468,6 +510,22 @@ export default function MeetingPage() {
                 <div className="border-t border-neutral-800 bg-neutral-900/60 p-4">
                   <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Meeting summary</p>
                   <p className="text-xs leading-relaxed text-neutral-300">{summary}</p>
+                  {workflow && (
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                      <div className="rounded border border-yellow-800/70 bg-yellow-950/20 px-3 py-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-widest text-yellow-500">Approval</p>
+                        <p className="mt-1 text-xs text-yellow-100">{workflow.approval?.decision ?? workflow.status}</p>
+                      </div>
+                      <div className="rounded border border-neutral-700 bg-neutral-950/60 px-3 py-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Artifacts</p>
+                        <p className="mt-1 text-xs text-neutral-200">{workflow.artifacts?.length ?? 0} created</p>
+                      </div>
+                      <div className="rounded border border-emerald-800/70 bg-emerald-950/20 px-3 py-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-500">Packets</p>
+                        <p className="mt-1 text-xs text-emerald-100">{workflow.packets?.filter((p) => p.accepted).length ?? 0} accepted</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -484,4 +542,10 @@ export default function MeetingPage() {
       `}</style>
     </div>
   );
+}
+
+function isMeetingWorkflow(value: unknown): value is MeetingWorkflow {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<MeetingWorkflow>;
+  return typeof item.runId === "string" && typeof item.status === "string";
 }

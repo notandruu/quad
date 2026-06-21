@@ -180,7 +180,7 @@ export function isMemoryWriteProposalPayload(value: unknown): value is MemoryWri
   return candidate.proposalType === MEMORY_WRITE_PROPOSAL_TYPE && Boolean(candidate.memory);
 }
 
-function buildMemoryWriteProposalPayload(input: IngestInput): MemoryWriteProposalPayload {
+export function buildMemoryWriteProposalPayload(input: IngestInput): MemoryWriteProposalPayload {
   const permissions = normalizeMemoryPermissions(input);
   const metadata = normalizeMemoryMetadata({ ...input, permissions });
   return {

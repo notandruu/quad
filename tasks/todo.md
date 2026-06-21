@@ -11,6 +11,8 @@
 
 quad is not a throwaway hackathon build. quad should be designed as a production product that happens to have a hackathon launch/demo deadline.
 
+2026-06-21 update: the biggest remaining product gap was governance around meeting/voice-derived context. shipped a `meeting_agent` workflow slice where the scripted meeting stages verified facts for approval, emits transcript/summary/memory/follow-up artifacts, writes accepted quadchain packets, and only commits meeting memory through the existing approval decision path.
+
 the core product is a company-aware ai employee platform: it understands a business goal, retrieves and collects missing context, uses tools, validates its own work, learns only verified knowledge, executes approved actions, and leaves a replayable evidence trail. website audits and security questionnaires are product workflows on top of that runtime, not the whole company.
 
 the hackathon constraint should force focus and polish, not lower the bar. every shipped slice should be a production-shaped slice of the larger autonomous employee system.
@@ -91,9 +93,9 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [ ] autonomy tier policy for read, draft, confirm, explicit approve, and irreversible actions
 - [x] browserbase rendered evidence capture
 - [x] grounded finding schema with citations and screenshots/selectors where possible
-- [ ] approval workflow before memory writeback or external action
+- [x] approval workflow before memory writeback or external action
 - [x] approval-backed public memory write proposals with execution on approval
-- [ ] persistent approval ledger with approver, artifact hash, evidence visible, edit/reject state, and receipt id
+- [x] persistent approval ledger with approver, artifact hash, evidence visible, decision state, and receipt id
 - [x] post-ship verification step for browser, publisher, task, and team actions
 - [x] post-audit chat that can cite audit evidence and company memory
 - [ ] arize tracing/evals for retrieval, page analysis, and final findings
@@ -125,7 +127,7 @@ next functional slice:
 - [x] add `src/lib/runs/**` durable run/task/artifact/approval/receipt contracts
 - [x] add `/api/agent/run` thin hosted bridge returning normalized task summaries
 - [x] add enterprise proof fixture and `answerTrustQuestion()` workflow
-- [ ] add persistent approval ledger before any real external write action
+- [x] add persistent approval ledger before any real external write action
 - [ ] add dry-run publisher connectors behind metaregistry capability ids
 - [ ] route all future customer-mutating writes through approval receipts
 
