@@ -1,54 +1,68 @@
-# Quad fetch agent
+![tag:innovationlab](https://img.shields.io/badge/innovationlab-3D8BD3)
+![tag:hackathon](https://img.shields.io/badge/hackathon-5F43F1)
 
-This wraps Quad as an ASI:One-compatible Fetch.ai uAgent.
+# Quad trust agent
 
-## What it does
+**Agent address:** `agent1qv3cw8tnar5jcgx4d35sxnvr48qtkw7z3cx8wng3rvph3pqrcqnq2evq4z4`
 
-The agent receives a chat request from Agentverse or ASI:One, extracts a target URL, calls Quad's `/api/agent/run` bridge, and returns a short enterprise trust workflow summary.
+A Fetch.ai uAgent that exposes Quad as an ASI:One-callable enterprise trust worker.
+Send it a company URL and it runs Quad's full pipeline: browser evidence collection,
+brain retrieval, grounded findings, trust packet assembly, and approval gating — then
+returns a normalized task summary in chat.
+
+## Capability
+
+**Name:** Quad trust agent  
+**Handle:** `@quad-trust-agent`  
+**Keywords:** enterprise trust, security questionnaire, website audit, trust packet, compliance evidence, company brain  
+**Category:** Innovation Lab
+
+**What it does:**  
+Receives a natural-language request (e.g. "audit brightpath.org for trust gaps") via
+ASI:One or direct Agentverse handle. Extracts the target URL, calls the Quad backend
+(`/api/agent/run`), runs the full audit + enterprise proof workflow, and returns a
+concise summary of findings, approval state, and next action.
+
+**Workflows exposed:**
+- `website_audit` — discover pages, render in Browserbase, cross-reference brain, surface grounded findings
+- `enterprise_proof` — website audit + trust packet assembly with quad-chain certificate and approval gate
+
+## Demo prompt
+
+```
+Audit https://kali-audit.vercel.app/demo and prepare an enterprise trust packet.
+```
 
 ## Run locally
 
 ```bash
 cd agent
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-python quad_agent.py
+bash run.sh          # macOS (handles libexpat path fix automatically)
 ```
 
-In another terminal, run the Quad app:
+In a separate terminal:
 
 ```bash
-npm run dev
+npm run dev          # starts the Quad Next.js app on :3000
 ```
 
-## Production env
+The agent will print its address on startup and register with Agentverse via mailbox.
 
-Set these before registering the agent:
+## Environment
 
-- `QUAD_FETCH_AGENT_SEED`: stable private seed for the uAgent identity.
-- `QUAD_AGENT_RUN_URL`: public URL for Quad's Next.js bridge, ending in `/api/agent/run`.
-- `QUAD_AGENT_RUN_SECRET`: shared secret also configured on the Next.js app.
-- `QUAD_AGENT_DEFAULT_TARGET_URL`: safe fallback demo URL.
+Copy `.env.example` to `.env` and fill in:
 
-On the Next.js side, also set:
+| Variable | Description |
+|---|---|
+| `QUAD_FETCH_AGENT_SEED` | Stable private seed — do not change after registering |
+| `QUAD_AGENT_RUN_URL` | Public URL for `/api/agent/run` (use Vercel URL in prod) |
+| `QUAD_AGENT_RUN_SECRET` | Shared secret matching `QUAD_AGENT_RUN_SECRET` on the Next.js app |
+| `QUAD_AGENT_DEFAULT_TARGET_URL` | Fallback demo URL when no URL is in the message |
 
-- `QUAD_AGENT_RUN_SECRET`
-- `QUAD_AGENT_ALLOWED_HOSTS`
-- `QUAD_AGENT_ALLOWED_ORGS`
+## Agentverse registration
 
-## Agentverse profile
-
-Recommended profile:
-
-- name: `Quad trust agent`
-- handle: `@quad-trust`
-- keywords: `enterprise trust`, `security questionnaire`, `website audit`, `trust packet`, `compliance evidence`, `company brain`
-- description: `Quad audits company trust surfaces against internal knowledge and returns evidence-backed findings, approval gates, and trust packet receipts.`
-
-## Demo prompt
-
-```text
-Audit https://your-demo-domain.com/demo and prepare an enterprise trust packet.
-```
+1. Start the agent: `bash run.sh`
+2. Copy the printed address
+3. Go to [Agentverse](https://agentverse.ai) → My Agents → Connect → Mailbox
+4. Paste the address and configure the profile with the capability description above
+5. Verify via ASI:One: `@quad-trust-agent audit https://kali-audit.vercel.app/demo`
