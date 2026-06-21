@@ -30,7 +30,7 @@ Quad can run with zero keys for demos, but the production backend is only green 
 - Safe metaregistry install planning at `GET /api/metaregistry/install-plan`. The route is read-only and returns planned allowlist/force-install changes plus missing env key names for the enterprise proof starter bundle.
 - Approval-backed metaregistry install requests at `POST /api/metaregistry/install-request`. The route creates a `capability_install` run with approval artifacts, task events, receipts, and a quadchain packet instead of mutating connector secrets directly.
 - Dry-run publishing creates connector-specific `quad.connector_draft.v1` payloads for CMS, task, and trust-packet export actions, with target metadata, proof binding, validation checks, and explicit stage-only mode.
-- Approved publishing at `POST /api/publish/execute` converts staged drafts into `quad.connector_execution.v1` artifacts with executed receipts, source draft bindings, rollback plans, post-execution verifier requirements, and quadchain `connector_action` packets.
+- Approved publishing at `POST /api/publish/execute` converts staged drafts into `quad.connector_execution.v1` artifacts with executed receipts, source draft bindings, rollback plans, post-execution verifier requirements, and quadchain `connector_action` packets. CMS executions also record `quad.browser_action.v1` artifacts with Browserbase write intent, controlled selectors, hash-only field values, before/after evidence summaries, and no-submit pause state.
 - Connector credential install/revoke mutations emit restricted quadchain `connector_action` packet summaries while omitting encrypted credential bytes and plaintext secrets.
 - Platform schema SQL in `docs/backend/platform-schema.sql`.
 

@@ -1,6 +1,7 @@
 import { createQuadChainPacket, summarizeQuadChainPacket, type QuadChainPacketSummary } from "@/lib/quad-chain";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 import { summarizeCapabilities } from "@/lib/metaregistry";
+import { createEvidenceBundle, summarizeEvidenceBundle, type EvidenceBundleSummary } from "@/lib/storage/evidence";
 import {
   addArtifact,
   addTask,
@@ -23,9 +24,18 @@ export type ApprovedPublishExecution = {
   packet: QuadChainPacketSummary;
 };
 
+export type ApprovedBrowserAction = {
+  sourceDraft: Pick<WorkflowArtifactRecord, "id" | "kind" | "title" | "hash">;
+  executionArtifactId: string;
+  artifact: WorkflowArtifactRecord;
+  receiptId: string;
+  packet: QuadChainPacketSummary;
+};
+
 export type ApprovedPublishResult = {
   task: AgentTaskSummary;
   executed: ApprovedPublishExecution[];
+  browserActions: ApprovedBrowserAction[];
 };
 
 export type ApprovedPublishInput = {
@@ -75,6 +85,56 @@ type ConnectorExecutionPayload = {
   actor: string;
   dryRun: false;
   executedAt: string;
+};
+
+type BrowserActionPayload = {
+  schemaVersion: "quad.browser_action.v1";
+  sourceDraftArtifactId: string;
+  executionArtifactId: string;
+  connector: {
+    id: "browserbase.write_browser";
+    mode: "approved_browser_write";
+    writeIntent: "fill_controlled_form";
+  };
+  target: {
+    url: string;
+    selector: string;
+    destination: string;
+  };
+  fields: Array<{
+    selector: string;
+    label: string;
+    valueHash: string;
+    source: "approved_trust_packet";
+  }>;
+  action: {
+    type: "fill_and_pause_before_submit";
+    summary: string;
+    submitted: false;
+    approvalRequired: true;
+  };
+  evidence: {
+    before: EvidenceBundleSummary;
+    after: EvidenceBundleSummary;
+  };
+  proof: {
+    trustPacketArtifactId: string;
+    trustPacketHash: string;
+    sourceDraftHash: WorkflowArtifactRecord["hash"];
+    executionArtifactHash: WorkflowArtifactRecord["hash"];
+  };
+  verification: {
+    required: true;
+    expectedSelector: string;
+    expectedValueHash: string;
+    screenshotEvidenceIds: string[];
+  };
+  rollbackPlan: {
+    reversible: true;
+    steps: string[];
+  };
+  actor: string;
+  createdAt: string;
 };
 
 const EXECUTABLE_DRAFT_KINDS = new Set<WorkflowArtifactRecord["kind"]>([
@@ -140,6 +200,7 @@ export async function executeApprovedPublish(input: ApprovedPublishInput): Promi
   }
 
   const executed: ApprovedPublishExecution[] = [];
+  const browserActions: ApprovedBrowserAction[] = [];
   for (const draft of pendingDrafts) {
     const draftPayload = readDraftPayload(draft);
     const executionPayload = buildExecutionPayload({
@@ -235,6 +296,16 @@ export async function executeApprovedPublish(input: ApprovedPublishInput): Promi
       receiptId: receipt.id,
       packet: summarizeQuadChainPacket(packet) ?? saved.summary,
     });
+
+    const browserAction = await maybeCreateBrowserAction({
+      snapshot: loaded,
+      draft,
+      draftPayload,
+      executionArtifact: artifact,
+      actor,
+      now,
+    });
+    if (browserAction) browserActions.push(browserAction);
   }
 
   await saveRunSnapshot(loaded.run.id);
@@ -244,6 +315,7 @@ export async function executeApprovedPublish(input: ApprovedPublishInput): Promi
   return {
     task: summarizeAgentTask(snapshot),
     executed,
+    browserActions,
   };
 }
 
@@ -346,6 +418,219 @@ function buildRollbackSteps(payload: ConnectorDraftPayload): string[] {
     "archive exported trust packet",
     "regenerate export from the latest approved trust packet",
   ];
+}
+
+async function maybeCreateBrowserAction(input: {
+  snapshot: RunLedgerSnapshot;
+  draft: WorkflowArtifactRecord;
+  draftPayload: ConnectorDraftPayload;
+  executionArtifact: WorkflowArtifactRecord;
+  actor: string;
+  now: string;
+}): Promise<ApprovedBrowserAction | null> {
+  if (input.draftPayload.connector.id !== "cms.publisher") return null;
+
+  const selector = input.draftPayload.target.selector ?? "[data-quad-proof-block]";
+  const body = String(input.draftPayload.body ?? input.draftPayload.payload.body ?? input.draftPayload.proof.sourceSummary);
+  const sectionTitle = String(input.draftPayload.sectionTitle ?? input.draftPayload.payload.sectionTitle ?? input.draftPayload.proof.sourceTitle);
+  const valueHash = stableValueHash([sectionTitle, body].join("\n"));
+  const before = await createEvidenceBundle({
+    orgId: input.snapshot.run.orgId,
+    runId: input.snapshot.run.id,
+    kind: "browser_action",
+    storageMode: "external_provider",
+    mimeType: "application/json",
+    byteLength: 0,
+    storageKey: `${input.snapshot.run.id}/${input.draft.id}/browser-before.json`,
+    sourceUrl: input.draftPayload.targetUrl,
+    visibility: "internal",
+    classification: "internal",
+    metadata: {
+      provider: "browserbase",
+      mode: "fixture",
+      phase: "before",
+      selector,
+      sourceDraftArtifactId: input.draft.id,
+    },
+    now: input.now,
+  });
+  const after = await createEvidenceBundle({
+    orgId: input.snapshot.run.orgId,
+    runId: input.snapshot.run.id,
+    kind: "browser_action",
+    storageMode: "external_provider",
+    mimeType: "application/json",
+    byteLength: 0,
+    storageKey: `${input.snapshot.run.id}/${input.draft.id}/browser-after.json`,
+    sourceUrl: input.draftPayload.targetUrl,
+    visibility: "internal",
+    classification: "internal",
+    metadata: {
+      provider: "browserbase",
+      mode: "fixture",
+      phase: "after",
+      selector,
+      valueHash,
+      executionArtifactId: input.executionArtifact.id,
+    },
+    now: input.now,
+  });
+  const payload: BrowserActionPayload = {
+    schemaVersion: "quad.browser_action.v1",
+    sourceDraftArtifactId: input.draft.id,
+    executionArtifactId: input.executionArtifact.id,
+    connector: {
+      id: "browserbase.write_browser",
+      mode: "approved_browser_write",
+      writeIntent: "fill_controlled_form",
+    },
+    target: {
+      url: input.draftPayload.targetUrl,
+      selector,
+      destination: input.draftPayload.target.destination,
+    },
+    fields: [
+      {
+        selector: `${selector} [data-field='title']`,
+        label: "section title",
+        valueHash: stableValueHash(sectionTitle),
+        source: "approved_trust_packet",
+      },
+      {
+        selector: `${selector} [data-field='body']`,
+        label: "section body",
+        valueHash: stableValueHash(body),
+        source: "approved_trust_packet",
+      },
+    ],
+    action: {
+      type: "fill_and_pause_before_submit",
+      summary: `Fill ${selector} on ${input.draftPayload.targetUrl} and pause before submit.`,
+      submitted: false,
+      approvalRequired: true,
+    },
+    evidence: {
+      before: summarizeEvidenceBundle(before),
+      after: summarizeEvidenceBundle(after),
+    },
+    proof: {
+      trustPacketArtifactId: input.draftPayload.proof.trustPacketArtifactId,
+      trustPacketHash: input.draftPayload.proof.trustPacketHash,
+      sourceDraftHash: input.draft.hash,
+      executionArtifactHash: input.executionArtifact.hash,
+    },
+    verification: {
+      required: true,
+      expectedSelector: selector,
+      expectedValueHash: valueHash,
+      screenshotEvidenceIds: [before.id, after.id],
+    },
+    rollbackPlan: {
+      reversible: true,
+      steps: [
+        `clear controlled browser fields under ${selector}`,
+        "discard the Browserbase session if final verification fails",
+      ],
+    },
+    actor: input.actor,
+    createdAt: input.now,
+  };
+  const artifact = addArtifact({
+    runId: input.snapshot.run.id,
+    kind: "browser_action",
+    title: `Browser action: ${input.draft.title}`,
+    data: payload,
+    now: input.now,
+  });
+  const receipt = createReceipt({
+    runId: input.snapshot.run.id,
+    artifactId: artifact.id,
+    status: "executed",
+    summary: `${input.draft.title} browser action recorded with before/after evidence.`,
+    now: input.now,
+  });
+  const packet = createQuadChainPacket({
+    type: "connector_action",
+    orgId: input.snapshot.run.orgId,
+    runId: input.snapshot.run.id,
+    producer: "quad.browser_actor",
+    consumer: "browserbase.write_browser",
+    sources: [
+      {
+        id: input.draft.id,
+        kind: "artifact",
+        content: {
+          title: input.draft.title,
+          hash: input.draft.hash,
+        },
+      },
+      {
+        id: input.executionArtifact.id,
+        kind: "artifact",
+        content: {
+          title: input.executionArtifact.title,
+          hash: input.executionArtifact.hash,
+        },
+      },
+      {
+        id: artifact.id,
+        kind: "tool_result",
+        content: {
+          title: artifact.title,
+          hash: artifact.hash,
+          beforeEvidenceId: before.id,
+          afterEvidenceId: after.id,
+        },
+      },
+    ],
+    evidence: [
+      {
+        id: `${artifact.id}:selector`,
+        sourceId: artifact.id,
+        quote: `Selector ${selector} was filled in an approved browser action fixture.`,
+        required: true,
+      },
+      {
+        id: `${artifact.id}:evidence`,
+        sourceId: artifact.id,
+        quote: `Before evidence ${before.id} and after evidence ${after.id} are hash-bound.`,
+        required: true,
+      },
+    ],
+    output: [
+      "browser action: browserbase.write_browser",
+      "mode: approved_browser_write",
+      `source draft: ${input.draft.id}`,
+      `execution artifact: ${input.executionArtifact.id}`,
+      `browser artifact: ${artifact.id}`,
+      `receipt: ${receipt.status}`,
+    ].join("\n"),
+    answerConcepts: ["browser action", "approved execution", "before evidence", "after evidence"],
+    visibility: "internal",
+    createdAt: input.now,
+  });
+  const saved = await saveQuadChainPacket(packet);
+  return {
+    sourceDraft: {
+      id: input.draft.id,
+      kind: input.draft.kind,
+      title: input.draft.title,
+      hash: input.draft.hash,
+    },
+    executionArtifactId: input.executionArtifact.id,
+    artifact,
+    receiptId: receipt.id,
+    packet: summarizeQuadChainPacket(packet) ?? saved.summary,
+  };
+}
+
+function stableValueHash(value: string): `fnv1a:${string}` {
+  let hash = 2166136261;
+  for (const char of value) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `fnv1a:${(hash >>> 0).toString(16).padStart(8, "0")}`;
 }
 
 function isConnectorDraftPayload(value: unknown): value is ConnectorDraftPayload {

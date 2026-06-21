@@ -143,9 +143,11 @@ function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorA
         artifact.kind === "cms_draft" ||
         artifact.kind === "task_draft" ||
         artifact.kind === "trust_packet_export" ||
-        artifact.kind === "connector_execution"
+        artifact.kind === "connector_execution" ||
+        artifact.kind === "browser_action"
       )
-      .slice(0, 3)
+      .slice(-3)
+      .reverse()
       .map((artifact) => {
         const receipt = run.receipts.find((item) => item.artifactHash === artifact.hash);
         const connector = summarizeConnectorDraft(artifact.kind);
@@ -248,12 +250,18 @@ function summarizeConnectorDraft(fallbackKind: string) {
   const destination = destinationForArtifactKind(fallbackKind);
 
   return {
-    label: fallbackKind === "connector_execution" ? "Connector execution" : "Connector draft",
-    headline: fallbackKind === "connector_execution"
-      ? "Approved connector execution recorded with rollback and verification proof."
-      : "Dry-run publisher artifact staged. No customer-facing write was executed.",
-    primaryMetric: fallbackKind === "connector_execution" ? "executed" : "ready",
-    primaryLabel: fallbackKind === "connector_execution" ? "receipt" : "validation",
+    label: fallbackKind === "browser_action"
+      ? "Browser action"
+      : fallbackKind === "connector_execution"
+        ? "Connector execution"
+        : "Connector draft",
+    headline: fallbackKind === "browser_action"
+      ? "Approved browser write action recorded with selector and evidence proof."
+      : fallbackKind === "connector_execution"
+        ? "Approved connector execution recorded with rollback and verification proof."
+        : "Dry-run publisher artifact staged. No customer-facing write was executed.",
+    primaryMetric: fallbackKind === "browser_action" || fallbackKind === "connector_execution" ? "executed" : "ready",
+    primaryLabel: fallbackKind === "browser_action" ? "browser" : fallbackKind === "connector_execution" ? "receipt" : "validation",
     secondaryMetric: connectorId,
     secondaryLabel: destination,
     risk: actionType.replace(/_/g, " "),
@@ -261,6 +269,7 @@ function summarizeConnectorDraft(fallbackKind: string) {
 }
 
 function connectorIdForArtifactKind(kind: string): string {
+  if (kind === "browser_action") return "browserbase.write_browser";
   if (kind === "cms_draft") return "cms.publisher";
   if (kind === "task_draft") return "task.publisher";
   if (kind === "trust_packet_export") return "trust_packet.exporter";
@@ -268,6 +277,7 @@ function connectorIdForArtifactKind(kind: string): string {
 }
 
 function actionTypeForArtifactKind(kind: string): string {
+  if (kind === "browser_action") return "fill_and_pause_before_submit";
   if (kind === "connector_execution") return "execute_approved_artifact";
   if (kind === "cms_draft") return "upsert_page_section";
   if (kind === "task_draft") return "create_implementation_task";
@@ -276,6 +286,7 @@ function actionTypeForArtifactKind(kind: string): string {
 }
 
 function destinationForArtifactKind(kind: string): string {
+  if (kind === "browser_action") return "controlled_browser";
   if (kind === "connector_execution") return "approved_connector";
   if (kind === "cms_draft") return "website_cms";
   if (kind === "task_draft") return "task_tracker";

@@ -69,6 +69,18 @@ export async function POST(request: NextRequest) {
         receiptId: item.receiptId,
         packet: item.packet,
       })),
+      browserActions: result.browserActions.map((item) => ({
+        sourceDraft: item.sourceDraft,
+        executionArtifactId: item.executionArtifactId,
+        artifact: {
+          id: item.artifact.id,
+          kind: item.artifact.kind,
+          title: item.artifact.title,
+          hash: item.artifact.hash,
+        },
+        receiptId: item.receiptId,
+        packet: item.packet,
+      })),
     };
     await saveIdempotentResult({
       orgId: auth.orgId,

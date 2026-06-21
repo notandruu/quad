@@ -254,7 +254,7 @@ Shipped v1:
 Next:
 
 - show richer diffs in the operator console.
-- add browser-write fixture payloads once Browserbase write tools are approved.
+- replace browser-write fixture evidence with live Browserbase session screenshots once the target cms connector is available.
 - never perform customer-facing writes without `assertCustomerWriteAllowed`.
 
 Acceptance:
@@ -277,6 +277,14 @@ Shipped v3:
 - execution re-checks metaregistry capability state at execution time, so disabled or unallowlisted write connectors block before a customer-write artifact is recorded.
 - ship trail and operator artifact summaries now surface approved connector executions, not only staged drafts.
 
+Shipped v4:
+
+- approved CMS executions also create `browser_action` artifacts with `quad.browser_action.v1` payloads.
+- browser action artifacts bind the source draft, connector execution artifact, Browserbase write capability id, target selector, hash-only field values, and no-submit pause state.
+- before/after browser action evidence is stored as hash-bound evidence bundle summaries, not raw screenshots or form values.
+- every browser action creates an executed receipt plus a quadchain `connector_action` packet.
+- operator artifact summaries now prefer the latest publisher artifacts, so execution and browser-action proof is visible instead of being hidden behind older dry-run drafts.
+
 ## Gap 4: post-ship verification
 
 Status: shipped v2.
@@ -294,6 +302,11 @@ Shipped v2:
 - verification now covers `connector_execution` artifacts as well as staged drafts.
 - executed artifacts must preserve the execution schema, executed receipt, source draft binding, target, and rollback plan.
 
+Shipped v3:
+
+- verification now covers `browser_action` artifacts.
+- browser action verification checks the action schema, executed receipt, target selector, hash-bound field list, and before/after evidence summaries.
+
 Acceptance:
 
 - fix is not marked done just because a draft exists.
@@ -301,7 +314,7 @@ Acceptance:
 
 Next:
 
-- compare live before/after browser evidence for real customer writes.
+- replace fixture before/after evidence with live Browserbase screenshots for real customer writes.
 - support per-finding verification targets.
 
 ## Gap 4.5: backend worker runtime
@@ -393,9 +406,14 @@ Shipped v1:
 - dry-run trust packet exports attach an `artifact_payload` evidence bundle summary to the staged export artifact.
 - `/api/operator` returns evidence counts and latest safe summaries beside backend readiness, quadchain, memory, and model gateway state.
 
+Shipped v2:
+
+- approved browser actions register before and after browser evidence bundles.
+- browser evidence summaries include provider, phase, selector, and binding metadata keys while omitting raw screenshot bytes and field values.
+
 Acceptance:
 
-- raw audio, inline screenshot data, and trust packet markdown do not appear in evidence summaries.
+- raw audio, inline screenshot data, browser action values, and trust packet markdown do not appear in evidence summaries.
 - every evidence summary is tenant-scoped and hash-bound.
 - operator surfaces can answer “what proof artifacts exist for this run?” without opening raw artifacts.
 

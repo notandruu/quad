@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getQuadChainPackets } from "@/lib/quad-chain/registry";
+import { getEvidenceBundles } from "@/lib/storage/evidence";
 import {
   addArtifact,
   createWorkflowRun,
@@ -78,11 +79,23 @@ describe("approved publisher execution", () => {
     });
 
     expect(result.executed).toHaveLength(3);
+    expect(result.browserActions).toHaveLength(1);
     expect(result.executed.map((item) => item.artifact.kind)).toEqual([
       "connector_execution",
       "connector_execution",
       "connector_execution",
     ]);
+    expect(result.browserActions[0]?.artifact.data).toMatchObject({
+      schemaVersion: "quad.browser_action.v1",
+      connector: { id: "browserbase.write_browser", mode: "approved_browser_write" },
+      target: { selector: "[data-quad-proof-block]" },
+      action: { type: "fill_and_pause_before_submit", submitted: false, approvalRequired: true },
+      evidence: {
+        before: { kind: "browser_action", storageMode: "external_provider", hash: expect.stringMatching(/^fnv1a:/) },
+        after: { kind: "browser_action", storageMode: "external_provider", hash: expect.stringMatching(/^fnv1a:/) },
+      },
+      verification: { required: true, screenshotEvidenceIds: expect.arrayContaining([expect.any(String)]) },
+    });
     expect(result.executed[0]?.artifact.data).toMatchObject({
       schemaVersion: "quad.connector_execution.v1",
       dryRun: false,
@@ -92,12 +105,16 @@ describe("approved publisher execution", () => {
       postExecutionVerification: { required: true, verifier: "quad.post_ship_verifier" },
     });
     expect(result.executed.every((item) => item.packet.type === "connector_action")).toBe(true);
+    expect(result.browserActions.every((item) => item.packet.type === "connector_action")).toBe(true);
     expect(snapshot?.artifacts.filter((artifact) => artifact.kind === "connector_execution")).toHaveLength(3);
-    expect(snapshot?.receipts.filter((receipt) => receipt.status === "executed").length).toBeGreaterThanOrEqual(3);
+    expect(snapshot?.artifacts.filter((artifact) => artifact.kind === "browser_action")).toHaveLength(1);
+    expect(snapshot?.receipts.filter((receipt) => receipt.status === "executed").length).toBeGreaterThanOrEqual(4);
     expect(summarizeTaskStream(snapshot!).filter((event) => event.kind === "task.completed")).toHaveLength(6);
-    expect(packets.length).toBeGreaterThanOrEqual(6);
+    expect(packets.length).toBeGreaterThanOrEqual(7);
     expect(verification.status).toBe("passed");
     expect(verification.items.filter((item) => item.artifactKind === "connector_execution")).toHaveLength(3);
+    expect(verification.items.filter((item) => item.artifactKind === "browser_action")).toHaveLength(1);
+    await expect(getEvidenceBundles({ orgId: "org_execute", runId: run.runId, kind: "browser_action" })).resolves.toHaveLength(2);
   });
 
   it("does not execute the same staged drafts twice", async () => {

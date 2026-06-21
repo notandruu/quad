@@ -1,7 +1,7 @@
 import { eventTtlSeconds, getRedis } from "@/lib/redis";
 import { tenantKey, type DataClassification } from "@/lib/security";
 
-export type EvidenceBundleKind = "screenshot" | "voice_audio" | "trust_packet_export";
+export type EvidenceBundleKind = "screenshot" | "voice_audio" | "trust_packet_export" | "browser_action";
 export type EvidenceBundleStorageMode = "supabase_storage" | "inline_fallback" | "external_provider" | "artifact_payload";
 export type EvidenceBundleVisibility = "public" | "internal" | "restricted";
 

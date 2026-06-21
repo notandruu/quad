@@ -25,6 +25,7 @@ export type ArtifactKind =
   | "task_draft"
   | "trust_packet_export"
   | "connector_execution"
+  | "browser_action"
   | "verification_report";
 
 export type ApprovalDecision = "pending" | "approved" | "rejected";

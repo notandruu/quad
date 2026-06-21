@@ -62,13 +62,21 @@ describe("POST /api/publish/execute", () => {
       "connector_execution",
       "connector_execution",
     ]);
+    expect(body.browserActions.map((item: { artifact: { kind: string } }) => item.artifact.kind)).toEqual([
+      "browser_action",
+    ]);
     expect(snapshot?.artifacts.find((artifact) => artifact.kind === "connector_execution")?.data).toMatchObject({
       schemaVersion: "quad.connector_execution.v1",
       connector: { mode: "approved_execution" },
       dryRun: false,
       postExecutionVerification: { required: true },
     });
-    expect(snapshot?.receipts.filter((receipt) => receipt.status === "executed").length).toBeGreaterThanOrEqual(3);
+    expect(snapshot?.artifacts.find((artifact) => artifact.kind === "browser_action")?.data).toMatchObject({
+      schemaVersion: "quad.browser_action.v1",
+      connector: { id: "browserbase.write_browser" },
+      verification: { required: true },
+    });
+    expect(snapshot?.receipts.filter((receipt) => receipt.status === "executed").length).toBeGreaterThanOrEqual(4);
     expect(summarizeTaskStream(snapshot!).filter((event) => event.kind === "task.completed")).toHaveLength(6);
   });
 });

@@ -48,6 +48,7 @@ const VERIFIABLE_ARTIFACTS = new Set<WorkflowArtifactRecord["kind"]>([
   "task_draft",
   "trust_packet_export",
   "connector_execution",
+  "browser_action",
 ]);
 
 export async function verifyPublishedWork(input: VerifyPublishedWorkInput): Promise<VerifyPublishedWorkResult> {
@@ -163,14 +164,15 @@ export async function verifyPublishedWork(input: VerifyPublishedWorkInput): Prom
 function verifyArtifact(snapshot: RunLedgerSnapshot, artifact: WorkflowArtifactRecord): VerificationItem {
   const data = isRecord(artifact.data) ? artifact.data : {};
   const isExecution = artifact.kind === "connector_execution";
-  const expectedReceiptStatus = isExecution ? "executed" : "ready";
+  const isBrowserAction = artifact.kind === "browser_action";
+  const expectedReceiptStatus = isExecution || isBrowserAction ? "executed" : "ready";
   const checks = [
-    isExecution
+    isExecution || isBrowserAction
       ? {
           id: "has_execution_marker",
           label: "Execution marker",
-          passed: data.dryRun === false,
-          detail: data.dryRun === false
+          passed: isBrowserAction ? data.schemaVersion === "quad.browser_action.v1" : data.dryRun === false,
+          detail: (isBrowserAction ? data.schemaVersion === "quad.browser_action.v1" : data.dryRun === false)
             ? "Artifact was executed after approval."
             : "Artifact is not marked as executed.",
         }
@@ -256,6 +258,42 @@ function verifyArtifact(snapshot: RunLedgerSnapshot, artifact: WorkflowArtifactR
       }
     );
   }
+  if (artifact.kind === "browser_action") {
+    checks.push(
+      {
+        id: "browser_action_schema_present",
+        label: "Browser action schema",
+        passed: data.schemaVersion === "quad.browser_action.v1",
+        detail: data.schemaVersion === "quad.browser_action.v1"
+          ? "Browser action is recorded with the expected schema."
+          : "Browser action schema is missing.",
+      },
+      {
+        id: "browser_selector_present",
+        label: "Browser selector",
+        passed: isRecord(data.target) && typeof data.target.selector === "string" && data.target.selector.length > 0,
+        detail: isRecord(data.target) && typeof data.target.selector === "string" && data.target.selector.length > 0
+          ? `Selector ${data.target.selector} is present.`
+          : "Browser action is missing a target selector.",
+      },
+      {
+        id: "browser_fields_present",
+        label: "Browser fields",
+        passed: Array.isArray(data.fields) && data.fields.length > 0,
+        detail: Array.isArray(data.fields) && data.fields.length > 0
+          ? "Browser action has hash-bound field values."
+          : "Browser action has no field values.",
+      },
+      {
+        id: "browser_evidence_bound",
+        label: "Browser evidence",
+        passed: hasBrowserEvidence(data),
+        detail: hasBrowserEvidence(data)
+          ? "Browser action includes before and after evidence summaries."
+          : "Browser action is missing before or after evidence summaries.",
+      }
+    );
+  }
 
   return {
     artifactId: artifact.id,
@@ -264,6 +302,13 @@ function verifyArtifact(snapshot: RunLedgerSnapshot, artifact: WorkflowArtifactR
     status: checks.every((check) => check.passed) ? "passed" : "failed",
     checks,
   };
+}
+
+function hasBrowserEvidence(data: Record<string, unknown>): boolean {
+  const evidence = isRecord(data.evidence) ? data.evidence : {};
+  const before = isRecord(evidence.before) ? evidence.before : {};
+  const after = isRecord(evidence.after) ? evidence.after : {};
+  return typeof before.id === "string" && typeof before.hash === "string" && typeof after.id === "string" && typeof after.hash === "string";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
