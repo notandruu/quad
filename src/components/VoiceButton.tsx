@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { buildVoiceSurfaceCapability } from "@/lib/voice/surface";
 import { appendVoiceTranscriptContext } from "@/lib/voice/upload";
 import type { QuadCoreAgentLoopTrace } from "@/lib/core";
@@ -61,13 +61,18 @@ export function VoiceButton({
 }) {
   const [status, setStatus] = useState<VoiceStatus>("idle");
   const [message, setMessage] = useState("Voice mode");
+  const [mounted, setMounted] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const capability = useMemo(() => {
-    if (typeof window === "undefined") {
+    if (!mounted || typeof window === "undefined") {
       return buildVoiceSurfaceCapability({
         deepgramConfigured: false,
         moshiConfigured: false,
@@ -82,7 +87,7 @@ export function VoiceButton({
       browserSpeechSupported: Boolean(speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition),
       secureContext: window.isSecureContext || window.location.hostname === "localhost",
     });
-  }, [clientUrl, deepgramEnabled, enabled]);
+  }, [clientUrl, deepgramEnabled, enabled, mounted]);
 
   async function start() {
     if (!capability.canListen || status === "recording" || status === "listening") return;
