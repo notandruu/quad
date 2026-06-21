@@ -91,7 +91,7 @@ export default function Footer() {
                 knowledge into verified, customer-ready work.
               </p>
               <button
-                className="mt-9 flex items-center justify-center bg-cream px-12 py-4 text-[12px] font-medium uppercase tracking-[0.1em] text-ink transition-colors hover:bg-paper-2"
+                className="mt-9 flex items-center justify-center bg-cream px-12 py-4 text-[12px] font-medium tracking-[0.01em] text-ink transition-colors hover:bg-paper-2"
                 style={{ clipPath: CHAMFER }}
               >
                 <HoverText text="Open Dashboard" />

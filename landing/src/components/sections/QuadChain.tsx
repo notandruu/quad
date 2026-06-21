@@ -15,12 +15,12 @@ const SAVED_PCT = ((RAW - COMPRESSED) / RAW) * 100; // 74.63
 
 const COLS = ["eval surface", "raw tokens", "QuadChain", "saved / reduction", "preservation", "trust signal"];
 const ROWS: string[][] = [
-  ["single-context compression", "2,250", "1,383", "867 / 38.53%", "evidence 41/41 · concepts 38/38", "readiness 1.000"],
-  ["4-agent routed workflow", "9,000", "2,283", "6,717 / 74.63%", "evidence 41/41 · concepts 38/38", "role packets verified"],
-  ["actual scale ladder", "1,858,850", "605,450", "1,253,400 / 67.43%", "evidence 36/36 · role prompts 144/144", "24 routed prompts"],
-  ["115k-token context", "115,038", "74,813", "40,225 / 34.97%", "evidence 12/12", "measured, not projected"],
-  ["verified rehydration harness", "budget matched", "selective repair", "88.89% mean", "task score 0.939 · accepted 210/240", "fails unsafe packets"],
-  ["proof-carrying handoff", "n/a", "certificate envelope", "raw onchain: 0 bytes", "handoff 4/4", "rejects 4/4 attacks"],
+  ["Single-context compression", "2,250", "1,383", "867 / 38.53%", "Evidence 41/41 · concepts 38/38", "Readiness 1.000"],
+  ["4-agent routed workflow", "9,000", "2,283", "6,717 / 74.63%", "Evidence 41/41 · concepts 38/38", "Role packets verified"],
+  ["Actual scale ladder", "1,858,850", "605,450", "1,253,400 / 67.43%", "Evidence 36/36 · role prompts 144/144", "24 routed prompts"],
+  ["115k-token context", "115,038", "74,813", "40,225 / 34.97%", "Evidence 12/12", "Measured, not projected"],
+  ["Verified rehydration harness", "Budget matched", "Selective repair", "88.89% mean", "Task score 0.939 · accepted 210/240", "Fails unsafe packets"],
+  ["Proof-carrying handoff", "N/A", "Certificate envelope", "Raw onchain: 0 bytes", "Handoff 4/4", "Rejects 4/4 attacks"],
 ];
 
 function CheckPink() {
