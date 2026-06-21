@@ -73,8 +73,9 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [x] company brain ingestion for docs, notes, urls, and transcripts
 - [ ] scoped context graph for company, team, and personal memories
 - [x] permission-aware retrieval filters for company, team, and personal memory scopes
-- [ ] durable memory store with source provenance, confidence, permissions, and embeddings
+- [x] durable memory store with source provenance, confidence, permissions, embeddings, and metadata sidecars
 - [ ] memory freshness/staleness metadata with explicit refresh paths
+- [x] memory stale-after, owner, validation, and relationship metadata on write/retrieve
 - [ ] event-driven context capture pipeline with signal/noise extraction before writeback
 - [ ] audit run model with lifecycle states, retries, and resumability
 - [ ] redis event stream and replay for every run

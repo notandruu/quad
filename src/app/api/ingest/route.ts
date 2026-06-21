@@ -78,6 +78,12 @@ export async function POST(req: NextRequest) {
       userId: body.userId,
       teamId: body.teamId,
       teamIds: body.teamIds,
+      ownerUserId: body.ownerUserId,
+      validationStatus: body.validationStatus,
+      sourceUpdatedAt: body.sourceUpdatedAt,
+      staleAfter: body.staleAfter,
+      relationships: body.relationships,
+      relatedSourceIds: body.relatedSourceIds,
       evidence: body.evidence,
     };
     const responseBody = body.mode === "write"

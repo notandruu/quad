@@ -58,16 +58,29 @@ describe("POST /api/ingest", () => {
       sourceType: "manual",
       visibility: "personal",
       userId: "stephen",
+      staleAfter: "2026-07-01T00:00:00.000Z",
+      relationships: [{ kind: "supports", sourceId: "operator_notes" }],
     }));
     const body = await response.json();
     const snapshot = getRunSnapshot(body.runId);
-    const data = snapshot?.artifacts[0]?.data as { preview?: { permissions?: string[] } } | undefined;
+    const data = snapshot?.artifacts[0]?.data as {
+      preview?: {
+        permissions?: string[];
+        metadata?: { staleAfter?: string | null; relationships?: Array<{ kind: string; sourceId: string }> };
+      };
+    } | undefined;
 
     expect(response.status).toBe(200);
     expect(data?.preview?.permissions).toEqual(expect.arrayContaining([
       "scope:personal",
       "user:stephen",
     ]));
+    expect(data?.preview?.metadata).toMatchObject({
+      visibility: "personal",
+      ownerUserId: "stephen",
+      staleAfter: "2026-07-01T00:00:00.000Z",
+      relationships: [{ kind: "supports", sourceId: "operator_notes" }],
+    });
   });
 });
 

@@ -3,7 +3,7 @@ import { runEmployee } from "@/lib/runtime/runtime";
 import { getEmployee } from "@/lib/employees";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { withSpan } from "@/lib/observability/sentry";
-import { retrieveMemoriesWithPackets } from "@/lib/brain";
+import { getMemoryMetadata, retrieveMemoriesWithPackets } from "@/lib/brain";
 import { complete, chatModel } from "@/lib/llm/anthropic";
 import { buildAuditChatSystemPrompt } from "@/lib/runtime/prompts";
 import type { AuditReport, BrainMemory } from "@/lib/types";
@@ -160,6 +160,7 @@ function buildMemorySources(memories: BrainMemory[]): QuadChainSource[] {
       sourceType: item.sourceType,
       summary: item.summary,
       evidence: item.evidence,
+      metadata: getMemoryMetadata(item),
     },
   }));
 }

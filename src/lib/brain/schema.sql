@@ -16,9 +16,13 @@ CREATE TABLE IF NOT EXISTS brain_memory (
   confidence  REAL NOT NULL DEFAULT 0.5,
   permissions TEXT[] NOT NULL DEFAULT '{}',
   evidence    JSONB NOT NULL DEFAULT '[]',
+  memory_metadata JSONB NOT NULL DEFAULT '{}',
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE brain_memory
+  ADD COLUMN IF NOT EXISTS memory_metadata JSONB NOT NULL DEFAULT '{}';
 
 CREATE INDEX IF NOT EXISTS brain_memory_org_idx ON brain_memory (org_id);
 CREATE INDEX IF NOT EXISTS brain_memory_source_type_idx ON brain_memory (source_type);

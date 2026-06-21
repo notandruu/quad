@@ -127,7 +127,7 @@ Set `QUAD_WORKER_SECRET` for protected worker processing calls. When it is confi
 
 Chat answers also carry trust context. `/api/chat` emits a `chat_answer` packet and returns `verifiedContext` summaries for any retrieved memories that already have `brain_memory_write` receipts, so the dashboard can show when an answer used verified memory instead of free-floating text.
 
-Brain memory is scoped before retrieval. `/api/ingest` defaults to an approval-backed memory proposal and accepts `visibility`, `userId`, `teamId`, and `teamIds`; retrieval only returns company-readable memory unless the caller supplies matching team context or explicit personal context.
+Brain memory is scoped before retrieval. `/api/ingest` defaults to an approval-backed memory proposal and accepts `visibility`, `userId`, `teamId`, and `teamIds`; retrieval only returns company-readable memory unless the caller supplies matching team context or explicit personal context. Memory writes also carry sidecar metadata for owner, validation status, source freshness, stale-after, and related source ids without changing the frozen memory contract.
 
 `GET /api/sponsor/proof` returns a booth-safe sponsor proof manifest: live/fallback/planned status, product claim, demo moment, route or surface, and explicit `safeToClaim` / `doNotClaim` lists. It never returns secret values.
 

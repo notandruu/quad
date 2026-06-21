@@ -1,6 +1,7 @@
 import type { QuadEmployee, Intent, BrainMemory } from "@/lib/types";
 import { retrieveMemoriesWithPackets, type RetrievedMemoryWithPacket } from "@/lib/brain";
 import type { BrainMemoryRequester } from "@/lib/brain/permissions";
+import { getMemoryMetadata } from "@/lib/brain/metadata";
 import { summarizeCapabilities, type ActiveTool, type CapabilitySummary } from "@/lib/metaregistry";
 import {
   createQuadChainPacket,
@@ -299,6 +300,7 @@ function buildDefaultSources(context: QuadCoreContext): QuadChainSource[] {
         sourceType: memory.sourceType,
         summary: memory.summary,
         evidence: memory.evidence,
+        metadata: getMemoryMetadata(memory),
       },
     })),
   ];

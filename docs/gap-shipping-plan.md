@@ -141,6 +141,31 @@ Acceptance:
 - team context can see matching team memory but not personal memory.
 - personal context only appears for the owner with explicit personal opt-in.
 
+## Gap 2.8: memory freshness and relationship metadata
+
+Status: shipped v1.
+
+What was missing:
+
+- memory chunks had source ids and confidence, but no structured owner, freshness, validation, stale-after, or relationship metadata.
+- retrieval could return a memory without telling downstream surfaces whether the source was stale or what other control/evidence it came from.
+- approval previews did not show whether a proposed memory would age out or link to other sources.
+
+Shipped v1:
+
+- brain memory writes now normalize sidecar metadata without changing the frozen `BrainMemory` contract.
+- metadata tracks visibility, owner user id, team ids, validation status, source updated time, stale-after time, freshness, and relationships.
+- `retrieveMemoriesWithPackets` returns memory, latest quadchain packet summary, and metadata together.
+- memory write proposals include metadata in the approval preview, so operators can review freshness and relationships before approving shared context.
+- chat/core receipts include memory metadata in restricted packet sources, making model context receipts explain freshness and scope.
+- Supabase schemas now include additive `memory_metadata JSONB` storage with `ALTER TABLE ... IF NOT EXISTS` for existing installs.
+
+Acceptance:
+
+- old memories still work by deriving metadata from permissions and timestamps.
+- new memories can be marked stale/fresh and linked to source/control ids.
+- downstream agent receipts can show what memory was used and whether it was stale.
+
 ## Gap 3: dry-run publisher workbench
 
 Status: shipped v1.
@@ -376,4 +401,4 @@ Next:
 1. scheduled worker canary after deploy.
 2. richer connector-specific publish payloads.
 3. sponsor proof fixtures and demo script.
-4. normalized context graph records with stale-after and owner metadata.
+4. normalized context graph edges surfaced in the dashboard and operator console.

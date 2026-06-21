@@ -273,8 +273,8 @@ export function buildSecurityPacket(input: {
       },
       {
         store: "company brain",
-        contents: "approved memories, source ids, summaries, entities, permissions, and embeddings",
-        isolation: "org-scoped retrieval and tenant memory writes",
+        contents: "approved memories, source ids, summaries, entities, permissions, metadata sidecars, evidence, and embeddings",
+        isolation: "org-scoped retrieval plus company/team/personal permission filters",
         retention: retentionDays ? `${retentionDays} days target` : "not configured",
       },
       {

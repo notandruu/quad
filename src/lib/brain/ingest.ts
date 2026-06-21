@@ -6,6 +6,11 @@ import { addMemory } from "./store";
 import { createQuadChainPacket, type QuadChainPacketSummary } from "@/lib/quad-chain";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 import { normalizeMemoryPermissions, type BrainMemoryVisibility } from "./permissions";
+import {
+  normalizeMemoryMetadata,
+  saveMemoryMetadata,
+  type BrainMemoryMetadataInput,
+} from "./metadata";
 
 export type IngestInput = {
   orgId: string;
@@ -22,7 +27,7 @@ export type IngestInput = {
   teamId?: string;
   teamIds?: string[];
   evidence?: BrainEvidence[];
-};
+} & BrainMemoryMetadataInput;
 
 export type IngestMemoryResult = {
   memory: BrainMemory;
@@ -43,6 +48,8 @@ export async function ingestMemoryWithReceipt(input: IngestInput): Promise<Inges
     await ensureSchema();
     const now = new Date().toISOString();
     const embedding = await embed(`${input.title}\n${input.content}`);
+    const permissions = normalizeMemoryPermissions(input);
+    const metadata = normalizeMemoryMetadata({ ...input, permissions }, now);
 
     const memory: BrainMemory = {
       id: crypto.randomUUID(),
@@ -55,7 +62,7 @@ export async function ingestMemoryWithReceipt(input: IngestInput): Promise<Inges
       entities: input.entities ?? [],
       embedding,
       confidence: input.confidence ?? 0.6,
-      permissions: normalizeMemoryPermissions(input),
+      permissions,
       createdAt: now,
       updatedAt: now,
       evidence: input.evidence ?? [],
@@ -76,10 +83,12 @@ export async function ingestMemoryWithReceipt(input: IngestInput): Promise<Inges
         confidence: memory.confidence,
         permissions: memory.permissions,
         evidence: memory.evidence,
+        memory_metadata: metadata,
       });
       if (error) throw new Error(`Brain ingest failed: ${error.message}`);
     } else {
       addMemory(memory);
+      saveMemoryMetadata(memory.id, metadata);
     }
 
     const evidenceQuotes = memory.evidence
@@ -109,6 +118,7 @@ export async function ingestMemoryWithReceipt(input: IngestInput): Promise<Inges
             summary: memory.summary,
             evidence: memory.evidence,
             permissions: memory.permissions,
+            metadata,
           },
         },
       ],

@@ -44,6 +44,16 @@ const memory: RetrievedMemoryWithPacket = {
     visibility: "internal",
     createdAt: "2026-06-20T00:00:00.000Z",
   },
+  metadata: {
+    visibility: "company",
+    ownerUserId: null,
+    teamIds: [],
+    validationStatus: "approved",
+    sourceUpdatedAt: "2026-06-20T00:00:00.000Z",
+    staleAfter: null,
+    freshness: "unknown",
+    relationships: [],
+  },
 };
 
 describe("quad core", () => {

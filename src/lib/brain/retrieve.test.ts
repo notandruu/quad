@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { addMemory, deleteMemoryStore } from "./store";
 import { retrieveMemories, retrieveMemoriesWithPackets } from "./retrieve";
+import { ingestMemoryWithReceipt } from "./ingest";
 import { createQuadChainPacket } from "@/lib/quad-chain";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 
 vi.mock("./db", () => ({
+  ensureSchema: vi.fn(async () => undefined),
   getClient: vi.fn(() => null),
 }));
 
@@ -116,6 +118,42 @@ describe("retrieveMemoriesWithPackets", () => {
     expect(security.map((item) => item.id)).not.toContain("mem_personal_maddy");
     expect(maddy.map((item) => item.id)).toEqual(expect.arrayContaining(["mem_company", "mem_personal_maddy"]));
     expect(maddy.map((item) => item.id)).not.toContain("mem_team_security");
+
+    deleteMemoryStore({ orgId });
+  });
+
+  it("returns sidecar metadata for retrieved memories", async () => {
+    const orgId = "org_retrieve_metadata";
+    deleteMemoryStore({ orgId });
+    await ingestMemoryWithReceipt({
+      orgId,
+      sourceId: "policy_metadata_1",
+      sourceType: "doc",
+      title: "Access policy",
+      content: "Access reviews happen every quarter.",
+      summary: "Quarterly access reviews.",
+      permissions: ["internal"],
+      staleAfter: "2026-06-20T00:00:00.000Z",
+      sourceUpdatedAt: "2026-06-01T00:00:00.000Z",
+      relationships: [{ kind: "supports", sourceId: "control_access_review" }],
+    });
+
+    const [result] = await retrieveMemoriesWithPackets({
+      orgId,
+      query: "access reviews",
+      limit: 1,
+    });
+
+    expect(result.memory.sourceId).toBe("policy_metadata_1");
+    expect(result.metadata).toMatchObject({
+      visibility: "company",
+      validationStatus: "approved",
+      freshness: "stale",
+      sourceUpdatedAt: "2026-06-01T00:00:00.000Z",
+    });
+    expect(result.metadata.relationships).toEqual([
+      { kind: "supports", sourceId: "control_access_review" },
+    ]);
 
     deleteMemoryStore({ orgId });
   });

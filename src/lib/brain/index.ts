@@ -3,5 +3,6 @@ export * from "./embeddings";
 export * from "./retrieve";
 export * from "./ingest";
 export * from "./proposals";
+export * from "./metadata";
 export * from "./store";
 export * from "./retention";

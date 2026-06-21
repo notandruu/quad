@@ -7,6 +7,7 @@ import { seedMemories } from "./store";
 import { getLatestQuadChainPacket } from "@/lib/quad-chain/registry";
 import { summarizeQuadChainPacket, type QuadChainPacketSummary } from "@/lib/quad-chain";
 import { filterReadableMemories, canReadMemory, type BrainMemoryRequester } from "./permissions";
+import { getMemoryMetadata, parseMemoryMetadata, saveMemoryMetadata, type BrainMemoryMetadata } from "./metadata";
 
 export type RetrieveOptions = {
   orgId: string;
@@ -19,6 +20,7 @@ export type RetrieveOptions = {
 export type RetrievedMemoryWithPacket = {
   memory: BrainMemory;
   quadChain: QuadChainPacketSummary | null;
+  metadata: BrainMemoryMetadata;
 };
 
 /**
@@ -75,6 +77,7 @@ export async function retrieveMemoriesWithPackets(
       return {
         memory,
         quadChain: packet ? summarizeQuadChainPacket(packet) : null,
+        metadata: getMemoryMetadata(memory),
       };
     })
   );
@@ -117,7 +120,7 @@ function scopeToTypes(scope?: BrainScope): string[] | null {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function rowToMemory(row: any): BrainMemory {
-  return {
+  const memory = {
     id: row.id,
     orgId: row.org_id,
     sourceId: row.source_id,
@@ -133,4 +136,7 @@ function rowToMemory(row: any): BrainMemory {
     updatedAt: new Date(row.updated_at).toISOString(),
     evidence: row.evidence ?? [],
   };
+  const metadata = parseMemoryMetadata(row.memory_metadata);
+  if (metadata) saveMemoryMetadata(memory.id, metadata);
+  return memory;
 }
