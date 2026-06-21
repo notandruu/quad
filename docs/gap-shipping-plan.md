@@ -284,7 +284,13 @@ Shipped v5:
 
 Next:
 
-- add an uptime dashboard that graphs latest scheduled canary age and duration.
+- add hosted monitor config examples for Vercel Cron, Railway cron, and external uptime checks.
+
+Shipped v6:
+
+- the operator console now renders a `Worker uptime` panel.
+- the panel shows latest canary age, canary duration, heartbeat state, queue depth, retrying jobs, dead-letter count, processed count, and latest job age.
+- the panel uses existing safe `/api/operator` data and does not expose worker secrets or raw env.
 
 ## Gap 5: voice-led enterprise proof interview
 
@@ -434,7 +440,7 @@ Next:
 
 ## Recommended next shipping order
 
-1. uptime dashboard for worker canary age and duration.
+1. hosted monitor config examples for Vercel Cron, Railway cron, and external uptime checks.
 2. richer connector-specific publish payloads.
 3. sponsor proof fixtures and demo script.
 4. memory refresh actions for stale context.

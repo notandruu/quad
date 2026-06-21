@@ -80,9 +80,19 @@ test.describe("api contracts", () => {
     expect(Array.isArray(json.capabilities.active)).toBe(true);
     expect(Array.isArray(json.capabilities.blocked)).toBe(true);
     expect(json.worker).toMatchObject({
-      queue: expect.any(Object),
-      runtime: expect.any(Object),
-      canary: expect.any(Object),
+      queue: expect.objectContaining({
+        queueDepth: expect.any(Number),
+        retrying: expect.any(Number),
+        deadLetter: expect.any(Number),
+      }),
+      runtime: expect.objectContaining({
+        alive: expect.any(Boolean),
+        seen: expect.any(Boolean),
+      }),
+      canary: expect.objectContaining({
+        seen: expect.any(Boolean),
+        ok: expect.any(Boolean),
+      }),
     });
     expect(json.backendReadiness).toMatchObject({
       ok: expect.any(Boolean),

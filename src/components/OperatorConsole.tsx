@@ -177,17 +177,25 @@ type OperatorResponse = {
       queueDepth: number;
       retrying: number;
       deadLetter: number;
+      running?: number;
+      completed?: number;
+      latestUpdatedAt?: string | null;
     };
     runtime: {
       alive: boolean;
       seen: boolean;
       workerId: string | null;
+      lastHeartbeatAt?: string | null;
+      processed?: number;
+      staleAfterMs?: number;
     };
     canary: {
       seen: boolean;
       ok: boolean;
       status: string | null;
       lastRunAt: string | null;
+      durationMs?: number | null;
+      jobId?: string | null;
     };
   };
   backendReadiness?: {
@@ -482,6 +490,7 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
       </div>
 
       {data.backendReadiness && <BackendReadinessPanel readiness={data.backendReadiness} />}
+      {data.worker && <WorkerUptimePanel worker={data.worker} />}
       {data.quadChain && <QuadChainTrustTrail quadChain={data.quadChain} />}
       {data.memory && (
         <MemoryTrailPanel
@@ -796,6 +805,60 @@ function BackendReadinessPanel({ readiness }: { readiness: NonNullable<OperatorR
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+function WorkerUptimePanel({ worker }: { worker: NonNullable<OperatorResponse["worker"]> }) {
+  const canaryAge = formatRelativeAge(worker.canary.lastRunAt);
+  const heartbeatAge = formatRelativeAge(worker.runtime.lastHeartbeatAt ?? null);
+  const duration = formatDuration(worker.canary.durationMs ?? null);
+  const canaryTone = worker.canary.ok
+    ? "rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] text-accent"
+    : "rounded-full border border-red-300/30 bg-red-950/20 px-2 py-0.5 text-[10px] text-red-200";
+  const runtimeTone = worker.runtime.alive
+    ? "rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] text-accent"
+    : worker.runtime.seen
+      ? "rounded-full border border-amber-300/30 bg-amber-950/20 px-2 py-0.5 text-[10px] text-amber-100"
+      : "rounded-full border border-edge bg-panel px-2 py-0.5 text-[10px] text-neutral-500";
+
+  return (
+    <div className="mt-3 rounded border border-edge bg-ink/45 p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="text-xs font-medium text-neutral-200">Worker uptime</h3>
+          <p className="mt-1 font-mono text-[9px] text-neutral-600">
+            scheduled canary, heartbeat, queue, and dead-letter state
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          <span className={runtimeTone}>{worker.runtime.alive ? "heartbeat live" : worker.runtime.seen ? "heartbeat stale" : "no heartbeat"}</span>
+          <span className={canaryTone}>{worker.canary.ok ? "canary ok" : "canary missing"}</span>
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-4 gap-1.5">
+        <OperatorStat label="canary age" value={canaryAge} accent={worker.canary.ok} />
+        <OperatorStat label="duration" value={duration} accent={worker.canary.ok} />
+        <OperatorStat label="queue" value={String(worker.queue.queueDepth)} accent={worker.queue.queueDepth === 0} />
+        <OperatorStat label="dead" value={String(worker.queue.deadLetter)} accent={worker.queue.deadLetter === 0} />
+      </div>
+      <div className="mt-3 grid gap-1.5 md:grid-cols-3">
+        <WorkerUptimeRow label="Worker" value={worker.runtime.workerId ?? "not seen"} />
+        <WorkerUptimeRow label="Heartbeat" value={heartbeatAge} />
+        <WorkerUptimeRow label="Processed" value={String(worker.runtime.processed ?? 0)} />
+        <WorkerUptimeRow label="Running" value={String(worker.queue.running ?? 0)} />
+        <WorkerUptimeRow label="Retrying" value={String(worker.queue.retrying)} />
+        <WorkerUptimeRow label="Latest job" value={formatRelativeAge(worker.queue.latestUpdatedAt ?? null)} />
+      </div>
+    </div>
+  );
+}
+
+function WorkerUptimeRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded border border-edge bg-panel px-2 py-1.5">
+      <div className="text-[9px] text-neutral-600">{label}</div>
+      <div className="mt-0.5 truncate font-mono text-[10px] text-neutral-300">{value}</div>
     </div>
   );
 }
@@ -1271,4 +1334,22 @@ function freshnessClass(freshness: "fresh" | "stale" | "unknown") {
 
 function formatStatus(status: string) {
   return status.replace("_", " ");
+}
+
+function formatDuration(durationMs: number | null): string {
+  if (!Number.isFinite(durationMs ?? NaN)) return "n/a";
+  const value = Math.max(0, Math.round(durationMs ?? 0));
+  if (value < 1000) return `${value}ms`;
+  return `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)}s`;
+}
+
+function formatRelativeAge(value: string | null): string {
+  if (!value) return "n/a";
+  const then = Date.parse(value);
+  if (!Number.isFinite(then)) return "n/a";
+  const elapsed = Math.max(0, Date.now() - then);
+  if (elapsed < 60_000) return `${Math.max(1, Math.round(elapsed / 1000))}s ago`;
+  if (elapsed < 60 * 60_000) return `${Math.round(elapsed / 60_000)}m ago`;
+  if (elapsed < 24 * 60 * 60_000) return `${Math.round(elapsed / (60 * 60_000))}h ago`;
+  return `${Math.round(elapsed / (24 * 60 * 60_000))}d ago`;
 }
