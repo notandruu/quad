@@ -1,6 +1,7 @@
 import type { Intent, QuadEmployee } from "@/lib/types";
 import { publishAuditEvent } from "@/lib/redis";
-import { retrieveMemories } from "@/lib/brain";
+import { retrieveMemoriesWithPackets } from "@/lib/brain";
+import type { QuadChainPacketSummary } from "@/lib/quad-chain";
 import { complete, chatModel } from "@/lib/llm/anthropic";
 import { classifyIntent, extractUrl } from "./intent";
 import { checkPermission } from "./permissions";
@@ -17,7 +18,8 @@ export type RuntimeInput = {
 export type RuntimeResult = {
   intent: Intent;
   requiresApproval: boolean;
-  context: Awaited<ReturnType<typeof retrieveMemories>>;
+  context: Awaited<ReturnType<typeof retrieveMemoriesWithPackets>>[number]["memory"][];
+  verifiedContext: QuadChainPacketSummary[];
   detectedUrl: string | null;
   message: string;
 };
@@ -42,9 +44,14 @@ export async function runEmployee(input: RuntimeInput): Promise<RuntimeResult> {
   });
   await publishEmployee(employee.id, "employee.intent_classified", { intent });
 
-  const context = await retrieveMemories({ orgId, query: text, limit: 6 });
+  const retrieved = await retrieveMemoriesWithPackets({ orgId, query: text, limit: 6 });
+  const context = retrieved.map((item) => item.memory);
+  const verifiedContext = retrieved
+    .map((item) => item.quadChain)
+    .filter((item): item is QuadChainPacketSummary => Boolean(item));
   await publishEmployee(employee.id, "employee.context_retrieved", {
     count: context.length,
+    verifiedCount: verifiedContext.length,
   });
 
   const permission = checkPermission(employee, intent);
@@ -67,6 +74,7 @@ export async function runEmployee(input: RuntimeInput): Promise<RuntimeResult> {
     intent,
     requiresApproval: permission.requiresApproval,
     context,
+    verifiedContext,
     detectedUrl,
     message,
   };
@@ -79,7 +87,7 @@ export async function runEmployee(input: RuntimeInput): Promise<RuntimeResult> {
 async function synthesizeReply(
   employee: QuadEmployee,
   text: string,
-  context: Awaited<ReturnType<typeof retrieveMemories>>
+  context: RuntimeResult["context"]
 ): Promise<string | null> {
   const memos = context
     .map((m) => `- [${m.sourceType}] ${m.title}: ${m.summary ?? m.content}`)

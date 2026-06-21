@@ -117,6 +117,8 @@ Set `QUAD_WORKER_SECRET` for protected worker processing calls. When it is confi
 
 `POST /api/voice/transcribe` uses Deepgram when configured, emits a `voice_transcript` packet, and writes the transcript into the company brain as verified meeting memory by default. Pass `remember=false` in the multipart form for one-off voice commands that should not become durable context.
 
+Chat answers also carry trust context. `/api/chat` emits a `chat_answer` packet and returns `verifiedContext` summaries for any retrieved memories that already have `brain_memory_write` receipts, so the dashboard can show when an answer used verified memory instead of free-floating text.
+
 For Vercel plus Railway:
 
 1. Deploy the Next.js app on Vercel with the shared app env.

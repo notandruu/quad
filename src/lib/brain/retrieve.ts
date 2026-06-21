@@ -4,12 +4,19 @@ import { traced, SPAN } from "@/lib/observability/phoenix";
 import { getClient } from "./db";
 import { embed, cosineSimilarity } from "./embeddings";
 import { seedMemories } from "./store";
+import { getLatestQuadChainPacket } from "@/lib/quad-chain/registry";
+import { summarizeQuadChainPacket, type QuadChainPacketSummary } from "@/lib/quad-chain";
 
 export type RetrieveOptions = {
   orgId: string;
   query: string;
   scope?: BrainScope;
   limit?: number;
+};
+
+export type RetrievedMemoryWithPacket = {
+  memory: BrainMemory;
+  quadChain: QuadChainPacketSummary | null;
 };
 
 /**
@@ -49,6 +56,25 @@ export async function retrieveMemories(
       .slice(0, limit)
       .map(({ m }) => m);
   });
+}
+
+export async function retrieveMemoriesWithPackets(
+  opts: RetrieveOptions
+): Promise<RetrievedMemoryWithPacket[]> {
+  const memories = await retrieveMemories(opts);
+  return Promise.all(
+    memories.map(async (memory) => {
+      const packet = await getLatestQuadChainPacket({
+        orgId: memory.orgId,
+        sourceId: memory.id,
+        type: "brain_memory_write",
+      });
+      return {
+        memory,
+        quadChain: packet ? summarizeQuadChainPacket(packet) : null,
+      };
+    })
+  );
 }
 
 /**

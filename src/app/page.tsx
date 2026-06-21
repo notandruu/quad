@@ -14,7 +14,12 @@ import type { PublishedEvent } from "@/lib/redis/publisher";
 import type { BackendSettings } from "@/lib/debug/status";
 import type { QuadChainPacketSummary } from "@/lib/quad-chain";
 
-type Message = { role: "user" | "quad"; text: string; quadChain?: QuadChainPacketSummary | null };
+type Message = {
+  role: "user" | "quad";
+  text: string;
+  quadChain?: QuadChainPacketSummary | null;
+  verifiedContext?: QuadChainPacketSummary[];
+};
 type DemoState = "idle" | "loading" | "done";
 
 export default function Home() {
@@ -92,7 +97,15 @@ export default function Home() {
         typeof data.message === "string" && data.message.trim()
           ? data.message
           : "I hit an error answering that. Try again in a moment.";
-      setMessages((m) => [...m, { role: "quad", text: message, quadChain: data.quadChain ?? null }]);
+      setMessages((m) => [
+        ...m,
+        {
+          role: "quad",
+          text: message,
+          quadChain: data.quadChain ?? null,
+          verifiedContext: Array.isArray(data.verifiedContext) ? data.verifiedContext : [],
+        },
+      ]);
     } catch {
       setMessages((m) => [
         ...m,
@@ -198,6 +211,7 @@ export default function Home() {
                 <div className={m.role === "user" ? "mt-1 text-right" : "mt-1"}>
                   <span className="inline-block rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 font-mono text-[10px] text-accent">
                     verified by quadchain · {m.quadChain.certificateId}
+                    {m.verifiedContext?.length ? ` · used ${m.verifiedContext.length} verified memories` : ""}
                   </span>
                 </div>
               )}

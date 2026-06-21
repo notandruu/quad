@@ -3,7 +3,7 @@ import { runEmployee } from "@/lib/runtime/runtime";
 import { getEmployee } from "@/lib/employees";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { withSpan } from "@/lib/observability/sentry";
-import { retrieveMemories } from "@/lib/brain";
+import { retrieveMemoriesWithPackets } from "@/lib/brain";
 import { complete, chatModel } from "@/lib/llm/anthropic";
 import { buildAuditChatSystemPrompt } from "@/lib/runtime/prompts";
 import type { AuditReport } from "@/lib/types";
@@ -37,14 +37,15 @@ export async function POST(req: NextRequest) {
     if (runId) {
       const report = await loadCachedReport(runId);
       if (report) {
-        const reply = await auditGroundedChat(text, orgId, employee, report);
+        const grounded = await auditGroundedChat(text, orgId, employee, report);
         const quadChain = await saveChatPacket({
           orgId,
           runId,
           text,
-          reply,
+          reply: grounded.reply,
           producer: "quad.chat",
           consumer: "quad.dashboard",
+          verifiedContext: grounded.verifiedContext,
           sources: [
             { id: `${runId}:audit_report`, kind: "artifact", content: { summary: report.summary, metrics: report.metrics } },
             ...report.topFindings.slice(0, 5).map((finding) => ({
@@ -58,7 +59,12 @@ export async function POST(req: NextRequest) {
             })),
           ],
         });
-        return NextResponse.json({ message: reply, intent: "audit_follow_up", quadChain });
+        return NextResponse.json({
+          message: grounded.reply,
+          intent: "audit_follow_up",
+          quadChain,
+          verifiedContext: grounded.verifiedContext,
+        });
       }
     }
 
@@ -79,6 +85,7 @@ export async function POST(req: NextRequest) {
       reply: result.message,
       producer: `quad.${employee.id}`,
       consumer: "quad.dashboard",
+      verifiedContext: result.verifiedContext,
       sources: [
         { id: "chat_input", kind: "event", content: { text } },
         ...result.context.slice(0, 6).map((memory) => ({
@@ -104,6 +111,7 @@ async function saveChatPacket(input: {
   reply: string;
   producer: string;
   consumer: string;
+  verifiedContext?: QuadChainPacketSummary[];
   sources: Array<{ id: string; kind: "event" | "artifact" | "finding" | "memory"; content: unknown }>;
 }): Promise<QuadChainPacketSummary | null> {
   try {
@@ -116,6 +124,9 @@ async function saveChatPacket(input: {
       sources: input.sources,
       output: [
         `user: ${input.text}`,
+        ...(input.verifiedContext?.length
+          ? [`verified context receipts: ${input.verifiedContext.map((packet) => packet.certificateId).join(", ")}`]
+          : []),
         `answer: ${input.reply}`,
       ].join("\n"),
       answerConcepts: ["answer"],
@@ -137,8 +148,12 @@ async function auditGroundedChat(
   orgId: string,
   employee: ReturnType<typeof getEmployee>,
   report: AuditReport
-): Promise<string> {
-  const brainContext = await retrieveMemories({ orgId, query: text, limit: 5 });
+): Promise<{ reply: string; verifiedContext: QuadChainPacketSummary[] }> {
+  const retrieved = await retrieveMemoriesWithPackets({ orgId, query: text, limit: 5 });
+  const brainContext = retrieved.map((item) => item.memory);
+  const verifiedContext = retrieved
+    .map((item) => item.quadChain)
+    .filter((item): item is QuadChainPacketSummary => Boolean(item));
 
   const system = buildAuditChatSystemPrompt(
     employee.name,
@@ -161,5 +176,8 @@ async function auditGroundedChat(
     purpose: "chat",
   });
 
-  return reply ?? `Based on the audit of ${report.targetUrl}: ${report.summary}`;
+  return {
+    reply: reply ?? `Based on the audit of ${report.targetUrl}: ${report.summary}`,
+    verifiedContext,
+  };
 }

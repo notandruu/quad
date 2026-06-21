@@ -171,10 +171,16 @@ Shipped v1:
 - Callers can opt out with `remember=false` for one-off commands.
 - The response returns the created memory id plus both packet summaries.
 
+Shipped v2:
+
+- Brain retrieval can return the latest `brain_memory_write` packet summary beside each retrieved memory.
+- Chat answers include `verifiedContext` packet summaries when retrieved memories have receipts.
+- The `chat_answer` packet records the verified context receipt ids used to ground the answer.
+- The dashboard chat badge shows when a response used verified memories.
+
 Build:
 
 - voice mode asks buyer-readiness questions.
-- transcript, memory write, and chat answer all emit quadchain packets.
 - next audit compares website against newly captured voice context.
 
 Acceptance:
