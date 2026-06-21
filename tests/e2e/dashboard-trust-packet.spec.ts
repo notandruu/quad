@@ -72,13 +72,16 @@ test.describe("dashboard trust packet flow", () => {
     await expect(page.getByRole("heading", { name: "Backend readiness" })).toBeVisible();
     await expect(page.getByText("8/8 systems ready")).toBeVisible();
     await expect(page.getByText("production ready")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Quadchain trust trail" })).toBeVisible();
+    await expect(page.getByText("2/2 accepted")).toBeVisible();
+    await expect(page.getByText("agent handoff")).toBeVisible();
     await expect(page.getByText("Artifact sidecar")).toBeVisible();
     await expect(page.getByRole("button", { name: "preview", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "proof", exact: true })).toBeVisible();
     await expect(page.getByText("ready receipts")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Approval queue" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Capability registry" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Trust trail" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Trust trail", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Trust packet", exact: true })).toBeVisible();
     await expect(page.getByText("Missing security proof", { exact: true })).toBeVisible();
 
@@ -363,6 +366,42 @@ async function mockDashboardBackends(
               detail: "Backend worker is heartbeating.",
             },
           },
+        },
+        quadChain: {
+          total: 2,
+          accepted: 2,
+          rejected: 0,
+          tokensSaved: 42,
+          evidencePreserved: 1,
+          evidenceRequired: 1,
+          latest: [
+            {
+              id: "qpacket_ui_handoff",
+              type: "agent_handoff",
+              runId,
+              certificateId: "qchain_ui_handoff",
+              accepted: true,
+              failures: [],
+              evidencePreserved: 0,
+              evidenceRequired: 0,
+              tokensSaved: 12,
+              visibility: "internal",
+              createdAt: "2026-06-21T00:00:01.000Z",
+            },
+            {
+              id: "qpacket_ui_trust",
+              type: "trust_packet",
+              runId: `trust_${runId}`,
+              certificateId: "qchain_ui_trust",
+              accepted: true,
+              failures: [],
+              evidencePreserved: 1,
+              evidenceRequired: 1,
+              tokensSaved: 30,
+              visibility: "internal",
+              createdAt: "2026-06-21T00:00:02.000Z",
+            },
+          ],
         },
       }),
     });

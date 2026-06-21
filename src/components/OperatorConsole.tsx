@@ -56,6 +56,20 @@ type ShipTrailStep = {
   createdAt: string;
 };
 
+type QuadChainPacketSummary = {
+  id: string;
+  type: string;
+  runId: string;
+  certificateId: string;
+  accepted: boolean;
+  failures: string[];
+  evidencePreserved: number;
+  evidenceRequired: number;
+  tokensSaved: number;
+  visibility: "public" | "internal" | "restricted";
+  createdAt: string;
+};
+
 type HostedArtifactPayload = {
   ok: boolean;
   artifact?: {
@@ -139,6 +153,15 @@ type OperatorResponse = {
         detail: string;
       }
     >;
+  };
+  quadChain?: {
+    total: number;
+    accepted: number;
+    rejected: number;
+    tokensSaved: number;
+    evidencePreserved: number;
+    evidenceRequired: number;
+    latest: QuadChainPacketSummary[];
   };
 };
 
@@ -325,6 +348,7 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
       </div>
 
       {data.backendReadiness && <BackendReadinessPanel readiness={data.backendReadiness} />}
+      {data.quadChain && <QuadChainTrustTrail quadChain={data.quadChain} />}
 
       <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(260px,0.9fr)]">
         <div className="space-y-2">
@@ -438,6 +462,59 @@ function OperatorStat({
         {value}
       </div>
       <div className="mt-1 text-[9px] text-neutral-600">{label}</div>
+    </div>
+  );
+}
+
+function QuadChainTrustTrail({ quadChain }: { quadChain: NonNullable<OperatorResponse["quadChain"]> }) {
+  const latest = quadChain.latest.slice(0, 5);
+  const evidenceLabel =
+    quadChain.evidenceRequired > 0
+      ? `${quadChain.evidencePreserved}/${quadChain.evidenceRequired}`
+      : "n/a";
+
+  return (
+    <div className="mt-3 rounded border border-accent/25 bg-ink/45 p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="text-xs font-medium text-neutral-200">Quadchain trust trail</h3>
+          <p className="mt-1 font-mono text-[9px] text-neutral-600">
+            live receipts from chat, voice, fetch, worker, and audit surfaces
+          </p>
+        </div>
+        <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] text-accent">
+          {quadChain.accepted}/{quadChain.total} accepted
+        </span>
+      </div>
+      <div className="mt-3 grid grid-cols-4 gap-1.5">
+        <OperatorStat label="packets" value={String(quadChain.total)} accent={quadChain.total > 0} />
+        <OperatorStat label="rejected" value={String(quadChain.rejected)} accent={quadChain.rejected === 0} />
+        <OperatorStat label="evidence" value={evidenceLabel} accent={quadChain.evidencePreserved >= quadChain.evidenceRequired} />
+        <OperatorStat label="tokens" value={String(quadChain.tokensSaved)} />
+      </div>
+      <div className="mt-3 space-y-1.5">
+        {latest.length > 0 ? (
+          latest.map((packet) => (
+            <a
+              key={packet.id}
+              href={`/quadchain?runId=${encodeURIComponent(packet.runId)}`}
+              className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded border border-edge bg-panel px-2 py-1.5 hover:border-accent/35"
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-[10px] text-neutral-300">{formatStatus(packet.type)}</span>
+                <span className="block truncate font-mono text-[9px] text-neutral-600">{packet.certificateId}</span>
+              </span>
+              <span className={packet.accepted ? "text-[10px] text-accent" : "text-[10px] text-red-200"}>
+                {packet.accepted ? "accepted" : "rejected"}
+              </span>
+            </a>
+          ))
+        ) : (
+          <div className="rounded border border-dashed border-edge bg-ink/30 p-2 text-[10px] text-neutral-600">
+            No quadchain packets yet.
+          </div>
+        )}
+      </div>
     </div>
   );
 }

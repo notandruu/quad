@@ -4,6 +4,7 @@ import { getBackendReadiness } from "@/lib/backend/readiness";
 import { listConnectorCredentials } from "@/lib/connectors";
 import { getWorkerCanaryHealth, getWorkerQueueHealth, getWorkerRuntimeHealth } from "@/lib/jobs/queue";
 import { summarizeCapabilities } from "@/lib/metaregistry";
+import { getQuadChainPackets, summarizeQuadChainPackets } from "@/lib/quad-chain/registry";
 import { buildShipTrail, listRunSnapshots, summarizeAgentTask } from "@/lib/runs";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
 import { buildSecurityPacket, summarizeSecurityPacket } from "@/lib/security/posture";
@@ -29,12 +30,13 @@ export async function GET(request: Request) {
   // each source to a safe empty value instead.
   const snapshots = await listRunSnapshots({ orgId, limit }).catch(() => []);
   const capabilities = summarizeCapabilities(process.env);
-  const [connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness] = await Promise.all([
+  const [connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness, quadChainPackets] = await Promise.all([
     listConnectorCredentials({ orgId }).catch(() => []),
     getWorkerQueueHealth().catch(() => null),
     getWorkerRuntimeHealth().catch(() => null),
     getWorkerCanaryHealth().catch(() => null),
     getBackendReadiness().catch(() => null),
+    getQuadChainPackets({ orgId, limit: 20 }).catch(() => []),
   ]);
   const security = summarizeSecurityPacket(buildSecurityPacket({ orgId }));
   const runs = snapshots.map((snapshot) => summarizeAgentTask(snapshot));
@@ -82,6 +84,7 @@ export async function GET(request: Request) {
       canary: workerCanary,
     },
     backendReadiness: backendReadiness ? summarizeBackendReadiness(backendReadiness) : null,
+    quadChain: summarizeQuadChainPackets(quadChainPackets),
     connectorCredentials,
     security,
   });
