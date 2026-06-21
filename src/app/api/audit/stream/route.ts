@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { runAudit } from "@/lib/tools/auditAnalyzer";
+import { buildQuadCoreContext, saveQuadCoreReceipt } from "@/lib/core";
 import { getEmployee } from "@/lib/employees";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { cacheReport } from "@/lib/runtime/reportCache";
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
   const targetUrl: string = body.targetUrl;
   const limit: number = body.limit ?? 12;
   const runId: string = body.runId ?? crypto.randomUUID();
-  getEmployee(body.employeeId);
+  const employee = getEmployee(body.employeeId);
 
   if (!targetUrl) {
     return new Response(JSON.stringify({ error: "targetUrl required" }), {
@@ -37,6 +38,39 @@ export async function POST(req: NextRequest) {
       send({ type: "run.created", runId, targetUrl });
 
       try {
+        const coreContext = await buildQuadCoreContext({
+          orgId,
+          employee,
+          runId,
+          text: `run audit ${targetUrl}`,
+          surface: "dashboard",
+          pinnedUrl: targetUrl,
+          hasActiveAudit: true,
+          contextMode: "skip",
+        });
+        const handoff = await saveQuadCoreReceipt({
+          context: coreContext,
+          type: "agent_handoff",
+          output: `Dashboard requested website audit for ${targetUrl}.`,
+          producer: "quad.dashboard",
+          consumer: "quad.audit_worker",
+          sources: [
+            {
+              id: "dashboard_audit_request",
+              kind: "event",
+              content: {
+                targetUrl,
+                limit,
+                selectedTools: coreContext.selectedTools.map((tool) => tool.id),
+                missingCapabilities: coreContext.missingCapabilities.map((capability) => capability.id),
+              },
+            },
+          ],
+          answerConcepts: ["dashboard", "handoff", "website_audit"],
+          visibility: "internal",
+        });
+        send({ type: "core.handoff", quadChain: handoff });
+
         // Pass onEvent so every published event is forwarded to the SSE
         // client immediately as it happens rather than replayed at the end.
         const report = await runAudit({

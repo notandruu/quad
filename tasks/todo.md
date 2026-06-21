@@ -225,7 +225,8 @@ hard constraints:
 - [x] make `/api/voice/transcribe` use the same core runtime context and restricted `voice_transcript` receipt helper
 - [x] make `/api/agent/run` use the same core runtime context and `agent_handoff` receipt helper for fetch/agentverse runs
 - [x] make backend worker jobs use the same core runtime context and `agent_handoff` receipt helper before executing queued work
-- [ ] keep the route-specific audit execution path working while the rest of the app migrates onto core
+- [x] make `/api/audit/stream` enter the same core runtime context and emit a dashboard `agent_handoff` receipt before worker execution
+- [ ] keep the route-specific audit engine internals stable while the rest of the app migrates onto core
 - [x] verify the slice with unit tests, typecheck, and no changes to frozen `src/lib/types`
 
 - [ ] implement real redis streams for audit events and replay

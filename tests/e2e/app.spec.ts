@@ -100,6 +100,7 @@ test.describe("quad production flows", () => {
     expect(packets.ok()).toBe(true);
     const packetJson = await packets.json();
     expect(packetJson.summary.total).toBeGreaterThan(0);
+    expect(packetJson.packets.some((packet: { type: string }) => packet.type === "agent_handoff")).toBe(true);
     expect(packetJson.packets.some((packet: { type: string }) => packet.type === "audit_report")).toBe(true);
 
     const trustPacket = await request.post("/api/trust-packet", {
