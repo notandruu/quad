@@ -5,6 +5,7 @@ import {
   type WorkerCanaryHealth,
   type WorkerRuntimeHealth,
 } from "@/lib/jobs/queue";
+import { getObservabilityReadiness, type ObservabilityReadiness } from "@/lib/observability";
 import { getRedis, isRedisConfigured } from "@/lib/redis";
 import { getServiceTokenReadiness, securityReadiness, type ServiceTokenReadiness } from "@/lib/security";
 
@@ -31,7 +32,7 @@ export type BackendReadinessReport = {
     auth: BackendComponentHealth;
     serviceTokens: BackendComponentHealth & ServiceTokenReadiness;
     encryption: BackendComponentHealth;
-    observability: BackendComponentHealth;
+    observability: BackendComponentHealth & ObservabilityReadiness;
     voice: BackendComponentHealth;
     browserbase: BackendComponentHealth;
     worker: BackendComponentHealth & {
@@ -77,8 +78,7 @@ export async function getBackendReadiness(
   const requiredSecretConfigured = Boolean(env.QUAD_API_SECRET);
   const serviceTokens = getServiceTokenReadiness(env);
   const encryptionConfigured = Boolean(env.QUAD_CONNECTOR_ENCRYPTION_KEY);
-  const sentryConfigured = Boolean(env.SENTRY_DSN);
-  const phoenixConfigured = Boolean(env.PHOENIX_COLLECTOR_ENDPOINT);
+  const observability = getObservabilityReadiness(env);
   const browserbaseConfigured = Boolean(env.BROWSERBASE_API_KEY && env.BROWSERBASE_PROJECT_ID);
   const voiceConfigured = Boolean(env.DEEPGRAM_API_KEY || env.MOSHI_SERVER_URL || env.NEXT_PUBLIC_MOSHI_SERVER_URL);
 
@@ -142,16 +142,7 @@ export async function getBackendReadiness(
         : "Connector credentials will use the API secret or local dev fallback key.",
     },
     observability: {
-      status: sentryConfigured && phoenixConfigured ? "ready" : sentryConfigured || phoenixConfigured ? "degraded" : "missing",
-      configured: sentryConfigured || phoenixConfigured,
-      detail:
-        sentryConfigured && phoenixConfigured
-          ? "Sentry and Phoenix are configured."
-          : sentryConfigured
-            ? "Sentry is configured, Phoenix tracing is missing."
-            : phoenixConfigured
-              ? "Phoenix tracing is configured, Sentry is missing."
-              : "Sentry and Phoenix are missing.",
+      ...observability,
     },
     voice: {
       status: voiceConfigured ? "ready" : "missing",

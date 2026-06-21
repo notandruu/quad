@@ -25,6 +25,7 @@ const workerSecret = process.env.QUAD_WORKER_SECRET ?? apiSecret;
 const requireHostedAuth = process.env.QUAD_SMOKE_REQUIRE_AUTH
   ? process.env.QUAD_SMOKE_REQUIRE_AUTH !== "0"
   : !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(baseUrl);
+const emitObservabilityProbe = process.env.QUAD_SMOKE_OBSERVABILITY_PROBE === "1";
 
 const checks = [];
 
@@ -113,6 +114,7 @@ console.log(`org id:   ${orgId}`);
 console.log(`api auth: ${apiSecret ? "configured" : "missing"}`);
 console.log(`worker:   ${workerSecret ? "configured" : "missing"}`);
 console.log(`guarded:  ${requireHostedAuth ? "required" : "demo fallback allowed"}`);
+console.log(`obs emit: ${emitObservabilityProbe ? "enabled" : "disabled"}`);
 
 await record("unauthenticated worker canary is blocked", async () => {
   const result = await requestJson(`/api/jobs/canary?orgId=${encodeURIComponent(orgId)}`, { method: "POST" });
@@ -191,6 +193,42 @@ await record("retention policy is readable with auth", async () => {
     warnings: result.json.policy.warnings ?? [],
   };
 });
+
+await record("observability readiness is readable with auth", async () => {
+  if (!apiSecret) throw new Error("QUAD_API_SECRET is required.");
+  const result = await requestJson(`/api/observability/probe?orgId=${encodeURIComponent(orgId)}`, {
+    headers: authHeaders(apiSecret),
+  });
+  assertOk(result, "observability readiness");
+  if (result.json.ok !== true || !result.json.observability?.status) {
+    throw new Error("observability readiness response is missing status.");
+  }
+  return {
+    detail: `status=${result.json.observability.status} sinks=${(result.json.observability.sinks ?? []).join(",") || "none"}`,
+  };
+});
+
+if (emitObservabilityProbe) {
+  await record("observability probe emits safe receipts", async () => {
+    if (!apiSecret) throw new Error("QUAD_API_SECRET is required.");
+    const result = await requestJson("/api/observability/probe", {
+      method: "POST",
+      headers: authHeaders(apiSecret),
+      body: JSON.stringify({
+        orgId,
+        runId: `smoke_${Date.now()}`,
+      }),
+    });
+    assertOk(result, "observability probe");
+    if (!result.json.probe?.probeId) {
+      throw new Error("observability probe response is missing probeId.");
+    }
+    return {
+      detail: `ok=${Boolean(result.json.probe.ok)} emitted=${result.json.probe.emitted?.length ?? 0} probe=${result.json.probe.probeId}`,
+      warnings: result.json.probe.ok ? [] : ["Observability sinks are not both configured or probe emission failed."],
+    };
+  });
+}
 
 console.log("\nchecks\n");
 for (const check of checks) {

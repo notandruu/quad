@@ -41,6 +41,20 @@ describe("getBackendReadiness", () => {
     expect(report.mode).toBe("production_ready");
     expect(report.components.supabase.missingTables).toEqual([]);
     expect(report.components.serviceTokens.status).toBe("ready");
+    expect(report.components.observability).toMatchObject({
+      status: "ready",
+      sentry: {
+        configured: true,
+        serverDsn: true,
+      },
+      phoenix: {
+        configured: true,
+        endpoint: true,
+      },
+      sinks: ["sentry", "phoenix"],
+    });
+    expect(JSON.stringify(report)).not.toContain("https://sentry.example");
+    expect(JSON.stringify(report)).not.toContain("https://phoenix.example");
     expect(report.components.serviceTokens.tokens).toEqual([
       {
         label: "railway-worker",

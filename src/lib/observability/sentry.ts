@@ -39,6 +39,10 @@ export function captureHandled(err: unknown, tags: QuadSpanTags): void {
   Sentry.captureException(err, { level: "warning", tags: cleanTags(tags) });
 }
 
+export function captureInfo(message: string, tags: QuadSpanTags): string {
+  return Sentry.captureMessage(message, { level: "info", tags: cleanTags(tags) });
+}
+
 function cleanTags(tags: QuadSpanTags): Record<string, string | number> {
   const out: Record<string, string | number> = {};
   for (const [k, v] of Object.entries(tags)) {

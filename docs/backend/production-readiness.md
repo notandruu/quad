@@ -36,6 +36,19 @@ QUAD_SMOKE_BASE_URL=https://quad.example.com npm run smoke:prod
 - backend readiness exposes component status for Supabase, Redis, worker, auth, service tokens, encryption, observability, voice, and Browserbase.
 - retention policy is readable through the authenticated security route.
 
+Manual observability booth check:
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer $QUAD_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -X POST \
+  -d '{"orgId":"org_brightpath","runId":"demo-observability"}' \
+  "$QUAD_SMOKE_BASE_URL/api/observability/probe"
+```
+
+This emits a safe Sentry info event and Phoenix span when those sinks are configured. The response includes probe ids, labels, and booleans only; it does not include DSNs, API keys, or raw org ids.
+
 Required environment:
 
 - `QUAD_SMOKE_BASE_URL`
@@ -71,6 +84,8 @@ Current route scopes:
 - `worker`: process jobs, run worker canaries, and read worker health.
 - `jobs:read`: list or read queued jobs.
 - `jobs:write`: enqueue jobs.
+- `observability:read`: read redacted observability configuration state.
+- `observability:write`: emit safe Sentry/Phoenix probe receipts.
 
 If a request uses `QUAD_API_SECRET`, it is treated as admin and bypasses per-route scopes. If it uses a service token, both org and scope must match.
 Backend readiness and security packets only expose token labels, scopes, counts, and org-scoped status. Raw token values are never returned.
