@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CAPABILITY_CATALOG,
   buildActiveToolCatalog,
+  buildCapabilityInstallPlan,
   getEnterpriseProofStarterBundle,
   resolveCapabilityPolicy,
   summarizeCapabilities,
@@ -41,24 +42,24 @@ describe("metaregistry", () => {
         installed: true,
         status: "available",
         missingEnv: [],
-      active: true,
-      allowlisted: true,
-      disabled: false,
-      installSource: "default",
-      reason: "Ready.",
-    },
-    {
+        active: true,
+        allowlisted: true,
+        disabled: false,
+        installSource: "default",
+        reason: "Ready.",
+      },
+      {
         id: "cms.publisher",
         installed: true,
         status: "degraded",
-      missingEnv: ["CMS_API_KEY"],
-      active: false,
-      allowlisted: true,
-      disabled: false,
-      installSource: "forced",
-      reason: "Missing CMS_API_KEY.",
-    },
-  ];
+        missingEnv: ["CMS_API_KEY"],
+        active: false,
+        allowlisted: true,
+        disabled: false,
+        installSource: "forced",
+        reason: "Missing CMS_API_KEY.",
+      },
+    ];
 
     expect(buildActiveToolCatalog(states).map((tool) => tool.id)).toEqual(["quad.chain_verifier"]);
   });
@@ -165,5 +166,70 @@ describe("metaregistry", () => {
       forceInstalled: [],
       requireWriteAllowlist: false,
     });
+  });
+
+  it("builds a safe install plan for the enterprise proof starter bundle", () => {
+    const plan = buildCapabilityInstallPlan({
+      env: {
+        QUAD_CAPABILITY_DISABLED: "sentry.reliability",
+        BROWSERBASE_API_KEY: "bb",
+        BROWSERBASE_PROJECT_ID: "project",
+      },
+      orgId: "org_plan",
+    });
+
+    expect(plan.bundleId).toBe("enterprise_proof_starter");
+    expect(plan.knownIds).toContain("browserbase.read_browser");
+    expect(plan.unknownIds).toEqual([]);
+    expect(plan.newlyAllowlisted).toEqual(expect.arrayContaining(["quad.chain_verifier", "browserbase.read_browser"]));
+    expect(plan.newlyForceInstalled).toEqual([]);
+    expect(plan.envRequired).toEqual(
+      expect.arrayContaining([
+        { id: "quad.company_brain", missingEnv: ["SUPABASE_URL", "SUPABASE_SERVICE_KEY"] },
+        { id: "arize.phoenix", missingEnv: ["PHOENIX_COLLECTOR_ENDPOINT"] },
+      ])
+    );
+    expect(plan.blockedAfterInstall).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "sentry.reliability",
+          reason: "Capability is disabled by org policy.",
+        }),
+      ])
+    );
+    expect(plan.activeAfterInstall.map((tool) => tool.id)).toEqual(
+      expect.arrayContaining(["quad.chain_verifier", "trust_packet.exporter", "browserbase.read_browser"])
+    );
+  });
+
+  it("force-installs write tools in preview but still reports missing env", () => {
+    const plan = buildCapabilityInstallPlan({
+      env: {},
+      orgId: "org_plan",
+      includeWriteTools: true,
+    });
+
+    expect(plan.newlyAllowlisted).toEqual(expect.arrayContaining(["cms.publisher", "task.publisher"]));
+    expect(plan.newlyForceInstalled).toEqual(expect.arrayContaining(["cms.publisher", "task.publisher", "browserbase.write_browser"]));
+    expect(plan.envRequired).toEqual(
+      expect.arrayContaining([
+        { id: "cms.publisher", missingEnv: ["CMS_API_KEY"] },
+        { id: "task.publisher", missingEnv: ["LINEAR_API_KEY"] },
+      ])
+    );
+    expect(plan.blockedAfterInstall.map((item) => item.id)).toEqual(
+      expect.arrayContaining(["cms.publisher", "task.publisher"])
+    );
+  });
+
+  it("keeps unknown capability ids out of policy previews", () => {
+    const plan = buildCapabilityInstallPlan({
+      env: {},
+      capabilityIds: ["quad.chain_verifier", "missing.capability"],
+    });
+
+    expect(plan.knownIds).toEqual(["quad.chain_verifier"]);
+    expect(plan.unknownIds).toEqual(["missing.capability"]);
+    expect(plan.policyPreview.allowlist).toEqual(["quad.chain_verifier"]);
   });
 });

@@ -181,6 +181,21 @@ type OperatorResponse = {
   };
 };
 
+type InstallPlanResponse = {
+  ok: boolean;
+  plan?: {
+    bundleId: string;
+    knownIds: string[];
+    unknownIds: string[];
+    alreadyActive: string[];
+    newlyAllowlisted: string[];
+    newlyForceInstalled: string[];
+    envRequired: Array<{ id: string; missingEnv: string[] }>;
+    blockedAfterInstall: Array<{ id: string; reason: string; missingEnv: string[] }>;
+    activeAfterInstall: Array<{ id: string; name: string; kind: string }>;
+  };
+};
+
 export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgId?: string; watchRunId?: string | null }) {
   const [data, setData] = useState<OperatorResponse | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
@@ -191,6 +206,7 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
   const [decisionState, setDecisionState] = useState<{ id: string; decision: "approved" | "rejected" } | null>(null);
   const [publishingRunId, setPublishingRunId] = useState<string | null>(null);
   const [verifyingRunId, setVerifyingRunId] = useState<string | null>(null);
+  const [installPlan, setInstallPlan] = useState<InstallPlanResponse["plan"] | null>(null);
 
   const load = useCallback(async () => {
     const response = await fetch(`/api/operator?orgId=${encodeURIComponent(orgId)}&limit=8`, {
@@ -224,6 +240,23 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
       window.clearInterval(id);
     };
   }, [orgId, watchRunId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/metaregistry/install-plan?orgId=${encodeURIComponent(orgId)}&includeWriteTools=1`, {
+      cache: "no-store",
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((json: InstallPlanResponse | null) => {
+        if (!cancelled) setInstallPlan(json?.plan ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setInstallPlan(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orgId]);
 
   const counts = useMemo(() => {
     const runs = data?.runs ?? [];
@@ -471,6 +504,7 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
             </div>
           </div>
 
+          <CapabilityInstallPlan plan={installPlan} />
           <TaskStream events={taskEvents} />
         </div>
       </div>
@@ -923,6 +957,43 @@ function CapabilityPill({ capability, active = false }: { capability: OperatorCa
     >
       {capability.sponsor ?? capability.name ?? capability.id}
     </span>
+  );
+}
+
+function CapabilityInstallPlan({ plan }: { plan: InstallPlanResponse["plan"] | null }) {
+  if (!plan) {
+    return (
+      <div className="rounded border border-dashed border-edge bg-ink/30 p-2 text-[10px] text-neutral-600">
+        Capability install plan unavailable.
+      </div>
+    );
+  }
+
+  const envKeys = plan.envRequired.flatMap((item) => item.missingEnv).slice(0, 4);
+  return (
+    <div className="rounded border border-accent/20 bg-accent/5 p-2">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h3 className="text-xs font-medium text-neutral-200">Starter install plan</h3>
+          <p className="mt-1 text-[10px] leading-4 text-neutral-500">
+            {plan.activeAfterInstall.length}/{plan.knownIds.length} capabilities active after setup
+          </p>
+        </div>
+        <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] text-accent">
+          dry run
+        </span>
+      </div>
+      <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
+        <OperatorStat label="allowlist" value={String(plan.newlyAllowlisted.length)} accent />
+        <OperatorStat label="install" value={String(plan.newlyForceInstalled.length)} />
+        <OperatorStat label="blocked" value={String(plan.blockedAfterInstall.length)} accent={plan.blockedAfterInstall.length === 0} />
+      </div>
+      {envKeys.length > 0 && (
+        <div className="mt-2 rounded border border-edge bg-panel px-2 py-1 font-mono text-[9px] text-neutral-600">
+          missing env: {envKeys.join(", ")}
+        </div>
+      )}
+    </div>
   );
 }
 

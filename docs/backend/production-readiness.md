@@ -19,6 +19,7 @@ Quad can run with zero keys for demos, but the production backend is only green 
 - Supabase-backed workflow ledger and quadchain packet registry, with Redis/memory fallback.
 - Normalized task stream events in run snapshots for run lifecycle changes, tasks, artifacts, approvals, decisions, and receipts. The hosted run detail and task endpoints expose the same stream for dashboard, external agents, workers, and future CLI or Slack surfaces.
 - Metaregistry capability policy for runtime tool exposure. `QUAD_CAPABILITY_ALLOWLIST`, `QUAD_CAPABILITY_DISABLED`, and `QUAD_CAPABILITY_FORCE_INSTALLED` control which capabilities an org can route to; write-capable tools require explicit allowlisting unless `QUAD_REQUIRE_WRITE_CAPABILITY_ALLOWLIST=false`.
+- Safe metaregistry install planning at `GET /api/metaregistry/install-plan`. The route is read-only and returns planned allowlist/force-install changes plus missing env key names for the enterprise proof starter bundle.
 - Platform schema SQL in `docs/backend/platform-schema.sql`.
 
 ## Production gates

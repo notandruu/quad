@@ -55,6 +55,28 @@ export type CapabilitySummary = {
   policy: CapabilityPolicy;
 };
 
+export type CapabilityInstallPlan = {
+  orgId?: string;
+  bundleId: "enterprise_proof_starter" | "custom";
+  requestedIds: string[];
+  knownIds: string[];
+  unknownIds: string[];
+  alreadyActive: string[];
+  newlyAllowlisted: string[];
+  newlyForceInstalled: string[];
+  envRequired: Array<{
+    id: string;
+    missingEnv: string[];
+  }>;
+  blockedAfterInstall: Array<{
+    id: string;
+    reason: string;
+    missingEnv: string[];
+  }>;
+  activeAfterInstall: ActiveTool[];
+  policyPreview: CapabilityPolicy;
+};
+
 export type CapabilityPolicy = {
   orgId?: string;
   allowlist: string[];
@@ -312,6 +334,62 @@ export function buildActiveToolCatalog(states: CapabilityInstallState[]): Active
 
 export function getCapability(id: string): CapabilityManifest | undefined {
   return CAPABILITY_CATALOG.find((manifest) => manifest.id === id);
+}
+
+export function buildCapabilityInstallPlan(input: {
+  env: Record<string, string | undefined>;
+  orgId?: string;
+  capabilityIds?: string[];
+  bundleId?: CapabilityInstallPlan["bundleId"];
+  includeWriteTools?: boolean;
+}): CapabilityInstallPlan {
+  const requestedIds = uniqueIds(
+    input.capabilityIds?.length
+      ? input.capabilityIds
+      : [
+          ...ENTERPRISE_PROOF_STARTER_BUNDLE,
+          ...(input.includeWriteTools ? ["cms.publisher", "task.publisher", "browserbase.write_browser"] : []),
+        ]
+  );
+  const currentPolicy = resolveCapabilityPolicy(input.env, { orgId: input.orgId });
+  const knownIds = requestedIds.filter((id) => Boolean(getCapability(id)));
+  const unknownIds = requestedIds.filter((id) => !getCapability(id));
+  const currentSummary = summarizeCapabilities(input.env, { orgId: input.orgId });
+  const activeNow = new Set(currentSummary.activeTools.map((tool) => tool.id));
+  const forceNeeded = knownIds.filter((id) => {
+    const manifest = getCapability(id);
+    return manifest && !manifest.enabledByDefault && !currentPolicy.forceInstalled.includes(id);
+  });
+  const allowlistNeeded = knownIds.filter((id) => !currentPolicy.allowlist.includes(id));
+  const policyPreview: CapabilityPolicy = {
+    ...currentPolicy,
+    allowlist: uniqueIds([...currentPolicy.allowlist, ...allowlistNeeded]),
+    forceInstalled: uniqueIds([...currentPolicy.forceInstalled, ...forceNeeded]),
+  };
+  const preview = summarizeCapabilities(input.env, {
+    orgId: input.orgId,
+    policy: policyPreview,
+  });
+  const requestedStates = preview.installed.filter((state) => knownIds.includes(state.id));
+
+  return {
+    orgId: input.orgId,
+    bundleId: input.bundleId ?? (input.capabilityIds?.length ? "custom" : "enterprise_proof_starter"),
+    requestedIds,
+    knownIds,
+    unknownIds,
+    alreadyActive: knownIds.filter((id) => activeNow.has(id)),
+    newlyAllowlisted: allowlistNeeded,
+    newlyForceInstalled: forceNeeded,
+    envRequired: requestedStates
+      .filter((state) => state.missingEnv.length > 0)
+      .map((state) => ({ id: state.id, missingEnv: state.missingEnv })),
+    blockedAfterInstall: requestedStates
+      .filter((state) => !state.active)
+      .map((state) => ({ id: state.id, reason: state.reason, missingEnv: state.missingEnv })),
+    activeAfterInstall: preview.activeTools.filter((tool) => knownIds.includes(tool.id)),
+    policyPreview,
+  };
 }
 
 function buildInstallState(

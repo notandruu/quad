@@ -81,6 +81,9 @@ test.describe("dashboard trust packet flow", () => {
     await expect(page.getByText("ready receipts")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Approval queue" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Capability registry" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Starter install plan" })).toBeVisible();
+    await expect(page.getByText("dry run")).toBeVisible();
+    await expect(page.getByText(/missing env: CMS_API_KEY/)).toBeVisible();
     await expect(page.getByRole("heading", { name: "Task stream" })).toBeVisible();
     await expect(page.getByText("approval.decided")).toBeVisible();
     await expect(page.getByRole("link", { name: /task\.blocked.*cms\.publisher/ })).toBeVisible();
@@ -438,6 +441,36 @@ async function mockDashboardBackends(
               visibility: "internal",
               createdAt: "2026-06-21T00:00:02.000Z",
             },
+          ],
+        },
+      }),
+    });
+  });
+
+  await page.route("**/api/metaregistry/install-plan?**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        orgId: "org_brightpath",
+        plan: {
+          bundleId: "enterprise_proof_starter",
+          knownIds: ["quad.chain_verifier", "trust_packet.exporter", "cms.publisher", "task.publisher"],
+          unknownIds: [],
+          alreadyActive: ["quad.chain_verifier", "trust_packet.exporter"],
+          newlyAllowlisted: ["cms.publisher", "task.publisher"],
+          newlyForceInstalled: ["cms.publisher", "task.publisher"],
+          envRequired: [
+            { id: "cms.publisher", missingEnv: ["CMS_API_KEY"] },
+            { id: "task.publisher", missingEnv: ["LINEAR_API_KEY"] },
+          ],
+          blockedAfterInstall: [
+            { id: "cms.publisher", reason: "Missing CMS_API_KEY.", missingEnv: ["CMS_API_KEY"] },
+            { id: "task.publisher", reason: "Missing LINEAR_API_KEY.", missingEnv: ["LINEAR_API_KEY"] },
+          ],
+          activeAfterInstall: [
+            { id: "quad.chain_verifier", name: "Quad chain verifier", kind: "verifier" },
+            { id: "trust_packet.exporter", name: "Trust packet exporter", kind: "publisher" },
           ],
         },
       }),

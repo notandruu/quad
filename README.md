@@ -79,6 +79,8 @@ High-risk mutation routes are protected by org-scoped rate limits and optional `
 
 `/api/connectors/credentials` installs, lists, and revokes connector credentials. Stored credentials are encrypted with `QUAD_CONNECTOR_ENCRYPTION_KEY` and list responses return only metadata, scopes, status, and credential hashes.
 
+`GET /api/metaregistry/install-plan` returns a dry-run capability install plan for the enterprise proof starter bundle. It reports allowlist changes, force-installed tools, missing env key names, blockers, and active-after-install tools without mutating connector state or exposing secret values.
+
 `POST /api/publish/dry-run` stages approved connector artifacts only when the metaregistry says the target connector is active for the org. `cms.publisher` and `task.publisher` must be configured, force-installed if disabled by default, and explicitly allowlisted because they are write-capable tools. Blocked connector attempts create blocked task stream events instead of ready artifacts.
 
 `POST /api/verify-fix` runs post-ship verification over staged connector artifacts, emits verification reports, creates executed or blocked receipts, and attaches quadchain `connector_action` packets to the run.
