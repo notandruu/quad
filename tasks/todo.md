@@ -191,6 +191,7 @@ hard constraints:
 - [ ] add dry-run publisher connectors for cms, task, team, and memory writeback
 - [ ] add persistent approval ledger and receipt generation
 - [x] add post-ship verification and retry/escalation states
+- [x] add backend readiness endpoint and platform schema for durable Supabase tables
 - [ ] expose hosted run artifacts under stable run/task ids
 
 ### phase 4 metaregistry capability layer

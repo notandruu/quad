@@ -73,6 +73,8 @@ High-risk mutation routes are protected by org-scoped rate limits and optional `
 
 `POST /api/verify-fix` runs post-ship verification over staged connector artifacts, emits verification reports, creates executed or blocked receipts, and attaches quadchain `connector_action` packets to the run.
 
+`GET /api/health/backend` reports whether Supabase platform tables, Redis, hosted API auth, credential encryption, Browserbase, voice, Sentry, and Phoenix are configured and reachable. Run `docs/backend/platform-schema.sql` in Supabase before relying on durable runs.
+
 ## Verification
 
 ```bash
