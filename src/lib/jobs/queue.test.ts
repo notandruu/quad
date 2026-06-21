@@ -3,6 +3,7 @@ import { getRunSnapshot } from "@/lib/runs";
 import {
   claimJob,
   claimNextJob,
+  deadLetterJob,
   enqueueAuditJob,
   enqueueWorkerCanaryJob,
   getJob,
@@ -12,6 +13,7 @@ import {
   listJobs,
   recordWorkerHeartbeat,
   recordWorkerCanaryHealth,
+  requeueJob,
   retryJob,
   updateJob,
 } from "./queue";
@@ -116,6 +118,42 @@ describe("job queue", () => {
     expect(reclaimed?.id).toBe(result.job.id);
     expect(reclaimed?.attempts).toBe(2);
     expect(reclaimed?.claimedBy).toMatch(/^lease_/);
+  });
+
+  it("manually requeues dead letter jobs for operator recovery", async () => {
+    vi.stubEnv("QUAD_REDIS_REST_URL", "");
+    vi.stubEnv("QUAD_REDIS_REST_TOKEN", "");
+
+    const result = await enqueueAuditJob({
+      orgId: "org_jobs",
+      targetUrl: "https://example.biz",
+      runId: "run_job_queue_requeue",
+    });
+    const claimed = await claimJob(result.job.id);
+    const dead = await deadLetterJob(claimed!, {
+      error: "browser crashed",
+      now: "2026-06-21T00:00:00.000Z",
+    });
+
+    const requeued = await requeueJob(dead, {
+      reason: "browser credentials fixed",
+      now: "2026-06-21T00:01:00.000Z",
+    });
+    const reclaimed = await claimNextJob();
+
+    expect(requeued).toMatchObject({
+      id: result.job.id,
+      status: "queued",
+      attempts: 0,
+      deadLetteredAt: undefined,
+      claimedBy: undefined,
+    });
+    expect(requeued.errorHistory?.at(-1)).toMatchObject({
+      attempt: 1,
+      message: "operator retry: browser credentials fixed",
+    });
+    expect(reclaimed?.id).toBe(result.job.id);
+    expect(reclaimed?.attempts).toBe(1);
   });
 
   it("records fresh and stale worker runtime heartbeats", async () => {

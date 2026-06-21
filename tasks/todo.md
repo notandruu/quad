@@ -78,7 +78,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [x] memory stale-after, owner, validation, and relationship metadata on write/retrieve
 - [x] operator-visible memory trail with stale/scope/relationship signals
 - [ ] event-driven context capture pipeline with signal/noise extraction before writeback
-- [ ] audit run model with lifecycle states, retries, and resumability
+- [x] audit run model with lifecycle states, retries, dead-letter recovery, and resumability
 - [ ] redis event stream and replay for every run
 - [ ] normalized task stream schema shared by dashboard, fetch agent, future cli, and replay
 - [ ] quad chain certificate schema for audit briefs, customer trust packets, learned memory receipts, and agent handoffs
@@ -197,6 +197,7 @@ hard constraints:
 - [x] add post-ship verification and retry/escalation states
 - [x] add backend readiness endpoint and platform schema for durable Supabase tables
 - [x] add worker retry, dead-letter, and queue health semantics
+- [x] add guarded manual job retry api that requeues dead-letter work and records a run ledger task
 - [x] expose hosted run artifacts under stable run/task ids
 
 ### phase 4 metaregistry capability layer

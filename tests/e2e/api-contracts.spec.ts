@@ -133,6 +133,36 @@ test.describe("api contracts", () => {
     });
   });
 
+  test("refuses manual retry for queued jobs through the public api", async ({ request }) => {
+    const created = await request.post("/api/jobs", {
+      data: {
+        orgId: "org_brightpath",
+        targetUrl: "https://example.com",
+        runId: `run_retry_contract_${Date.now()}`,
+      },
+    });
+
+    expect(created.ok()).toBe(true);
+    const createdJson = await created.json();
+    const retry = await request.post(`/api/jobs/${createdJson.job.id}/retry`, {
+      data: {
+        reason: "contract test should not retry queued work",
+      },
+    });
+
+    expect(retry.status()).toBe(409);
+    const retryJson = await retry.json();
+    expect(retryJson).toMatchObject({
+      ok: false,
+      code: "job_not_retryable",
+      job: {
+        id: createdJson.job.id,
+        status: "queued",
+      },
+    });
+    expect(JSON.stringify(retryJson)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+  });
+
   test("supports scheduled worker canary calls for cron monitors", async ({ request }) => {
     const response = await request.post("/api/jobs/canary?orgId=org_brightpath&scheduled=1&minIntervalSeconds=300");
 

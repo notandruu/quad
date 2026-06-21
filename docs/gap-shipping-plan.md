@@ -298,6 +298,13 @@ Shipped v6:
 - the panel shows latest canary age, canary duration, heartbeat state, queue depth, retrying jobs, dead-letter count, processed count, and latest job age.
 - the panel uses existing safe `/api/operator` data and does not expose worker secrets or raw env.
 
+Shipped v8:
+
+- `POST /api/jobs/[jobId]/retry` lets an operator manually requeue dead-letter, failed, or retrying backend jobs.
+- manual retry requires `jobs:write`, uses mutation idempotency guards, and refuses queued/running/completed jobs.
+- retrying clears stale lease/dead-letter state, optionally resets attempts, pushes the job back onto the queue, and records an `Operator retried backend job` event in the run ledger.
+- api and unit tests cover dead-letter recovery, non-retryable jobs, and secret-safe public responses.
+
 ## Gap 5: voice-led enterprise proof interview
 
 Status: partial.
@@ -446,7 +453,7 @@ Next:
 
 ## Recommended next shipping order
 
-1. Railway cron and external uptime check examples for the scheduled POST canary path.
-2. richer connector-specific publish payloads.
-3. sponsor proof fixtures and demo script.
-4. memory refresh actions for stale context.
+1. external uptime check examples for the scheduled worker canary path.
+2. sponsor proof fixtures and demo script.
+3. model gateway with redaction, org policy, retries, and llm cost receipts.
+4. object storage evidence bundles for screenshots, voice uploads, and trust packet exports.

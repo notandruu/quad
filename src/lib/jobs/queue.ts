@@ -345,6 +345,35 @@ export async function deadLetterJob(
   })) ?? job;
 }
 
+export async function requeueJob(
+  job: QuadJob,
+  input: { reason: string; resetAttempts?: boolean; now?: string }
+): Promise<QuadJob> {
+  const now = input.now ?? new Date().toISOString();
+  const updated = await updateJob(job.id, {
+    status: "queued",
+    attempts: (input.resetAttempts ?? true) ? 0 : job.attempts,
+    startedAt: undefined,
+    completedAt: undefined,
+    retryAt: undefined,
+    deadLetteredAt: undefined,
+    claimedBy: undefined,
+    claimExpiresAt: undefined,
+    error: input.reason,
+    result: undefined,
+    errorHistory: [
+      ...(job.errorHistory ?? []),
+      {
+        attempt: job.attempts,
+        message: `operator retry: ${input.reason}`,
+        at: now,
+      },
+    ],
+  });
+  await pushJobId(job.id);
+  return updated ?? job;
+}
+
 export async function getWorkerQueueHealth(): Promise<WorkerQueueHealth> {
   const jobs = [...memoryJobs.values()];
   const queued = jobs.filter((job) => job.status === "queued" || job.status === "retrying");
