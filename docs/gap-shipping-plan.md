@@ -171,6 +171,30 @@ Acceptance:
 - future agents can choose a playbook by intent and inspect missing capabilities before acting.
 - playbooks keep high-risk writes behind approval and verifier requirements.
 
+## Gap 2.0.3: connector registry
+
+Status: shipped v1.
+
+What was missing:
+
+- connector credentials, source documents, publishers, Browserbase actions, and external-agent surfaces existed in separate modules.
+- operators could not see one safe registry explaining auth mode, scopes, write risk, credential state, and which playbooks depend on each connector.
+- the security story had encrypted credentials, but not a product-facing connector inventory.
+
+Shipped v1:
+
+- `src/lib/connectors/registry` builds a safe connector registry from metaregistry capabilities, connector credentials, and playbook bindings.
+- registry entries cover source systems, publishers, browser actions, voice, observability, internal infrastructure, and agent surfaces.
+- each entry declares auth mode, scopes, write capability, approval mode, credential requirement, credential status, installed/revoked counts, risk, next action, and bound playbooks.
+- `GET /api/connectors/registry` exposes the registry without secret env values or credential payloads.
+- `/api/operator` and the operator console show connector posture beside capabilities and playbooks.
+
+Acceptance:
+
+- operators can answer which external systems the AI employee can read or write.
+- customer-mutating connectors are visibly high-risk and approval-gated.
+- credentials are summarized as installed/missing/revoked without exposing secret payloads.
+
 ## Gap 2.1: runtime observability receipts
 
 Status: shipped v1.

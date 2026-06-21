@@ -81,6 +81,7 @@ Private raw context, evidence strings, transcripts, screenshots, prompts, respon
 | `GET /api/operator` | Workspace, memory, run, approval, capability, evidence, worker, and usage summary |
 | `POST /api/ingest` | Stage or write company memory with scope and approval metadata |
 | `POST /api/context/capture` | Normalize meeting, voice, chat, docs, or connector events into durable context signals |
+| `GET /api/connectors/registry` | Safe connector registry with auth mode, scopes, credential state, risk, and playbook bindings |
 | `GET /api/brain/graph` | Safe context graph with freshness, scope, relationship, and receipt summaries |
 | `GET /api/playbooks` | Safe skill/playbook registry with guardrails, evidence requirements, approval tiers, and verifier checks |
 | `POST /api/enterprise-proof` | Answer trust/security questions from brain memory plus connector documents |
@@ -102,6 +103,7 @@ src/components/           Dashboard, operator console, live logs, voice, QuadCha
 src/lib/core/             Shared runtime facade and agent-loop traces
 src/lib/brain/            Memory schema, ingest, retrieval, permissions, refresh, graph
 src/lib/context-capture/  Event-to-memory signal extraction
+src/lib/connectors/      Connector credentials, documents, registry, auth posture
 src/lib/quad-chain/       Packet construction, verification, registry, metrics, workbench
 src/lib/runs/             Runs, tasks, artifacts, approvals, receipts, access checks
 src/lib/jobs/             Queue, worker, scheduler, canary

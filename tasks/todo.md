@@ -11,7 +11,7 @@
 
 quad is not a throwaway hackathon build. quad should be designed as a production product that happens to have a hackathon launch/demo deadline.
 
-2026-06-21 update: shipped the next biggest platform gap as the skill/playbook registry. quad now registers enterprise proof answering, trust packet building, meeting memory capture, and approved fix publishing as safe operating procedures with required evidence, guardrails, approval tiers, verifier checks, output artifacts, capability bindings, `/api/playbooks`, metaregistry skill capabilities, and operator console readiness.
+2026-06-21 update: shipped the next biggest platform gap as the connector registry. quad now has a safe inventory for source systems, publishers, browser actions, voice, observability, internal infrastructure, and agent surfaces with auth mode, scopes, credential state, write risk, approval mode, playbook bindings, `/api/connectors/registry`, and operator console posture.
 
 the core product is a company-aware ai employee platform: it understands a business goal, retrieves and collects missing context, uses tools, validates its own work, learns only verified knowledge, executes approved actions, and leaves a replayable evidence trail. website audits and security questionnaires are product workflows on top of that runtime, not the whole company.
 
@@ -89,7 +89,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [x] metaregistry catalog for installable connectors, publishers, skills, agents, approval policies, eval policies, and surfaces
 - [ ] connector auth/security model with encrypted tokens, scopes, per-user oauth where possible, and service-account audit logs
 - [x] skill/playbook layer so workflows wrap raw tools with guardrails and synthesis rules
-- [ ] connector registry for source systems, publishers, browser actions, and specialist agents
+- [x] connector registry for source systems, publishers, browser actions, and specialist agents
 - [x] autonomy tier policy for read, draft, confirm, explicit approve, and irreversible actions
 - [x] browserbase rendered evidence capture
 - [x] grounded finding schema with citations and screenshots/selectors where possible

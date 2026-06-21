@@ -113,6 +113,22 @@ describe("GET /api/operator", () => {
         }),
       ])
     );
+    expect(body.connectorRegistry).toMatchObject({
+      orgId: DEMO_ORG_ID,
+      total: expect.any(Number),
+      writeCapable: expect.any(Number),
+      approvalGated: expect.any(Number),
+    });
+    expect(body.connectorRegistry.entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          capabilityId: "browserbase.write_browser",
+          kind: "browser",
+          writes: true,
+          approvalMode: "human_approval",
+        }),
+      ])
+    );
     expect(JSON.stringify(body)).not.toMatch(/cms_test|linear_test|section body value|sk-ant-|sk-proj-/);
   });
 });

@@ -292,6 +292,33 @@ type OperatorResponse = {
       reason: string;
     }>;
   };
+  connectorRegistry?: {
+    orgId: string;
+    total: number;
+    installed: number;
+    missingCredentials: number;
+    writeCapable: number;
+    approvalGated: number;
+    byKind: Record<string, number>;
+    entries: Array<{
+      id: string;
+      name: string;
+      kind: string;
+      capabilityId: string;
+      sponsor?: string;
+      authMode: string;
+      scopes: string[];
+      writes: boolean;
+      approvalMode: string;
+      credentialRequired: boolean;
+      credentialStatus: "not_required" | "missing" | "installed" | "revoked";
+      installedCredentialCount: number;
+      revokedCredentialCount: number;
+      boundPlaybooks: Array<{ id: string; name: string; approvalTier: string }>;
+      risk: "low" | "medium" | "high";
+      nextAction: string;
+    }>;
+  } | null;
   worker?: {
     queue: {
       queueDepth: number;
@@ -761,6 +788,7 @@ export function OperatorConsole({ orgId = "org_redcross", watchRunId }: { orgId?
           </div>
 
           <CapabilityCatalogPanel capabilities={data.capabilities} />
+          {data.connectorRegistry && <ConnectorRegistryPanel registry={data.connectorRegistry} />}
           {data.playbooks && <PlaybookPanel playbooks={data.playbooks} />}
 
           <CapabilityInstallPlan
@@ -1643,6 +1671,54 @@ function PlaybookPanel({ playbooks }: { playbooks: NonNullable<OperatorResponse[
       </div>
     </div>
   );
+}
+
+function ConnectorRegistryPanel({ registry }: { registry: NonNullable<OperatorResponse["connectorRegistry"]> }) {
+  const topEntries = registry.entries
+    .slice()
+    .sort((a, b) => connectorRiskWeight(b.risk) - connectorRiskWeight(a.risk))
+    .slice(0, 5);
+
+  return (
+    <div className="rounded border border-edge bg-ink/30 p-2">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h3 className="text-xs font-medium text-neutral-200">Connector registry</h3>
+          <p className="mt-1 text-[10px] leading-4 text-neutral-500">
+            {registry.installed}/{registry.total} ready · {registry.writeCapable} write capable
+          </p>
+        </div>
+        <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] text-accent">
+          missing {registry.missingCredentials}
+        </span>
+      </div>
+      <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
+        <OperatorStat label="sources" value={String((registry.byKind.source ?? 0) + (registry.byKind.browser ?? 0))} />
+        <OperatorStat label="publishers" value={String(registry.byKind.publisher ?? 0)} accent={registry.writeCapable > 0} />
+        <OperatorStat label="approval" value={String(registry.approvalGated)} />
+      </div>
+      <div className="mt-2 space-y-1.5">
+        {topEntries.map((entry) => (
+          <div key={entry.id} className="rounded border border-edge bg-panel px-2 py-1" title={entry.nextAction}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate text-[10px] font-medium text-neutral-200">{entry.sponsor ?? entry.name}</span>
+              <span className={entry.credentialStatus === "installed" || entry.credentialStatus === "not_required" ? "text-[9px] text-accent" : "text-[9px] text-amber-100"}>
+                {entry.credentialStatus.replace("_", " ")}
+              </span>
+            </div>
+            <div className="mt-0.5 flex items-center justify-between gap-2 text-[9px] text-neutral-600">
+              <span>{entry.kind} · {entry.authMode.replace("_", " ")}</span>
+              <span>{entry.risk}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function connectorRiskWeight(risk: "low" | "medium" | "high") {
+  return risk === "high" ? 3 : risk === "medium" ? 2 : 1;
 }
 
 function capabilityCheckLabel(label: string) {
