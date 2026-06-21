@@ -80,7 +80,18 @@ test.describe("api contracts", () => {
       runtime: expect.any(Object),
       canary: expect.any(Object),
     });
+    expect(json.backendReadiness).toMatchObject({
+      ok: expect.any(Boolean),
+      mode: expect.any(String),
+      components: expect.any(Object),
+      nextActions: expect.any(Array),
+    });
+    expect(json.backendReadiness.components).toHaveProperty("supabase");
+    expect(json.backendReadiness.components).toHaveProperty("redis");
+    expect(json.backendReadiness.components).toHaveProperty("worker");
+    expect(json.backendReadiness.components).toHaveProperty("observability");
     expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+    expect(JSON.stringify(json)).not.toMatch(/QUAD_REDIS_REST_TOKEN|SENTRY_DSN|PHOENIX_API_KEY/);
   });
 
   test("runs a protected worker canary without exposing secrets", async ({ request }) => {

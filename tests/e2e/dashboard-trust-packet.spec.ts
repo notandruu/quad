@@ -69,6 +69,9 @@ test.describe("dashboard trust packet flow", () => {
 
     await expect(page.getByRole("heading", { name: "Operator console" })).toBeVisible();
     await expect(page.getByText("audit --> packet --> approval --> publish")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Backend readiness" })).toBeVisible();
+    await expect(page.getByText("8/8 systems ready")).toBeVisible();
+    await expect(page.getByText("production ready")).toBeVisible();
     await expect(page.getByText("Artifact sidecar")).toBeVisible();
     await expect(page.getByRole("button", { name: "preview", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "proof", exact: true })).toBeVisible();
@@ -312,6 +315,54 @@ async function mockDashboardBackends(
             },
           ],
           starterBundle: ["quad.chain_verifier", "fetch.agent_bridge"],
+        },
+        backendReadiness: {
+          ok: true,
+          mode: "production_ready",
+          generatedAt: "2026-06-21T00:00:00.000Z",
+          nextActions: [],
+          components: {
+            supabase: {
+              status: "ready",
+              configured: true,
+              detail: "Supabase is configured and all platform tables responded.",
+            },
+            redis: {
+              status: "ready",
+              configured: true,
+              detail: "Redis is reachable for events, queue state, and packet cache.",
+            },
+            auth: {
+              status: "ready",
+              configured: true,
+              detail: "Hosted API secret is configured.",
+            },
+            serviceTokens: {
+              status: "ready",
+              configured: true,
+              detail: "Scoped service tokens are configured for 1 runtime.",
+            },
+            encryption: {
+              status: "ready",
+              configured: true,
+              detail: "Connector credential encryption key is configured.",
+            },
+            observability: {
+              status: "ready",
+              configured: true,
+              detail: "Sentry and Phoenix are configured.",
+            },
+            voice: {
+              status: "ready",
+              configured: true,
+              detail: "A voice backend is configured.",
+            },
+            worker: {
+              status: "ready",
+              configured: true,
+              detail: "Backend worker is heartbeating.",
+            },
+          },
         },
       }),
     });
