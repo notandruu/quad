@@ -47,6 +47,7 @@ const VERIFIABLE_ARTIFACTS = new Set<WorkflowArtifactRecord["kind"]>([
   "cms_draft",
   "task_draft",
   "trust_packet_export",
+  "connector_execution",
 ]);
 
 export async function verifyPublishedWork(input: VerifyPublishedWorkInput): Promise<VerifyPublishedWorkResult> {
@@ -161,22 +162,33 @@ export async function verifyPublishedWork(input: VerifyPublishedWorkInput): Prom
 
 function verifyArtifact(snapshot: RunLedgerSnapshot, artifact: WorkflowArtifactRecord): VerificationItem {
   const data = isRecord(artifact.data) ? artifact.data : {};
+  const isExecution = artifact.kind === "connector_execution";
+  const expectedReceiptStatus = isExecution ? "executed" : "ready";
   const checks = [
+    isExecution
+      ? {
+          id: "has_execution_marker",
+          label: "Execution marker",
+          passed: data.dryRun === false,
+          detail: data.dryRun === false
+            ? "Artifact was executed after approval."
+            : "Artifact is not marked as executed.",
+        }
+      : {
+          id: "has_dry_run_marker",
+          label: "Dry-run marker",
+          passed: data.dryRun === true,
+          detail: data.dryRun === true
+            ? "Artifact was staged in dry-run mode before verification."
+            : "Artifact is missing the dry-run marker.",
+        },
     {
-      id: "has_dry_run_marker",
-      label: "Dry-run marker",
-      passed: data.dryRun === true,
-      detail: data.dryRun === true
-        ? "Artifact was staged in dry-run mode before verification."
-        : "Artifact is missing the dry-run marker.",
-    },
-    {
-      id: "has_ready_receipt",
-      label: "Ready receipt",
-      passed: snapshot.receipts.some((receipt) => receipt.artifactId === artifact.id && receipt.status === "ready"),
-      detail: snapshot.receipts.some((receipt) => receipt.artifactId === artifact.id && receipt.status === "ready")
-        ? "Artifact has a ready receipt from the staging step."
-        : "Artifact does not have a ready staging receipt.",
+      id: isExecution ? "has_executed_receipt" : "has_ready_receipt",
+      label: isExecution ? "Executed receipt" : "Ready receipt",
+      passed: snapshot.receipts.some((receipt) => receipt.artifactId === artifact.id && receipt.status === expectedReceiptStatus),
+      detail: snapshot.receipts.some((receipt) => receipt.artifactId === artifact.id && receipt.status === expectedReceiptStatus)
+        ? `Artifact has a ${expectedReceiptStatus} receipt.`
+        : `Artifact does not have a ${expectedReceiptStatus} receipt.`,
     },
     {
       id: "has_customer_target",
@@ -215,6 +227,34 @@ function verifyArtifact(snapshot: RunLedgerSnapshot, artifact: WorkflowArtifactR
         ? "Trust packet export includes status section."
         : "Trust packet export markdown is incomplete.",
     });
+  }
+  if (artifact.kind === "connector_execution") {
+    checks.push(
+      {
+        id: "execution_schema_present",
+        label: "Execution schema",
+        passed: data.schemaVersion === "quad.connector_execution.v1" && data.dryRun === false,
+        detail: data.schemaVersion === "quad.connector_execution.v1" && data.dryRun === false
+          ? "Connector execution is recorded as an approved execution artifact."
+          : "Connector execution schema is missing or still marked dry-run.",
+      },
+      {
+        id: "source_draft_bound",
+        label: "Source draft binding",
+        passed: typeof data.sourceDraftArtifactId === "string" && snapshot.artifacts.some((item) => item.id === data.sourceDraftArtifactId),
+        detail: typeof data.sourceDraftArtifactId === "string" && snapshot.artifacts.some((item) => item.id === data.sourceDraftArtifactId)
+          ? "Execution is bound to a staged source draft artifact."
+          : "Execution is missing a valid source draft artifact binding.",
+      },
+      {
+        id: "rollback_plan_present",
+        label: "Rollback plan",
+        passed: isRecord(data.rollbackPlan) && Array.isArray(data.rollbackPlan.steps) && data.rollbackPlan.steps.length > 0,
+        detail: isRecord(data.rollbackPlan) && Array.isArray(data.rollbackPlan.steps) && data.rollbackPlan.steps.length > 0
+          ? "Execution includes rollback steps."
+          : "Execution is missing rollback steps.",
+      }
+    );
   }
 
   return {

@@ -241,7 +241,7 @@ Acceptance v3:
 
 ## Gap 3: dry-run publisher workbench
 
-Status: shipped v1.
+Status: shipped v3.
 
 Shipped v1:
 
@@ -269,9 +269,17 @@ Shipped v2:
 - CMS, task, and trust-packet export drafts include connector id, dry-run mode, target metadata, action type, reversibility, approval requirement, proof binding, and validation checks.
 - operator artifacts show connector-specific destination, action, and validation preview while full payload detail stays behind the hosted artifact route.
 
+Shipped v3:
+
+- `POST /api/publish/execute` consumes approved staged drafts and creates `connector_execution` artifacts.
+- execution artifacts use `quad.connector_execution.v1` payloads with source draft binding, connector id, approved execution mode, target metadata, rollback plan, post-execution verifier requirements, and `dryRun: false`.
+- every execution creates an executed receipt plus a quadchain `connector_action` packet.
+- execution re-checks metaregistry capability state at execution time, so disabled or unallowlisted write connectors block before a customer-write artifact is recorded.
+- ship trail and operator artifact summaries now surface approved connector executions, not only staged drafts.
+
 ## Gap 4: post-ship verification
 
-Status: shipped v1.
+Status: shipped v2.
 
 Shipped v1:
 
@@ -280,6 +288,11 @@ Shipped v1:
 - passed verification creates executed receipts and connector action packets.
 - operator console can trigger verification after staging a fix.
 - Playwright covers approve -> stage -> verify from the dashboard.
+
+Shipped v2:
+
+- verification now covers `connector_execution` artifacts as well as staged drafts.
+- executed artifacts must preserve the execution schema, executed receipt, source draft binding, target, and rollback plan.
 
 Acceptance:
 

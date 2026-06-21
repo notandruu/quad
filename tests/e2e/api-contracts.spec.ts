@@ -48,7 +48,7 @@ test.describe("api contracts", () => {
         ? { "x-quad-agent-secret": process.env.QUAD_AGENT_RUN_SECRET }
         : undefined,
       data: {
-        orgId: "org_brightpath",
+        orgId: "org_redcross",
         targetUrl: "https://quad.stephenhung.me",
         workflow: "enterprise_proof",
       },
@@ -95,7 +95,7 @@ test.describe("api contracts", () => {
   });
 
   test("returns a safe run ledger summary", async ({ request }) => {
-    const response = await request.get("/api/runs?orgId=org_brightpath&limit=5");
+    const response = await request.get("/api/runs?orgId=org_redcross&limit=5");
 
     expect(response.ok()).toBe(true);
     const json = await response.json();
@@ -109,7 +109,7 @@ test.describe("api contracts", () => {
     const chat = await request.post("/api/core/run", {
       data: {
         command: "chat",
-        orgId: "org_brightpath",
+        orgId: "org_redcross",
         runId: `run_core_chat_contract_${Date.now()}`,
         text: "hello quad",
         surface: "chat",
@@ -130,7 +130,7 @@ test.describe("api contracts", () => {
     const queued = await request.post("/api/core/run", {
       data: {
         command: "queue_audit",
-        orgId: "org_brightpath",
+        orgId: "org_redcross",
         runId,
         targetUrl: "https://example.com",
         surface: "dashboard",
@@ -147,14 +147,14 @@ test.describe("api contracts", () => {
         status: "queued",
       },
     });
-    expect(JSON.stringify({ chatJson, queuedJson })).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+    expect(JSON.stringify({ chatJson, queuedJson })).not.toMatch(/sk-ant-|sk-proj-|postgres:\/\/|service_role|bb_live_|gQAAAA/);
   });
 
   test("replays the hosted task stream for a queued backend run", async ({ request }) => {
     const runId = `run_events_contract_${Date.now()}`;
     const created = await request.post("/api/jobs", {
       data: {
-        orgId: "org_brightpath",
+        orgId: "org_redcross",
         targetUrl: "https://example.com",
         runId,
       },
@@ -168,7 +168,7 @@ test.describe("api contracts", () => {
     expect(json.ok).toBe(true);
     expect(json.stream.run).toMatchObject({
       id: runId,
-      orgId: "org_brightpath",
+      orgId: "org_redcross",
       status: "queued",
     });
     expect(json.stream.events.map((event: { kind: string }) => event.kind)).toContain("run.created");
@@ -182,7 +182,7 @@ test.describe("api contracts", () => {
   });
 
   test("returns a safe operator summary", async ({ request }) => {
-    const response = await request.get("/api/operator?orgId=org_brightpath&limit=5");
+    const response = await request.get("/api/operator?orgId=org_redcross&limit=5");
 
     expect(response.ok()).toBe(true);
     const json = await response.json();
@@ -274,7 +274,7 @@ test.describe("api contracts", () => {
   });
 
   test("runs a protected worker canary without exposing secrets", async ({ request }) => {
-    const response = await request.post("/api/jobs/canary?orgId=org_brightpath");
+    const response = await request.post("/api/jobs/canary?orgId=org_redcross");
 
     expect(response.ok()).toBe(true);
     const json = await response.json();
@@ -282,7 +282,7 @@ test.describe("api contracts", () => {
     expect(json.canary.job).toMatchObject({
       type: "canary",
       status: "completed",
-      orgId: "org_brightpath",
+      orgId: "org_redcross",
       attempts: 1,
     });
     expect(json.canary.enqueuedJobId).toMatch(/^job_/);
@@ -301,7 +301,7 @@ test.describe("api contracts", () => {
   test("refuses manual retry for queued jobs through the public api", async ({ request }) => {
     const created = await request.post("/api/jobs", {
       data: {
-        orgId: "org_brightpath",
+        orgId: "org_redcross",
         targetUrl: "https://example.com",
         runId: `run_retry_contract_${Date.now()}`,
       },
@@ -329,7 +329,7 @@ test.describe("api contracts", () => {
   });
 
   test("supports scheduled worker canary calls for cron monitors", async ({ request }) => {
-    const response = await request.post("/api/jobs/canary?orgId=org_brightpath&scheduled=1&minIntervalSeconds=300");
+    const response = await request.post("/api/jobs/canary?orgId=org_redcross&scheduled=1&minIntervalSeconds=300");
 
     expect(response.ok()).toBe(true);
     const json = await response.json();

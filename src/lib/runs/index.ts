@@ -24,6 +24,7 @@ export type ArtifactKind =
   | "cms_draft"
   | "task_draft"
   | "trust_packet_export"
+  | "connector_execution"
   | "verification_report";
 
 export type ApprovalDecision = "pending" | "approved" | "rejected";
@@ -839,6 +840,7 @@ export function buildShipTrail(snapshot: RunLedgerSnapshot): ShipTrailStep[] {
   const packet = latestArtifact(snapshot, "trust_packet");
   const approval = latestApproval(snapshot);
   const published =
+    latestArtifact(snapshot, "connector_execution") ??
     latestArtifact(snapshot, "cms_draft") ??
     latestArtifact(snapshot, "task_draft") ??
     latestArtifact(snapshot, "trust_packet_export");
@@ -880,7 +882,11 @@ export function buildShipTrail(snapshot: RunLedgerSnapshot): ShipTrailStep[] {
       id: "publish",
       label: "Publish",
       status: published ? "complete" : approval?.decision === "approved" ? "active" : approval?.decision === "rejected" ? "blocked" : "pending",
-      summary: published ? "Dry-run publisher artifacts are staged." : "Waiting for approved publish staging.",
+      summary: published?.kind === "connector_execution"
+        ? "Approved connector execution artifact recorded."
+        : published
+          ? "Dry-run publisher artifacts are staged."
+          : "Waiting for approved publish staging.",
       artifactId: published?.id,
       receiptId: receiptForArtifact(snapshot, published?.id)?.id,
       href: artifactHref(snapshot.run.id, published?.id),

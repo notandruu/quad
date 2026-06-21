@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 
 test.describe("page surfaces", () => {
   test("renders the core product pages", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Quad" })).toBeVisible();
+    await page.goto("/app");
+    await expect(page.getByRole("heading", { name: "Quad", exact: true })).toBeVisible();
     await expect(page.getByPlaceholder(/Ask Quad/)).toBeVisible();
 
     await page.goto("/quadchain");
@@ -11,8 +11,8 @@ test.describe("page surfaces", () => {
     await expect(page.getByText("Live trust packet")).toBeVisible();
 
     await page.goto("/demo");
-    await expect(page.getByText("BrightPath Foundation").first()).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Empowering Youth Through Education" })).toBeVisible();
+    await expect(page.getByText("American Red Cross Bay Area").first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "When Disaster Strikes, We Are There" })).toBeVisible();
   });
 
   test("renders a run trust trail on quadchain when packets exist", async ({ page, request }) => {
@@ -20,7 +20,7 @@ test.describe("page surfaces", () => {
     const audit = await request.post("/api/audit/stream", {
       timeout: 60_000,
       data: {
-        orgId: "org_brightpath",
+        orgId: "org_redcross",
         runId,
         targetUrl: "https://example.com",
         limit: 1,

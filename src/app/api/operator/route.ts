@@ -129,7 +129,12 @@ type OperatorApprovalSummary = {
 function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorApprovalSummary[]) {
   const stagedArtifacts = runs.flatMap((run) =>
     run.artifacts
-      .filter((artifact) => artifact.kind === "cms_draft" || artifact.kind === "task_draft" || artifact.kind === "trust_packet_export")
+      .filter((artifact) =>
+        artifact.kind === "cms_draft" ||
+        artifact.kind === "task_draft" ||
+        artifact.kind === "trust_packet_export" ||
+        artifact.kind === "connector_execution"
+      )
       .slice(0, 3)
       .map((artifact) => {
         const receipt = run.receipts.find((item) => item.artifactHash === artifact.hash);
@@ -233,10 +238,12 @@ function summarizeConnectorDraft(fallbackKind: string) {
   const destination = destinationForArtifactKind(fallbackKind);
 
   return {
-    label: "Connector draft",
-    headline: "Dry-run publisher artifact staged. No customer-facing write was executed.",
-    primaryMetric: "ready",
-    primaryLabel: "validation",
+    label: fallbackKind === "connector_execution" ? "Connector execution" : "Connector draft",
+    headline: fallbackKind === "connector_execution"
+      ? "Approved connector execution recorded with rollback and verification proof."
+      : "Dry-run publisher artifact staged. No customer-facing write was executed.",
+    primaryMetric: fallbackKind === "connector_execution" ? "executed" : "ready",
+    primaryLabel: fallbackKind === "connector_execution" ? "receipt" : "validation",
     secondaryMetric: connectorId,
     secondaryLabel: destination,
     risk: actionType.replace(/_/g, " "),
@@ -251,6 +258,7 @@ function connectorIdForArtifactKind(kind: string): string {
 }
 
 function actionTypeForArtifactKind(kind: string): string {
+  if (kind === "connector_execution") return "execute_approved_artifact";
   if (kind === "cms_draft") return "upsert_page_section";
   if (kind === "task_draft") return "create_implementation_task";
   if (kind === "trust_packet_export") return "export_markdown_packet";
@@ -258,6 +266,7 @@ function actionTypeForArtifactKind(kind: string): string {
 }
 
 function destinationForArtifactKind(kind: string): string {
+  if (kind === "connector_execution") return "approved_connector";
   if (kind === "cms_draft") return "website_cms";
   if (kind === "task_draft") return "task_tracker";
   if (kind === "trust_packet_export") return "customer_trust_packet";

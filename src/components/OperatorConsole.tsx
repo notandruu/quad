@@ -239,7 +239,7 @@ type InstallPlanResponse = {
   };
 };
 
-export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgId?: string; watchRunId?: string | null }) {
+export function OperatorConsole({ orgId = "org_redcross", watchRunId }: { orgId?: string; watchRunId?: string | null }) {
   const [data, setData] = useState<OperatorResponse | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [activeArtifactId, setActiveArtifactId] = useState<string | null>(null);
@@ -248,6 +248,7 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
   const [artifactDetailStatus, setArtifactDetailStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [decisionState, setDecisionState] = useState<{ id: string; decision: "approved" | "rejected" } | null>(null);
   const [publishingRunId, setPublishingRunId] = useState<string | null>(null);
+  const [executingRunId, setExecutingRunId] = useState<string | null>(null);
   const [verifyingRunId, setVerifyingRunId] = useState<string | null>(null);
   const [installPlan, setInstallPlan] = useState<InstallPlanResponse["plan"] | null>(null);
   const [installRequestState, setInstallRequestState] = useState<"idle" | "requesting" | "requested" | "error">("idle");
@@ -432,6 +433,27 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
     }
   }
 
+  async function executePublish(run: OperatorRun) {
+    setExecutingRunId(run.runId);
+    const response = await fetch("/api/publish/execute", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        runId: run.runId,
+        orgId: data?.orgId,
+        actor: "demo.operator",
+      }),
+    }).catch(() => null);
+    setExecutingRunId(null);
+    if (response?.ok) {
+      const result = (await response.json().catch(() => null)) as { executed?: Array<{ artifact?: { id?: string } }> } | null;
+      const executionArtifactId = result?.executed?.[0]?.artifact?.id;
+      if (executionArtifactId) setActiveArtifactId(`artifact_${executionArtifactId}`);
+      setArtifactTab("preview");
+      await load();
+    }
+  }
+
   async function requestCapabilityInstall() {
     setInstallRequestState("requesting");
     const response = await fetch("/api/metaregistry/install-request", {
@@ -513,8 +535,10 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
                 run={run}
                 active={activeArtifact?.runId === run.runId}
                 publishing={publishingRunId === run.runId}
+                executing={executingRunId === run.runId}
                 verifying={verifyingRunId === run.runId}
                 onPublish={() => void stagePublish(run)}
+                onExecute={() => void executePublish(run)}
                 onVerify={() => void verifyFix(run)}
                 onInspect={() => {
                   setActiveArtifactId(`artifact_${run.runId}`);
@@ -867,17 +891,21 @@ function RunCard({
   run,
   active,
   publishing,
+  executing,
   verifying,
   onInspect,
   onPublish,
+  onExecute,
   onVerify,
 }: {
   run: OperatorRun;
   active: boolean;
   publishing: boolean;
+  executing: boolean;
   verifying: boolean;
   onInspect: () => void;
   onPublish: () => void;
+  onExecute: () => void;
   onVerify: () => void;
 }) {
   const receipt = run.receipts[0];
@@ -885,6 +913,7 @@ function RunCard({
   const hasStaged = run.artifacts.some((artifact) =>
     artifact.kind === "cms_draft" || artifact.kind === "task_draft" || artifact.kind === "trust_packet_export"
   );
+  const hasExecuted = run.artifacts.some((artifact) => artifact.kind === "connector_execution");
   const hasVerified = run.artifacts.some((artifact) => artifact.kind === "verification_report");
 
   return (
@@ -925,15 +954,30 @@ function RunCard({
             {hasStaged ? "Fix staged" : publishing ? "Staging fix" : "Stage fix"}
           </button>
         )}
-        {hasStaged && !hasVerified && (
+        {hasStaged && !hasExecuted && (
           <button
             type="button"
-            onClick={onVerify}
-            disabled={verifying}
+            onClick={onExecute}
+            disabled={executing}
             className="rounded-full border border-pink-300/40 bg-pink-950/20 px-2 py-0.5 text-[10px] text-pink-100 hover:border-pink-200/70 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {verifying ? "Verifying fix" : "Verify fix"}
+            {executing ? "Executing fix" : "Execute fix"}
           </button>
+        )}
+        {hasExecuted && !hasVerified && (
+          <>
+            <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] text-accent">
+              Fix executed
+            </span>
+            <button
+              type="button"
+              onClick={onVerify}
+              disabled={verifying}
+              className="rounded-full border border-pink-300/40 bg-pink-950/20 px-2 py-0.5 text-[10px] text-pink-100 hover:border-pink-200/70 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {verifying ? "Verifying fix" : "Verify fix"}
+            </button>
+          </>
         )}
         {hasVerified && (
           <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] text-accent">

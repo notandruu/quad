@@ -4,7 +4,7 @@ const runId = "pw_ui_trust_packet";
 
 const report = {
   runId,
-  orgId: "org_brightpath",
+  orgId: "org_redcross",
   targetUrl: "https://example.com",
   summary: "Example.com is missing buyer-ready trust proof.",
   topFindings: [
@@ -52,6 +52,7 @@ test.describe("dashboard trust packet flow", () => {
     let trustPacketBody: Record<string, unknown> | null = null;
     let approvalDecisionBody: Record<string, unknown> | null = null;
     let dryRunPublishBody: Record<string, unknown> | null = null;
+    let executePublishBody: Record<string, unknown> | null = null;
     let verifyFixBody: Record<string, unknown> | null = null;
     let installRequestBody: Record<string, unknown> | null = null;
     await mockDashboardBackends(page, async (body) => {
@@ -61,14 +62,16 @@ test.describe("dashboard trust packet flow", () => {
     }, async (body) => {
       dryRunPublishBody = body;
     }, async (body) => {
+      executePublishBody = body;
+    }, async (body) => {
       verifyFixBody = body;
     }, async (body) => {
       installRequestBody = body;
     });
 
-    await page.goto("/");
+    await page.goto("/app");
     await page.getByPlaceholder(/Ask Quad/).fill("start an audit https://example.com");
-    await page.getByRole("button", { name: "Send" }).click();
+    await page.keyboard.press("Enter");
 
     await expect(page.getByRole("heading", { name: "Operator console" })).toBeVisible();
     await expect(page.getByText("audit --> packet --> approval --> publish")).toBeVisible();
@@ -90,7 +93,7 @@ test.describe("dashboard trust packet flow", () => {
     await page.getByRole("button", { name: "Request install" }).click();
     await expect(page.getByRole("button", { name: "Install requested" })).toBeVisible();
     expect(installRequestBody).toMatchObject({
-      orgId: "org_brightpath",
+      orgId: "org_redcross",
       actor: "demo.operator",
       includeWriteTools: true,
     });
@@ -116,6 +119,13 @@ test.describe("dashboard trust packet flow", () => {
       runId: `trust_${runId}`,
       actor: "demo.operator",
     });
+    await operatorConsole.getByRole("button", { name: "Execute fix", exact: true }).click();
+    await expect(operatorConsole.getByText("Fix executed")).toBeVisible();
+    await expect(page.getByText("Execution: Cms proof block draft")).toBeVisible();
+    expect(executePublishBody).toMatchObject({
+      runId: `trust_${runId}`,
+      actor: "demo.operator",
+    });
     await operatorConsole.getByRole("button", { name: "Verify fix", exact: true }).click();
     await expect(operatorConsole.getByText("Fix verified")).toBeVisible();
     await expect(operatorConsole.getByRole("heading", { name: "Verification report" })).toBeVisible();
@@ -130,7 +140,7 @@ test.describe("dashboard trust packet flow", () => {
     await expect(page.getByText("qchain_ui_packet")).toBeVisible();
     await expect(page.getByText("Review finding evidence")).toBeVisible();
     await expect(page.getByRole("button", { name: "Rebuild" })).toBeVisible();
-    expect(trustPacketBody).toMatchObject({ runId, orgId: "org_brightpath" });
+    expect(trustPacketBody).toMatchObject({ runId, orgId: "org_redcross" });
   });
 });
 
@@ -139,11 +149,13 @@ async function mockDashboardBackends(
   onTrustPacket: (body: Record<string, unknown>) => void | Promise<void>,
   onApprovalDecision?: (body: Record<string, unknown>) => void | Promise<void>,
   onDryRunPublish?: (body: Record<string, unknown>) => void | Promise<void>,
+  onExecutePublish?: (body: Record<string, unknown>) => void | Promise<void>,
   onVerifyFix?: (body: Record<string, unknown>) => void | Promise<void>,
   onInstallRequest?: (body: Record<string, unknown>) => void | Promise<void>
 ) {
   let approvalDecision: "pending" | "approved" = "pending";
   let publishStaged = false;
+  let publishExecuted = false;
   let fixVerified = false;
   await page.route("**/api/settings", async (route) => {
     await route.fulfill({
@@ -191,7 +203,7 @@ async function mockDashboardBackends(
       contentType: "application/json",
       body: JSON.stringify({
         ok: true,
-        orgId: "org_brightpath",
+        orgId: "org_redcross",
         workline: ["audit", "packet", "approval", "publish"],
         runs: [
           {
@@ -207,6 +219,16 @@ async function mockDashboardBackends(
                       kind: "cms_draft",
                       title: "Cms proof block draft",
                       hash: "fnv1a:stage1234",
+                    },
+                  ]
+                : []),
+              ...(publishExecuted
+                ? [
+                    {
+                      id: "artifact_execute_ui",
+                      kind: "connector_execution",
+                      title: "Execution: Cms proof block draft",
+                      hash: "fnv1a:execute1234",
                     },
                   ]
                 : []),
@@ -238,6 +260,16 @@ async function mockDashboardBackends(
                   : "Trust packet is ready for approval with a verifiable quad chain certificate.",
                 artifactHash: publishStaged ? "fnv1a:stage1234" : "fnv1a:12345678",
               },
+              ...(publishExecuted
+                ? [
+                    {
+                      id: "receipt_ui_execute",
+                      status: "executed",
+                      summary: "Cms proof block draft executed after approval.",
+                      artifactHash: "fnv1a:execute1234",
+                    },
+                  ]
+                : []),
             ],
             taskEvents: [
               {
@@ -272,6 +304,21 @@ async function mockDashboardBackends(
                 capabilityId: "cms.publisher",
                 status: publishStaged ? "completed" : "blocked",
               },
+              ...(publishExecuted
+                ? [
+                    {
+                      id: "event_ui_execute",
+                      sequence: 4,
+                      kind: "task.completed",
+                      actor: "connector",
+                      message: "Execute Cms proof block draft: Approved connector draft executed into a customer-write artifact receipt.",
+                      createdAt: "2026-06-21T00:00:05.000Z",
+                      taskId: "task_ui_execute",
+                      capabilityId: "cms.publisher",
+                      status: "completed",
+                    },
+                  ]
+                : []),
             ],
             nextAction: "Human approval required before customer-facing work can ship.",
           },
@@ -281,37 +328,41 @@ async function mockDashboardBackends(
             shipStep("audit", "Audit", "complete"),
             shipStep("packet", "Packet", "complete"),
             shipStep("approval", "Approval", approvalDecision === "approved" ? "complete" : "active"),
-            shipStep("publish", "Publish", publishStaged ? "complete" : approvalDecision === "approved" ? "active" : "pending"),
-            shipStep("verify", "Verify", fixVerified ? "complete" : publishStaged ? "active" : "pending"),
+            shipStep("publish", "Publish", publishExecuted || publishStaged ? "complete" : approvalDecision === "approved" ? "active" : "pending"),
+            shipStep("verify", "Verify", fixVerified ? "complete" : publishExecuted ? "active" : "pending"),
           ],
         },
         artifacts: publishStaged
           ? [
               {
-                id: fixVerified ? "artifact_verify_ui" : "artifact_publish_ui",
+                id: fixVerified ? "artifact_verify_ui" : publishExecuted ? "artifact_execute_ui" : "artifact_publish_ui",
                 runId: `trust_${runId}`,
-                title: fixVerified ? "Verification report" : "Cms proof block draft",
-                kind: fixVerified ? "verification_report" : "cms_draft",
-                status: fixVerified ? "executed" : "ready",
+                title: fixVerified ? "Verification report" : publishExecuted ? "Execution: Cms proof block draft" : "Cms proof block draft",
+                kind: fixVerified ? "verification_report" : publishExecuted ? "connector_execution" : "cms_draft",
+                status: fixVerified || publishExecuted ? "executed" : "ready",
                 headline: fixVerified
                   ? "Post-ship verification passed for staged connector artifacts."
+                  : publishExecuted
+                    ? "Approved connector execution recorded with rollback and verification proof."
                   : "Dry-run publisher artifact staged. No customer-facing write was executed.",
                 preview: {
-                  label: fixVerified ? "Verification artifact" : "Publisher artifact",
-                  primaryMetric: fixVerified ? "pass" : "dry",
-                  primaryLabel: fixVerified ? "status" : "run mode",
-                  secondaryMetric: fixVerified ? "3" : "cms draft",
+                  label: fixVerified ? "Verification artifact" : publishExecuted ? "Connector execution" : "Publisher artifact",
+                  primaryMetric: fixVerified ? "pass" : publishExecuted ? "executed" : "dry",
+                  primaryLabel: fixVerified ? "status" : publishExecuted ? "receipt" : "run mode",
+                  secondaryMetric: fixVerified ? "3" : publishExecuted ? "cms.publisher" : "cms draft",
                   secondaryLabel: fixVerified ? "checks" : "connector",
-                  risk: fixVerified ? "verified" : "staged only",
+                  risk: fixVerified ? "verified" : publishExecuted ? "approved execution" : "staged only",
                 },
                 proof: [
                   {
-                    id: fixVerified ? "receipt_ui_verify" : "receipt_ui_publish",
-                    status: fixVerified ? "executed" : "ready",
+                    id: fixVerified ? "receipt_ui_verify" : publishExecuted ? "receipt_ui_execute" : "receipt_ui_publish",
+                    status: fixVerified || publishExecuted ? "executed" : "ready",
                     summary: fixVerified
                       ? "Cms proof block draft passed post-ship verification."
+                      : publishExecuted
+                        ? "Cms proof block draft executed after approval."
                       : "Cms proof block draft staged in dry-run mode.",
-                    artifactHash: fixVerified ? "fnv1a:verify1234" : "fnv1a:stage1234",
+                    artifactHash: fixVerified ? "fnv1a:verify1234" : publishExecuted ? "fnv1a:execute1234" : "fnv1a:stage1234",
                   },
                 ],
               },
@@ -463,7 +514,7 @@ async function mockDashboardBackends(
       contentType: "application/json",
       body: JSON.stringify({
         ok: true,
-        orgId: "org_brightpath",
+        orgId: "org_redcross",
         plan: {
           bundleId: "enterprise_proof_starter",
           knownIds: ["quad.chain_verifier", "trust_packet.exporter", "cms.publisher", "task.publisher"],
@@ -587,6 +638,46 @@ async function mockDashboardBackends(
               evidencePreserved: 1,
               evidenceRequired: 1,
               createdAt: "2026-06-21T00:00:04.000Z",
+            },
+          },
+        ],
+      }),
+    });
+  });
+
+  await page.route("**/api/publish/execute", async (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    await onExecutePublish?.(body);
+    publishExecuted = true;
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        executed: [
+          {
+            sourceDraft: {
+              id: "artifact_publish_ui",
+              kind: "cms_draft",
+              title: "Cms proof block draft",
+              hash: "fnv1a:stage1234",
+            },
+            artifact: {
+              id: "artifact_execute_ui",
+              kind: "connector_execution",
+              title: "Execution: Cms proof block draft",
+              hash: "fnv1a:execute1234",
+            },
+            receiptId: "receipt_ui_execute",
+            packet: {
+              id: "packet_ui_execute",
+              type: "connector_action",
+              certificateId: "qchain_ui_execute",
+              accepted: true,
+              tokensSaved: 0,
+              evidencePreserved: 2,
+              evidenceRequired: 2,
+              createdAt: "2026-06-21T00:00:05.000Z",
             },
           },
         ],

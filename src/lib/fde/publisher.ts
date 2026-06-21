@@ -184,9 +184,9 @@ type DraftSpec = {
   data: ConnectorDraftPayload;
 };
 
-type PublishCapabilityId = "cms.publisher" | "task.publisher" | "trust_packet.exporter";
+export type PublishCapabilityId = "cms.publisher" | "task.publisher" | "trust_packet.exporter";
 
-type ConnectorDraftPayload = {
+export type ConnectorDraftPayload = {
   schemaVersion: "quad.connector_draft.v1";
   connector: {
     id: PublishCapabilityId;

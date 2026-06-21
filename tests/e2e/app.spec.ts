@@ -16,9 +16,9 @@ test.describe("quad production flows", () => {
   });
 
   test("loads the audit workspace and debug drawer", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
 
-    await expect(page.getByRole("heading", { name: "Quad" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Quad", exact: true })).toBeVisible();
     await expect(page.getByPlaceholder(/Ask Quad/)).toBeVisible();
     await expect(page.getByRole("link", { name: "Quadchain" })).toBeVisible();
 
@@ -79,7 +79,7 @@ test.describe("quad production flows", () => {
     const response = await request.post("/api/audit/stream", {
       timeout: 60_000,
       data: {
-        orgId: "org_brightpath",
+        orgId: "org_redcross",
         runId,
         targetUrl: "https://example.com",
         limit: 1,
@@ -105,7 +105,7 @@ test.describe("quad production flows", () => {
 
     const trustPacket = await request.post("/api/trust-packet", {
       data: {
-        orgId: "org_brightpath",
+        orgId: "org_redcross",
         runId,
       },
     });

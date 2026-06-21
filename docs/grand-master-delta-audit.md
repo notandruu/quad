@@ -20,8 +20,8 @@ Quad is now more than a website audit demo. The codebase has the beginning of a 
 | --- | --- | --- | --- |
 | Hosted trust packet builder | Trust packet workflow exists in `src/lib/fde/workflows.ts`; agent bridge can emit packet summaries. | Dashboard users could not turn a completed audit into a customer-ready packet from the product surface. | Shipped `/api/trust-packet` and dashboard trust packet panel. |
 | Approval ledger | In-memory run ledger supports artifacts, approval requests, and receipts. | Not durable across deploys and not queryable as a first-class customer history. | Add Supabase-backed run ledger tables with memory fallback. |
-| Publisher connectors | Dry-run publisher route stages CMS, task, and trust packet export artifacts from approved runs. | No external connector execution or post-ship verification yet. | Add targeted verification, then controlled connector execution. |
-| Post-ship verification | Audit engine can re-run and quadchain can receipt results. | No workflow that verifies a shipped fix and closes the loop. | Add `POST /api/verify-fix` to rerun targeted audit checks and emit `connector_action` plus `approval` packets. |
+| Publisher connectors | Dry-run publisher route stages CMS, task, and trust packet export artifacts from approved runs, then `POST /api/publish/execute` records approved connector execution artifacts with receipts and quadchain packets. | Live third-party CMS/task mutation adapters are still connector-specific follow-on work. | Add targeted live adapters after the approved execution ledger is stable. |
+| Post-ship verification | `POST /api/verify-fix` verifies staged drafts and approved execution artifacts, emits verification reports, and creates final receipts. | Needs live before/after browser evidence for real customer writes. | Add Browserbase-backed before/after checks per finding. |
 | Enterprise proof questionnaire | Grand doc wants questionnaire answers to become memory and proof obligations. | Current main flow is audit-first; no questionnaire workflow. | Add focused trust questionnaire route that writes brain memory, emits `brain_memory_write`, and seeds the next audit. |
 | Operator console | Debug drawer shows backend status; dashboard shows trust trail. | No metaregistry install/update panel, no approval queue, no run history. | Add operator panel with active capabilities, blocked connectors, approvals, and latest packets. |
 | Security governance | Secrets are not exposed in settings; private data stays off anchor layer; packet summaries restrict raw content. | Need explicit retention, tenant deletion, data classification, and durable audit access controls. | Add org-scoped retention policy config and packet visibility checks before durable storage reads. |
@@ -58,14 +58,16 @@ This turns the product narrative from "we found gaps" into "we generated a verif
 - Shipped `POST /api/publish/dry-run`.
 - Approved trust packet runs can stage CMS copy, task drafts, and trust packet exports.
 - Every staged artifact emits a `connector_action` packet.
-- Actual external writes remain blocked.
+- Shipped `POST /api/publish/execute`.
+- Approved staged drafts now become `connector_execution` artifacts with executed receipts, rollback plans, verifier requirements, and quadchain packets.
+- Live external CMS/task writes still require connector adapters, but the approval-to-execution ledger is now real.
 
 ### Plan c: post-ship verification loop
 
-- Add targeted verification checks per finding.
-- Re-run only the relevant page and evidence obligations.
-- Emit an `approval` packet when a fix is verified.
-- Close the receipt with a final proof summary.
+- Shipped `POST /api/verify-fix`.
+- Verification checks staged drafts and approved execution artifacts.
+- Execution artifacts must preserve source draft binding, executed receipt, target metadata, and rollback plan.
+- Next: re-run only the relevant page and evidence obligations through Browserbase.
 
 ### Plan d: voice-led enterprise proof interview
 
@@ -92,8 +94,10 @@ This turns the product narrative from "we found gaps" into "we generated a verif
   - Real: yes, shipped in this slice.
 - Claim: quad stages approved fixes.
   - Real: yes. dry-run publisher artifacts are staged after approval.
+- Claim: quad records approved connector execution.
+  - Real: yes. approved staged drafts become execution artifacts with receipts, rollback plans, verification requirements, and quadchain packets.
 - Claim: quad writes fixes directly to a CMS.
-  - Real: not yet. current state is approved dry-run staging with no external write execution.
+  - Real: not yet. current state is approved execution in quad's ledger, with live third-party adapters still to wire.
 - Claim: quad has durable enterprise governance.
   - Real: partial. packet registry can persist, approval ledger still needs durable storage.
 - Claim: quad is a full agent platform.
