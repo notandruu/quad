@@ -1,9 +1,8 @@
 "use client";
 
-import { useRef } from "react";
 import Reveal from "@/components/Reveal";
 import SplitReveal from "@/components/SplitReveal";
-import HoverText from "@/components/HoverText";
+import IntroBanner from "@/components/IntroBanner";
 import { MonoLabel } from "@/components/ui";
 
 const WORKFLOW = [
@@ -35,8 +34,6 @@ function Glyph({ i }: { i: number }) {
 }
 
 export default function Intro() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
   return (
     <section className="relative overflow-x-clip bg-ink-2 text-bone" data-section="intro">
       <div className="mx-auto max-w-[1512px] px-5 md:px-10">
@@ -46,36 +43,24 @@ export default function Intro() {
         {/* rail column — continues the left rail border */}
         <div className="hidden w-[180px] shrink-0 border-x border-white/[0.07] lg:block" />
         <div className="min-w-0 flex-1 py-20 md:py-28 lg:ml-[38px] lg:border-l lg:border-white/[0.07] lg:pl-9">
-        {/* video — boxed in a line */}
+        {/* bespoke animated brand banner — boxed in a line */}
         <Reveal className="relative overflow-hidden border border-white/[0.1]">
-          <video
-            ref={videoRef}
-            src="/assets/video/viaduct.mp4"
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="aspect-[16/8] w-full object-cover [filter:grayscale(1)_brightness(0.52)_contrast(1.08)]"
+          <IntroBanner className="aspect-[16/8] w-full" />
+          {/* soft pink core glow */}
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{ background: "radial-gradient(62% 78% at 50% 50%, rgba(255,92,171,0.12), transparent 72%)" }}
           />
-          {/* Quad-pink duotone tint over the grayscale footage */}
-          <div className="pointer-events-none absolute inset-0 bg-flame/30 mix-blend-color" />
-          {/* cinematic depth gradient */}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/75 via-ink/15 to-ink/35" />
-          <button
-            onClick={() => {
-              const v = videoRef.current;
-              if (!v) return;
-              v.paused ? v.play() : v.pause();
-            }}
-            className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center bg-cream px-6 py-3 text-[11px] font-medium uppercase tracking-[0.12em] text-ink transition-colors hover:bg-paper-2"
-            style={{
-              clipPath:
-                "polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)",
-            }}
-          >
-            <span className="mr-1.5">▶</span>
-            <HoverText text="Play video" />
-          </button>
+          {/* cinematic depth + light vignette */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/55 via-transparent to-ink/15" />
+          <div className="pointer-events-none absolute inset-0" style={{ boxShadow: "inset 0 0 80px rgba(18,18,18,0.5)" }} />
+          {/* caption — anchors the abstract flow to meaning */}
+          <div className="pointer-events-none absolute bottom-4 left-5 flex items-center gap-2.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-flame" />
+            <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-bone/70">
+              Company knowledge, becoming verified work
+            </span>
+          </div>
         </Reveal>
 
         {/* two-column body */}
