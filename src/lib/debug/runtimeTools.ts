@@ -92,5 +92,7 @@ export function topRuntimeToolLabels(plan: RuntimeToolPlanView, limit = 4): stri
 }
 
 function plural(noun: string, count: number): string {
-  return count === 1 ? noun : `${noun}s`;
+  if (count === 1) return noun;
+  if (noun.endsWith("y")) return `${noun.slice(0, -1)}ies`;
+  return `${noun}s`;
 }

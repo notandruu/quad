@@ -1,5 +1,11 @@
 "use client";
 
+import type { QuadAgentDescription } from "@/lib/agent/describe";
+import {
+  summarizeRuntimeToolRouting,
+  topRuntimeToolLabels,
+  type RuntimeToolRoutingResponse,
+} from "@/lib/debug/runtimeTools";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type OperatorRun = {
@@ -451,6 +457,10 @@ export function OperatorConsole({ orgId = "org_redcross", watchRunId }: { orgId?
   const [installPlan, setInstallPlan] = useState<InstallPlanResponse["plan"] | null>(null);
   const [installRequestState, setInstallRequestState] = useState<"idle" | "requesting" | "requested" | "error">("idle");
   const [refreshingMemoryId, setRefreshingMemoryId] = useState<string | null>(null);
+  const [agentDescription, setAgentDescription] = useState<QuadAgentDescription | null>(null);
+  const [agentDescriptionError, setAgentDescriptionError] = useState<string | null>(null);
+  const [fetchAgentRuntime, setFetchAgentRuntime] = useState<RuntimeToolRoutingResponse | null>(null);
+  const [fetchAgentRuntimeError, setFetchAgentRuntimeError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const response = await fetch(`/api/operator?orgId=${encodeURIComponent(orgId)}&limit=8`, {
@@ -497,6 +507,48 @@ export function OperatorConsole({ orgId = "org_redcross", watchRunId }: { orgId?
       .catch(() => {
         if (!cancelled) setInstallPlan(null);
       });
+    return () => {
+      cancelled = true;
+    };
+  }, [orgId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadExternalAgentSurface() {
+      setAgentDescriptionError(null);
+      setFetchAgentRuntimeError(null);
+
+      const [agentResponse, runtimeResponse] = await Promise.all([
+        fetch("/api/agent/describe", { cache: "no-store" }).catch(() => null),
+        fetch(
+          `/api/metaregistry/runtime-tools?orgId=${encodeURIComponent(orgId)}&intent=website_audit&surface=fetch_agent`,
+          { cache: "no-store" }
+        ).catch(() => null),
+      ]);
+
+      const agentJson = agentResponse?.ok
+        ? ((await agentResponse.json().catch(() => null)) as QuadAgentDescription | null)
+        : null;
+      const runtimeJson = runtimeResponse?.ok
+        ? ((await runtimeResponse.json().catch(() => null)) as RuntimeToolRoutingResponse | null)
+        : null;
+
+      if (cancelled) return;
+
+      setAgentDescription(agentJson);
+      setAgentDescriptionError(agentJson ? null : "Agent descriptor unavailable.");
+      setFetchAgentRuntime(runtimeJson);
+      setFetchAgentRuntimeError(
+        runtimeJson?.plan
+          ? null
+          : runtimeResponse?.ok
+            ? "Fetch/ASI runtime plan unavailable."
+            : "Fetch/ASI runtime plan locked behind service auth."
+      );
+    }
+
+    void loadExternalAgentSurface();
     return () => {
       cancelled = true;
     };
@@ -804,6 +856,12 @@ export function OperatorConsole({ orgId = "org_redcross", watchRunId }: { orgId?
           </div>
 
           <CapabilityCatalogPanel capabilities={data.capabilities} />
+          <ExternalAgentSurfacePanel
+            agent={agentDescription}
+            agentError={agentDescriptionError}
+            runtime={fetchAgentRuntime}
+            runtimeError={fetchAgentRuntimeError}
+          />
           {data.connectorRegistry && (
             <ConnectorRegistryPanel
               registry={data.connectorRegistry}
@@ -821,6 +879,106 @@ export function OperatorConsole({ orgId = "org_redcross", watchRunId }: { orgId?
         </div>
       </div>
     </section>
+  );
+}
+
+function ExternalAgentSurfacePanel({
+  agent,
+  agentError,
+  runtime,
+  runtimeError,
+}: {
+  agent: QuadAgentDescription | null;
+  agentError: string | null;
+  runtime: RuntimeToolRoutingResponse | null;
+  runtimeError: string | null;
+}) {
+  const runtimePlan = runtime?.plan ?? null;
+  const runtimeSummary = runtimePlan ? summarizeRuntimeToolRouting(runtimePlan) : null;
+  const routeLabels = runtimePlan ? topRuntimeToolLabels(runtimePlan, 3) : [];
+  const workflows = agent?.workflows ?? [];
+  const protocols = agent?.protocols ?? [];
+  const toolCount = (runtimeSummary?.hotCount ?? 0) + (runtimeSummary?.deferredCount ?? 0);
+  const blockedCount = runtimeSummary?.blockedCount ?? 0;
+  const connected = Boolean(agent && runtimeSummary?.tone === "ready");
+  const statusLabel = connected
+    ? "connected"
+    : runtimeSummary?.tone === "partial"
+      ? "partial"
+      : "check";
+  const statusTone = connected
+    ? "border-accent/30 bg-accent/10 text-accent"
+    : runtimeSummary?.tone === "partial"
+      ? "border-amber-300/30 bg-amber-950/20 text-amber-100"
+      : "border-edge bg-panel text-neutral-500";
+
+  return (
+    <div className="rounded border border-pink-300/25 bg-ink/45 p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="text-xs font-medium text-neutral-200">Agentverse / ASI:One</h3>
+          <p className="mt-1 truncate font-mono text-[9px] text-neutral-600">
+            {agent?.id ?? agentError ?? "loading external agent surface"}
+          </p>
+        </div>
+        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${statusTone}`}>
+          {statusLabel}
+        </span>
+      </div>
+
+      <div className="mt-3 grid grid-cols-4 gap-1.5">
+        <OperatorStat label="protocols" value={String(protocols.length)} accent={protocols.length > 0} />
+        <OperatorStat label="workflows" value={String(workflows.length)} accent={workflows.length > 0} />
+        <OperatorStat label="tools" value={String(toolCount)} accent={toolCount > 0} />
+        <OperatorStat label="blocked" value={String(blockedCount)} accent={blockedCount === 0} />
+      </div>
+
+      <div className="mt-3 rounded border border-edge bg-panel px-2 py-1.5">
+        <div className="truncate font-mono text-[9px] text-neutral-500">
+          describe {agent?.endpoints.describe ?? "pending"}
+        </div>
+        <div className="mt-0.5 truncate font-mono text-[9px] text-neutral-500">
+          run {agent?.endpoints.run ?? "pending"}
+        </div>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1">
+        {protocols.map((protocol) => (
+          <span
+            key={protocol}
+            className="rounded-full border border-pink-300/25 bg-pink-950/20 px-1.5 py-0.5 text-[9px] text-pink-100"
+          >
+            {protocol}
+          </span>
+        ))}
+        {workflows.map((workflow) => (
+          <span key={workflow.id} className="rounded-full border border-edge bg-ink px-1.5 py-0.5 text-[9px] text-neutral-500">
+            {workflow.id}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-3 rounded border border-edge bg-panel px-2 py-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-[10px] text-neutral-300">
+            {runtimeSummary?.label ?? "Runtime route"}
+          </span>
+          <span className="font-mono text-[9px] text-neutral-600">fetch_agent</span>
+        </div>
+        <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-neutral-500">
+          {runtimeSummary?.detail ?? runtimeError ?? "Loading Fetch/ASI routing plan."}
+        </p>
+        {routeLabels.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {routeLabels.map((label) => (
+              <div key={label} className="truncate font-mono text-[9px] text-neutral-600">
+                {label}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
