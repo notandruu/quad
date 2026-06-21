@@ -650,7 +650,9 @@
 
 .brainHeader {
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 16px;
   color: #ee91cb;
   font-family: "IBM Plex Mono", ui-monospace, monospace;
@@ -659,64 +661,62 @@
   text-transform: uppercase;
 }
 
-.brainHeader strong {
-  color: #fff;
-  letter-spacing: 0;
+.brainHeader div {
+  min-width: 0;
 }
 
-.graph {
+.brainHeader span,
+.brainHeader small {
+  display: block;
+}
+
+.brainHeader small {
+  margin-top: 5px;
+  color: rgba(255, 222, 244, 0.54);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.brainHeader strong {
+  border: 1px solid rgba(255, 120, 201, 0.36);
+  border-radius: 999px;
+  background: rgba(226, 75, 168, 0.14);
+  color: #fff;
+  padding: 4px 8px;
+  letter-spacing: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.brainGraphShell {
   position: relative;
   flex: 1;
   min-height: 340px;
   overflow: hidden;
   background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
     radial-gradient(circle at 50% 50%, rgba(226, 75, 168, 0.18), transparent 28%),
     radial-gradient(circle at 30% 70%, rgba(122, 168, 255, 0.1), transparent 18%),
     #100a13;
 }
 
-.rootNode,
-.graphNode {
+.brainGraphShell::before {
+  content: "";
   position: absolute;
-  translate: -50% -50%;
+  inset: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 999px;
-  white-space: nowrap;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  pointer-events: none;
 }
 
-.rootNode {
-  left: 50%;
-  top: 50%;
-  width: 54px;
-  height: 54px;
-  display: grid;
-  place-items: center;
-  background: #ff78c9;
-  color: #fff;
-  box-shadow: 0 0 34px rgba(255, 120, 201, 0.55);
-  font-size: 12px;
-  z-index: 2;
-}
-
-.graphNode {
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 222, 244, 0.86);
-  padding: 5px 8px;
-  font-size: 10px;
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.node_connector {
-  border-color: rgba(122, 168, 255, 0.45);
-}
-
-.node_brain,
-.node_memory {
-  border-color: rgba(226, 75, 168, 0.55);
-  background: rgba(226, 75, 168, 0.14);
+.brainGraphCanvas {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
 }
 
 .brainStats {

@@ -112,6 +112,13 @@ type AnswerCard = {
   runId: string | null;
 };
 
+type BrainGraphNode = {
+  id: string;
+  label: string;
+  kind: string;
+  answerId: string | null;
+};
+
 type LogLine = {
   id: string;
   tone: "read" | "collect" | "learn" | "judge" | "act" | "error";
@@ -165,6 +172,14 @@ function pct(value: number | null) {
 
 function sourceLabel(source: TrustSource) {
   return `${source.kind === "brain" ? "brain" : "connector"} · ${source.title}`;
+}
+
+function createSeededRandom(seed: number) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
 }
 
 function wait(ms: number) {
@@ -657,7 +672,7 @@ function BrainPanel({
   capabilityCount,
   latestRun,
 }: {
-  nodes: Array<{ id: string; label: string; kind: string; answerId: string | null }>;
+  nodes: BrainGraphNode[];
   operator: OperatorState | null;
   capabilityCount: number;
   latestRun: OperatorRunSummary | null;
@@ -665,28 +680,13 @@ function BrainPanel({
   return (
     <div className={styles.brainPanel}>
       <div className={styles.brainHeader}>
-        <span>company brain</span>
-        <strong>{operator?.memory?.memories?.length ?? nodes.length} artifacts</strong>
+        <div>
+          <span>company brain</span>
+          <small>{operator?.memory?.memories?.length ?? nodes.length} verified memories · drag to explore</small>
+        </div>
+        <strong>{operator?.backendReadiness?.ready ? "live" : "local"}</strong>
       </div>
-      <div className={styles.graph}>
-        <div className={styles.rootNode}>Acme</div>
-        {nodes.map((node, index) => {
-          const angle = (index / Math.max(nodes.length, 1)) * Math.PI * 2;
-          const radius = 36 + (index % 3) * 18;
-          const x = 50 + Math.cos(angle) * radius;
-          const y = 50 + Math.sin(angle) * radius;
-          return (
-            <div
-              key={`${node.kind}-${node.id}-${index}`}
-              className={`${styles.graphNode} ${styles[`node_${node.kind}`] ?? ""}`}
-              style={{ left: `${x}%`, top: `${y}%` }}
-              title={node.label}
-            >
-              {node.label.slice(0, 22)}
-            </div>
-          );
-        })}
-      </div>
+      <DashboardMemoryGraph nodes={nodes} />
       <div className={styles.brainStats}>
         <span>capabilities <b>{capabilityCount}</b></span>
         <span>evidence <b>{operator?.evidence?.total ?? 0}</b></span>
@@ -699,6 +699,266 @@ function BrainPanel({
           <p>{latestRun.status} · {latestRun.nextAction}</p>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function DashboardMemoryGraph({ nodes }: { nodes: BrainGraphNode[] }) {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    const canvas = canvasRef.current;
+    if (!wrap || !canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const labels = (nodes.length ? nodes : [
+      { id: "security", label: "Security", kind: "memory", answerId: null },
+      { id: "mfa", label: "MFA policy", kind: "brain", answerId: null },
+      { id: "soc2", label: "SOC 2", kind: "connector", answerId: null },
+      { id: "access", label: "Access reviews", kind: "memory", answerId: null },
+      { id: "privacy", label: "Privacy posture", kind: "connector", answerId: null },
+      { id: "deletion", label: "Deletion SLA", kind: "memory", answerId: null },
+      { id: "regions", label: "Data regions", kind: "brain", answerId: null },
+      { id: "pen-test", label: "Pen test", kind: "connector", answerId: null },
+    ]).slice(0, 24);
+
+    const seed = labels.reduce((sum, node) => sum + node.label.charCodeAt(0) * 17 + node.id.length, 2161);
+    const rand = createSeededRandom(seed);
+    const golden = Math.PI * (3 - Math.sqrt(5));
+    const norm = (value: number[]) => {
+      const magnitude = Math.hypot(value[0], value[1], value[2]) || 1;
+      return [value[0] / magnitude, value[1] / magnitude, value[2] / magnitude];
+    };
+    const hueFor = (kind: string, index: number) => {
+      if (kind === "connector") return 214 + (index % 4) * 8;
+      if (kind === "memory" || kind === "brain") return 318 + (index % 5) * 7;
+      return 148 + (index % 4) * 8;
+    };
+
+    type VizNode = { bx: number; by: number; bz: number; r: number; hue: number; light: number; label: string | null; hub: boolean };
+
+    const vizNodes: VizNode[] = [];
+    const edges: [number, number][] = [];
+    labels.forEach((node, index) => {
+      const y = 1 - (index / Math.max(labels.length - 1, 1)) * 2;
+      const radius = Math.sqrt(Math.max(0, 1 - y * y));
+      const theta = index * golden;
+      const center = [Math.cos(theta) * radius, y, Math.sin(theta) * radius];
+      const base = vizNodes.length;
+      const hue = hueFor(node.kind, index);
+      vizNodes.push({ bx: center[0], by: center[1], bz: center[2], r: 3.8, hue, light: 72, label: node.label, hub: true });
+      for (let child = 0; child < 8; child += 1) {
+        const jitter = norm([
+          center[0] + (rand() - 0.5) * 0.7,
+          center[1] + (rand() - 0.5) * 0.7,
+          center[2] + (rand() - 0.5) * 0.7,
+        ]);
+        const shell = 0.88 + rand() * 0.16;
+        vizNodes.push({
+          bx: jitter[0] * shell,
+          by: jitter[1] * shell,
+          bz: jitter[2] * shell,
+          r: child < 2 ? 1.9 : 0.85 + rand() * 1.1,
+          hue,
+          light: 50 + rand() * 16,
+          label: child === 0 ? node.kind : null,
+          hub: false,
+        });
+        edges.push([base, base + child + 1]);
+      }
+      if (index > 0) edges.push([base, Math.max(0, base - 9)]);
+    });
+
+    const fieldCount = Math.max(90, 170 - labels.length * 2);
+    for (let index = 0; index < fieldCount; index += 1) {
+      const y = 1 - (index / Math.max(fieldCount - 1, 1)) * 2;
+      const radius = Math.sqrt(Math.max(0, 1 - y * y));
+      const theta = index * golden;
+      const shell = 0.93 + rand() * 0.1;
+      vizNodes.push({
+        bx: Math.cos(theta) * radius * shell,
+        by: y * shell,
+        bz: Math.sin(theta) * radius * shell,
+        r: 0.7 + rand() * 0.9,
+        hue: hueFor(labels[index % labels.length]?.kind ?? "memory", index),
+        light: 46 + rand() * 12,
+        label: null,
+        hub: false,
+      });
+    }
+
+    let width = 0;
+    let height = 0;
+    let centerX = 0;
+    let centerY = 0;
+    let sphereRadius = 1;
+    let perspective = 1;
+    const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+    const resize = () => {
+      const rect = wrap.getBoundingClientRect();
+      width = rect.width;
+      height = rect.height;
+      centerX = width / 2;
+      centerY = height / 2;
+      sphereRadius = Math.min(width, height) * 0.44;
+      perspective = sphereRadius * 2.65;
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(wrap);
+
+    let angleY = 0.48;
+    let tilt = 0.4;
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+    let velocityY = 0;
+    const onDown = (event: PointerEvent) => {
+      dragging = true;
+      lastX = event.clientX;
+      lastY = event.clientY;
+      canvas.setPointerCapture(event.pointerId);
+    };
+    const onMove = (event: PointerEvent) => {
+      if (!dragging) return;
+      velocityY = (event.clientX - lastX) * 0.006;
+      angleY += velocityY;
+      tilt = Math.max(-1.05, Math.min(1.05, tilt + (event.clientY - lastY) * 0.006));
+      lastX = event.clientX;
+      lastY = event.clientY;
+    };
+    const onUp = () => {
+      dragging = false;
+    };
+    canvas.addEventListener("pointerdown", onDown);
+    canvas.addEventListener("pointermove", onMove);
+    canvas.addEventListener("pointerup", onUp);
+    canvas.addEventListener("pointerleave", onUp);
+
+    const total = vizNodes.length;
+    const order = vizNodes.map((_, index) => index);
+    const sx = new Float32Array(total);
+    const sy = new Float32Array(total);
+    const scale = new Float32Array(total);
+    const alpha = new Float32Array(total);
+    const depth = new Float32Array(total);
+
+    const frame = () => {
+      if (!dragging) {
+        angleY += 0.002;
+        velocityY *= 0.94;
+        angleY += velocityY;
+      }
+      const cosAngle = Math.cos(angleY);
+      const sinAngle = Math.sin(angleY);
+      const cosTilt = Math.cos(tilt);
+      const sinTilt = Math.sin(tilt);
+      for (let index = 0; index < total; index += 1) {
+        const node = vizNodes[index];
+        const x = node.bx * cosAngle + node.bz * sinAngle;
+        const z = -node.bx * sinAngle + node.bz * cosAngle;
+        const y = node.by * cosTilt - z * sinTilt;
+        const z2 = node.by * sinTilt + z * cosTilt;
+        const projectedDepth = z2 * sphereRadius;
+        const s = perspective / (perspective + projectedDepth);
+        sx[index] = centerX + x * sphereRadius * s;
+        sy[index] = centerY + y * sphereRadius * s;
+        scale[index] = s;
+        depth[index] = projectedDepth;
+        alpha[index] = 0.18 + 0.82 * ((sphereRadius - projectedDepth) / (2 * sphereRadius));
+      }
+
+      ctx.clearRect(0, 0, width, height);
+      const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, sphereRadius * 1.22);
+      gradient.addColorStop(0, "rgba(255,92,171,0.08)");
+      gradient.addColorStop(0.44, "rgba(122,168,255,0.04)");
+      gradient.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.strokeStyle = "rgba(255,170,215,0.055)";
+      ctx.lineWidth = 0.7;
+      ctx.beginPath();
+      edges.forEach(([a, b]) => {
+        ctx.moveTo(sx[a], sy[a]);
+        ctx.lineTo(sx[b], sy[b]);
+      });
+      ctx.stroke();
+
+      order.sort((a, b) => depth[b] - depth[a]);
+      order.forEach((index) => {
+        const node = vizNodes[index];
+        ctx.globalAlpha = alpha[index];
+        ctx.fillStyle = `hsl(${node.hue}, 78%, ${node.light}%)`;
+        ctx.beginPath();
+        ctx.arc(sx[index], sy[index], Math.max(0.4, node.r * scale[index]), 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      let drawn = 0;
+      for (let orderIndex = total - 1; orderIndex >= 0 && drawn < 28; orderIndex -= 1) {
+        const index = order[orderIndex];
+        const node = vizNodes[index];
+        if (!node.label || alpha[index] < 0.7) continue;
+        ctx.globalAlpha = Math.min(1, (alpha[index] - 0.58) * 2.6);
+        ctx.fillStyle = node.hub ? "rgba(255,255,255,0.94)" : "rgba(243,239,243,0.68)";
+        ctx.font = `${node.hub ? 10 : 8}px "IBM Plex Mono", ui-monospace, monospace`;
+        ctx.fillText(node.label.slice(0, 24), sx[index], sy[index] + node.r * scale[index] + 4);
+        drawn += 1;
+      }
+      ctx.globalAlpha = 1;
+      canvas.style.cursor = dragging ? "grabbing" : "grab";
+    };
+
+    let raf = 0;
+    let running = false;
+    const loop = () => {
+      frame();
+      raf = requestAnimationFrame(loop);
+    };
+    const start = () => {
+      if (!running && !reduce) {
+        running = true;
+        raf = requestAnimationFrame(loop);
+      }
+    };
+    const stop = () => {
+      running = false;
+      cancelAnimationFrame(raf);
+    };
+
+    let visibilityObserver: IntersectionObserver | null = null;
+    if (reduce) frame();
+    else {
+      visibilityObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => (entry.isIntersecting ? start() : stop()));
+      });
+      visibilityObserver.observe(wrap);
+    }
+
+    return () => {
+      visibilityObserver?.disconnect();
+      stop();
+      observer.disconnect();
+      canvas.removeEventListener("pointerdown", onDown);
+      canvas.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("pointerup", onUp);
+      canvas.removeEventListener("pointerleave", onUp);
+    };
+  }, [nodes]);
+
+  return (
+    <div ref={wrapRef} className={styles.brainGraphShell}>
+      <canvas ref={canvasRef} className={styles.brainGraphCanvas} aria-label="interactive company brain graph" />
     </div>
   );
 }
