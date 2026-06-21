@@ -130,4 +130,22 @@ describe("POST /api/browserbase/questionnaire-step", () => {
     });
     expect(response.status).toBe(503);
   });
+
+  it("allows the public enterprise proof demo org even when hosted secrets are configured", async () => {
+    vi.stubEnv("QUAD_API_SECRET", "prod_admin_secret");
+    vi.stubEnv("QUAD_SERVICE_TOKENS", "prod_service_token:org_other:browser:write");
+    vi.stubEnv("QUAD_ALLOWED_ORGS", ENTERPRISE_PROOF_ORG_ID);
+
+    const response = await POST(new NextRequest("http://localhost/api/browserbase/questionnaire-step", {
+      method: "POST",
+      body: JSON.stringify({
+        orgId: ENTERPRISE_PROOF_ORG_ID,
+        question: "Do you review access?",
+        answer: "Yes.",
+      }),
+    }));
+
+    expect(response.status).toBe(200);
+    await expect(response.text()).resolves.toContain("browserbase.session.created");
+  });
 });

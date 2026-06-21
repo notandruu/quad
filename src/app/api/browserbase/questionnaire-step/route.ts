@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
     headers: req.headers,
     requestedOrgId: orgId,
     defaultOrgId: ENTERPRISE_PROOF_ORG_ID,
+    env: orgId === ENTERPRISE_PROOF_ORG_ID ? publicEnterpriseProofDemoEnv() : undefined,
     requiredScopes: ["browser:write"],
   });
   if (!auth.ok) {
@@ -305,6 +306,15 @@ function stableValueHash(value: string): `fnv1a:${string}` {
     hash = Math.imul(hash, 16777619);
   }
   return `fnv1a:${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+function publicEnterpriseProofDemoEnv() {
+  return {
+    ...process.env,
+    QUAD_API_SECRET: undefined,
+    QUAD_SERVICE_TOKENS: undefined,
+    QUAD_ALLOWED_ORGS: ENTERPRISE_PROOF_ORG_ID,
+  };
 }
 
 function cssEscape(value: string) {
