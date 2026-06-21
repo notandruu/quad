@@ -9,13 +9,12 @@ import { SPONSORS, SponsorMark } from "@/components/SponsorLogos";
 
 const useIso = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-const TITLE = [
+const TITLE: { w: string; dim?: boolean; serif?: boolean }[] = [
+  { w: "Quad.", serif: true },
   { w: "AI", dim: true },
-  { w: "employees", dim: true },
   { w: "that", dim: true },
-  { w: "prove", dim: false },
-  { w: "their", dim: false },
-  { w: "work", dim: false },
+  { w: "proves", dim: false },
+  { w: "it.", dim: false },
 ];
 
 const LAYERS = [
@@ -216,10 +215,14 @@ export default function Hero() {
               />
             </div>
 
-            <h1 className="mt-12 max-w-[460px] lg:pl-9 text-[56px] font-normal leading-[1.0] tracking-[-0.02em] text-paper-2 md:text-[68px] lg:text-[72px]">
+            <h1 className="mt-12 max-w-[480px] lg:pl-9 text-[56px] font-normal leading-[1.0] tracking-[-0.02em] text-paper-2 md:text-[70px] lg:text-[76px]">
               {TITLE.map((t, i) => (
                 <Fragment key={i}>
-                  <span data-h="word" className={`inline-block ${t.dim ? "text-tan" : ""}`}>
+                  <span
+                    data-h="word"
+                    className={`inline-block ${t.dim ? "text-tan" : ""}`}
+                    style={t.serif ? { fontFamily: "var(--font-canela), Georgia, serif", fontWeight: 500 } : undefined}
+                  >
                     {t.w}
                   </span>
                   {i < TITLE.length - 1 ? " " : ""}
