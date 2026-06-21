@@ -13,6 +13,7 @@ import type { AuditReport } from "@/lib/types";
 import type { PublishedEvent } from "@/lib/redis/publisher";
 import type { BackendSettings } from "@/lib/debug/status";
 import type { QuadChainPacketSummary } from "@/lib/quad-chain";
+import type { VoiceInterviewQuestion } from "@/lib/voice/interview";
 
 type Message = {
   role: "user" | "quad";
@@ -31,6 +32,8 @@ export default function Home() {
   const [logsOpen, setLogsOpen] = useState(true);
   const [settings, setSettings] = useState<BackendSettings | null>(null);
   const [demoState, setDemoState] = useState<DemoState>("idle");
+  const [voicePrompt, setVoicePrompt] = useState<VoiceInterviewQuestion | null>(null);
+  const [voicePromptCursor, setVoicePromptCursor] = useState(0);
 
   useEffect(() => {
     fetch("/api/settings", { cache: "no-store" })
@@ -38,6 +41,12 @@ export default function Home() {
       .then((data) => setSettings(data))
       .catch(() => setSettings(null));
   }, []);
+
+  useEffect(() => {
+    if (!settings?.voice) return;
+    void loadVoicePrompt(voicePromptCursor);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings?.voice, report?.orgId, report?.runId, voicePromptCursor]);
 
   async function handleLoadDemo() {
     if (demoState === "loading" || active) return;
@@ -125,6 +134,24 @@ export default function Home() {
         quadChain: input.quadChain.find((packet) => packet.type === "brain_memory_write") ?? input.quadChain[0] ?? null,
       },
     ]);
+  }
+
+  async function loadVoicePrompt(cursor: number) {
+    try {
+      const response = await fetch("/api/voice/interview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId: report?.orgId ?? undefined,
+          runId: report?.runId ?? undefined,
+          cursor,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      setVoicePrompt(data?.question ?? null);
+    } catch {
+      setVoicePrompt(null);
+    }
   }
 
   async function startAudit(targetUrl: string, orgId?: string) {
@@ -244,6 +271,8 @@ export default function Home() {
           deepgramEnabled={Boolean(settings?.deepgram)}
           orgId={report?.orgId ?? undefined}
           runId={report?.runId ?? undefined}
+          voicePrompt={voicePrompt}
+          onNextVoicePrompt={() => setVoicePromptCursor((cursor) => cursor + 1)}
           onVoiceStored={handleVoiceStored}
         />
       </section>

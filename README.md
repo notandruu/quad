@@ -117,6 +117,8 @@ Set `QUAD_WORKER_SECRET` for protected worker processing calls. When it is confi
 
 `POST /api/voice/transcribe` uses Deepgram when configured, emits a `voice_transcript` packet, and writes the transcript into the company brain as verified meeting memory by default. Pass `remember=false` in the multipart form for one-off voice commands that should not become durable context. The dashboard voice button forwards the active `orgId` and `runId`, so spoken facts land in the same trust trail as the visible audit.
 
+`POST /api/voice/interview` returns the next buyer-readiness question for voice mode. The dashboard uses it to prompt the operator for trust proof, compliance claims, customer fit, approved execution workflows, and differentiated claims before saving the spoken answer as verified memory.
+
 Chat answers also carry trust context. `/api/chat` emits a `chat_answer` packet and returns `verifiedContext` summaries for any retrieved memories that already have `brain_memory_write` receipts, so the dashboard can show when an answer used verified memory instead of free-floating text.
 
 For Vercel plus Railway:

@@ -184,9 +184,14 @@ Shipped v3:
 - Voice transcript memory now lands in the same tenant/run context as the visible audit when one is active.
 - The chat surface shows a saved-memory acknowledgement with the memory-write receipt after Deepgram transcription.
 
+Shipped v4:
+
+- `POST /api/voice/interview` returns the next buyer-readiness question for the active org/run context.
+- The dashboard shows a voice prompt with an evidence hint and a next control, so voice mode actively guides what to capture.
+- The interview question set covers buyer trust proof, compliance claims, customer fit, approved execution workflows, and differentiated claims.
+
 Build:
 
-- voice mode asks buyer-readiness questions.
 - next audit compares website against newly captured voice context.
 
 Acceptance:
