@@ -1,0 +1,225 @@
+{
+  "rows": [
+    {
+      "target_tokens": 1000,
+      "role": "researcher",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 1000,
+      "role": "implementer",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 1000,
+      "role": "reviewer",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 1000,
+      "role": "judge_presenter",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 3000,
+      "role": "researcher",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 3000,
+      "role": "implementer",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 3000,
+      "role": "reviewer",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 3000,
+      "role": "judge_presenter",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 10000,
+      "role": "researcher",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 10000,
+      "role": "implementer",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 10000,
+      "role": "reviewer",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 10000,
+      "role": "judge_presenter",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 30000,
+      "role": "researcher",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 30000,
+      "role": "implementer",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 30000,
+      "role": "reviewer",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 30000,
+      "role": "judge_presenter",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 100000,
+      "role": "researcher",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 100000,
+      "role": "implementer",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 100000,
+      "role": "reviewer",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 100000,
+      "role": "judge_presenter",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 300000,
+      "role": "researcher",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 300000,
+      "role": "implementer",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 300000,
+      "role": "reviewer",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    },
+    {
+      "target_tokens": 300000,
+      "role": "judge_presenter",
+      "payload_evidence": "6/6",
+      "certificate_evidence": "6/6",
+      "final_prompt_evidence": "6/6",
+      "obligation_leakage_delta": 0,
+      "pass": true
+    }
+  ],
+  "audited_role_prompts": 24,
+  "payload_preservation": "144/144",
+  "final_prompt_preservation": "144/144",
+  "leakage_delta_total": 0,
+  "all_payloads_pass": true
+}

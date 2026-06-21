@@ -5,10 +5,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        paper: "#fff8fb",
         ink: "#fff8fb",
+        muted: "#6f3f55",
+        soft: "#8d526d",
         panel: "#fff0f6",
         edge: "#f4b8cf",
         accent: "#c21f63",
+        "accent-dark": "#8f174b",
       },
       keyframes: {
         "fade-in": {

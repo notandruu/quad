@@ -1,0 +1,165 @@
+{
+  "rows": [
+    {
+      "role": "researcher",
+      "method": "raw",
+      "packets": [
+        "research-notes.md",
+        "noisy-issue.md"
+      ],
+      "required_fields": [
+        "we did not raise prices in 2026",
+        "WebhookSignatureVerificationError",
+        "idempotency"
+      ],
+      "fields_recovered": "3/3",
+      "task_success": true,
+      "hallucinated_fields": [],
+      "tokens": 392
+    },
+    {
+      "role": "researcher",
+      "method": "quadchain",
+      "packets": [
+        "research-notes.md",
+        "noisy-issue.md"
+      ],
+      "required_fields": [
+        "we did not raise prices in 2026",
+        "WebhookSignatureVerificationError",
+        "idempotency"
+      ],
+      "fields_recovered": "3/3",
+      "task_success": true,
+      "hallucinated_fields": [],
+      "tokens": 339
+    },
+    {
+      "role": "implementer",
+      "method": "raw",
+      "packets": [
+        "agent-trace.md",
+        "failing-test.log",
+        "long-agent-history.md"
+      ],
+      "required_fields": [
+        "src/auth/sessionCookie.ts:41",
+        "SameSite=Lax",
+        "Retry-After",
+        "invoice:${invoiceId}"
+      ],
+      "fields_recovered": "4/4",
+      "task_success": true,
+      "hallucinated_fields": [],
+      "tokens": 1858
+    },
+    {
+      "role": "implementer",
+      "method": "quadchain",
+      "packets": [
+        "agent-trace.md",
+        "failing-test.log",
+        "long-agent-history.md"
+      ],
+      "required_fields": [
+        "src/auth/sessionCookie.ts:41",
+        "SameSite=Lax",
+        "Retry-After",
+        "invoice:${invoiceId}"
+      ],
+      "fields_recovered": "4/4",
+      "task_success": true,
+      "hallucinated_fields": [],
+      "tokens": 1156
+    },
+    {
+      "role": "reviewer",
+      "method": "raw",
+      "packets": [
+        "agent-trace.md",
+        "failing-test.log",
+        "long-agent-history.md",
+        "noisy-issue.md",
+        "research-notes.md"
+      ],
+      "required_fields": [
+        "41/41",
+        "38/38",
+        "answer_ready_score"
+      ],
+      "fields_recovered": "0/3",
+      "task_success": false,
+      "hallucinated_fields": [],
+      "tokens": 2250
+    },
+    {
+      "role": "reviewer",
+      "method": "quadchain",
+      "packets": [
+        "agent-trace.md",
+        "failing-test.log",
+        "long-agent-history.md",
+        "noisy-issue.md",
+        "research-notes.md"
+      ],
+      "required_fields": [
+        "41/41",
+        "38/38",
+        "answer_ready_score"
+      ],
+      "fields_recovered": "1/3",
+      "task_success": false,
+      "hallucinated_fields": [],
+      "tokens": 113
+    },
+    {
+      "role": "judge_presenter",
+      "method": "raw",
+      "packets": [
+        "agent-trace.md",
+        "failing-test.log",
+        "long-agent-history.md",
+        "noisy-issue.md",
+        "research-notes.md"
+      ],
+      "required_fields": [
+        "41/41",
+        "38/38",
+        "867",
+        "registry_payload_raw_context_bytes"
+      ],
+      "fields_recovered": "0/4",
+      "task_success": false,
+      "hallucinated_fields": [],
+      "tokens": 2250
+    },
+    {
+      "role": "judge_presenter",
+      "method": "quadchain",
+      "packets": [
+        "agent-trace.md",
+        "failing-test.log",
+        "long-agent-history.md",
+        "noisy-issue.md",
+        "research-notes.md"
+      ],
+      "required_fields": [
+        "41/41",
+        "38/38",
+        "867",
+        "registry_payload_raw_context_bytes"
+      ],
+      "fields_recovered": "4/4",
+      "task_success": true,
+      "hallucinated_fields": [],
+      "tokens": 132
+    }
+  ],
+  "raw_success_rate": 50.0,
+  "quadchain_success_rate": 75.0,
+  "workflow_total_tokens_raw": 6750,
+  "workflow_total_tokens_quadchain": 1740,
+  "workflow_token_savings": 5010,
+  "workflow_percent_reduction": 74.22,
+  "matches_raw_within_5pp": true
+}

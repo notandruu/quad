@@ -1,0 +1,1599 @@
+{
+  "name": "quad_chain_eval",
+  "thesis": "quadchain is compression with measurable downstream preservation and cryptographic handoff verification.",
+  "single_context": {
+    "input_tokens": 2250,
+    "output_tokens": 1383,
+    "tokens_saved": 867,
+    "compression_ratio": 1.63,
+    "percent_token_reduction": 38.53,
+    "evidence_preservation": "41/41",
+    "answer_concept_preservation": "38/38",
+    "answer_readiness_score": 1.0,
+    "omission_ranges": 31,
+    "evidence_kept": 41,
+    "evidence_total": 41,
+    "concepts_kept": 38,
+    "concepts_total": 38
+  },
+  "baseline_comparison": {
+    "rows": [
+      {
+        "name": "agent-trace.md",
+        "method": "token_diet",
+        "token_budget": 431,
+        "input_tokens_est": 711,
+        "output_tokens_est": 431,
+        "tokens_saved_est": 280,
+        "compression_ratio": 1.65,
+        "evidence": "8/8",
+        "answer_concepts": "8/8",
+        "answer_ready_score": 1.0,
+        "missing_evidence": [],
+        "missing_concepts": []
+      },
+      {
+        "name": "agent-trace.md",
+        "method": "naive_head",
+        "token_budget": 431,
+        "input_tokens_est": 711,
+        "output_tokens_est": 431,
+        "tokens_saved_est": 280,
+        "compression_ratio": 1.65,
+        "evidence": "8/8",
+        "answer_concepts": "7/8",
+        "answer_ready_score": 0.956,
+        "missing_evidence": [],
+        "missing_concepts": [
+          "state cookie"
+        ]
+      },
+      {
+        "name": "agent-trace.md",
+        "method": "naive_middle",
+        "token_budget": 431,
+        "input_tokens_est": 711,
+        "output_tokens_est": 407,
+        "tokens_saved_est": 304,
+        "compression_ratio": 1.75,
+        "evidence": "7/8",
+        "answer_concepts": "8/8",
+        "answer_ready_score": 0.919,
+        "missing_evidence": [
+          "2026-06-20 09:12:03"
+        ],
+        "missing_concepts": []
+      },
+      {
+        "name": "agent-trace.md",
+        "method": "naive_tail",
+        "token_budget": 431,
+        "input_tokens_est": 711,
+        "output_tokens_est": 431,
+        "tokens_saved_est": 280,
+        "compression_ratio": 1.65,
+        "evidence": "2/8",
+        "answer_concepts": "3/8",
+        "answer_ready_score": 0.294,
+        "missing_evidence": [
+          "2026-06-20 09:12:03",
+          "/api/auth/oauth/callback",
+          "actual status: `401`",
+          "src/auth/sessionCookie.ts:41",
+          "SameSite=Lax",
+          "do not disable csrf checks"
+        ],
+        "missing_concepts": [
+          "oauth callback",
+          "SameSite=Strict",
+          "SameSite=Lax",
+          "src/auth/sessionCookie.ts:41",
+          "csrf checks"
+        ]
+      },
+      {
+        "name": "agent-trace.md",
+        "method": "naive_even_lines",
+        "token_budget": 431,
+        "input_tokens_est": 711,
+        "output_tokens_est": 382,
+        "tokens_saved_est": 329,
+        "compression_ratio": 1.86,
+        "evidence": "6/8",
+        "answer_concepts": "7/8",
+        "answer_ready_score": 0.794,
+        "missing_evidence": [
+          "2026-06-20 09:12:03",
+          "src/auth/sessionCookie.ts:41"
+        ],
+        "missing_concepts": [
+          "src/auth/sessionCookie.ts:41"
+        ]
+      },
+      {
+        "name": "agent-trace.md",
+        "method": "naive_random_lines",
+        "token_budget": 431,
+        "input_tokens_est": 711,
+        "output_tokens_est": 449,
+        "tokens_saved_est": 262,
+        "compression_ratio": 1.58,
+        "evidence": "5/8",
+        "answer_concepts": "5/8",
+        "answer_ready_score": 0.625,
+        "missing_evidence": [
+          "actual status: `401`",
+          "src/auth/sessionCookie.ts:41",
+          "SameSite=Lax"
+        ],
+        "missing_concepts": [
+          "SameSite=Strict",
+          "SameSite=Lax",
+          "src/auth/sessionCookie.ts:41"
+        ]
+      },
+      {
+        "name": "failing-test.log",
+        "method": "token_diet",
+        "token_budget": 134,
+        "input_tokens_est": 172,
+        "output_tokens_est": 134,
+        "tokens_saved_est": 38,
+        "compression_ratio": 1.28,
+        "evidence": "7/7",
+        "answer_concepts": "8/8",
+        "answer_ready_score": 1.0,
+        "missing_evidence": [],
+        "missing_concepts": []
+      },
+      {
+        "name": "failing-test.log",
+        "method": "naive_head",
+        "token_budget": 134,
+        "input_tokens_est": 172,
+        "output_tokens_est": 134,
+        "tokens_saved_est": 38,
+        "compression_ratio": 1.28,
+        "evidence": "4/7",
+        "answer_concepts": "3/8",
+        "answer_ready_score": 0.503,
+        "missing_evidence": [
+          "Retry-After",
+          "anonymous users",
+          "authenticated users"
+        ],
+        "missing_concepts": [
+          "anonymous users",
+          "ip",
+          "authenticated users",
+          "user id",
+          "Retry-After"
+        ]
+      },
+      {
+        "name": "failing-test.log",
+        "method": "naive_middle",
+        "token_budget": 134,
+        "input_tokens_est": 172,
+        "output_tokens_est": 134,
+        "tokens_saved_est": 38,
+        "compression_ratio": 1.28,
+        "evidence": "4/7",
+        "answer_concepts": "5/8",
+        "answer_ready_score": 0.59,
+        "missing_evidence": [
+          "expected 429 but received 200",
+          "Retry-After",
+          "authenticated users"
+        ],
+        "missing_concepts": [
+          "authenticated users",
+          "user id",
+          "Retry-After"
+        ]
+      },
+      {
+        "name": "failing-test.log",
+        "method": "naive_tail",
+        "token_budget": 134,
+        "input_tokens_est": 172,
+        "output_tokens_est": 134,
+        "tokens_saved_est": 38,
+        "compression_ratio": 1.28,
+        "evidence": "6/7",
+        "answer_concepts": "8/8",
+        "answer_ready_score": 0.907,
+        "missing_evidence": [
+          "expected 429 but received 200"
+        ],
+        "missing_concepts": []
+      },
+      {
+        "name": "failing-test.log",
+        "method": "naive_even_lines",
+        "token_budget": 134,
+        "input_tokens_est": 172,
+        "output_tokens_est": 92,
+        "tokens_saved_est": 80,
+        "compression_ratio": 1.87,
+        "evidence": "3/7",
+        "answer_concepts": "6/8",
+        "answer_ready_score": 0.541,
+        "missing_evidence": [
+          "expected 429 but received 200",
+          "src/middleware/rateLimit.ts:88",
+          "rateLimitExceeded(userId)",
+          "anonymous users"
+        ],
+        "missing_concepts": [
+          "anonymous users",
+          "ip"
+        ]
+      },
+      {
+        "name": "failing-test.log",
+        "method": "naive_random_lines",
+        "token_budget": 134,
+        "input_tokens_est": 172,
+        "output_tokens_est": 142,
+        "tokens_saved_est": 30,
+        "compression_ratio": 1.21,
+        "evidence": "7/7",
+        "answer_concepts": "8/8",
+        "answer_ready_score": 1.0,
+        "missing_evidence": [],
+        "missing_concepts": []
+      },
+      {
+        "name": "long-agent-history.md",
+        "method": "token_diet",
+        "token_budget": 523,
+        "input_tokens_est": 975,
+        "output_tokens_est": 523,
+        "tokens_saved_est": 452,
+        "compression_ratio": 1.86,
+        "evidence": "12/12",
+        "answer_concepts": "9/9",
+        "answer_ready_score": 1.0,
+        "missing_evidence": [],
+        "missing_concepts": []
+      },
+      {
+        "name": "long-agent-history.md",
+        "method": "naive_head",
+        "token_budget": 523,
+        "input_tokens_est": 975,
+        "output_tokens_est": 523,
+        "tokens_saved_est": 452,
+        "compression_ratio": 1.86,
+        "evidence": "12/12",
+        "answer_concepts": "8/9",
+        "answer_ready_score": 0.961,
+        "missing_evidence": [],
+        "missing_concepts": [
+          "duplicate charge"
+        ]
+      },
+      {
+        "name": "long-agent-history.md",
+        "method": "naive_middle",
+        "token_budget": 523,
+        "input_tokens_est": 975,
+        "output_tokens_est": 515,
+        "tokens_saved_est": 460,
+        "compression_ratio": 1.89,
+        "evidence": "8/12",
+        "answer_concepts": "7/9",
+        "answer_ready_score": 0.706,
+        "missing_evidence": [
+          "2026-06-20 02:03:11",
+          "idempotency key should be `invoice:${invoiceId}`",
+          "current idempotency key is `customer:${customerId}`",
+          "do not disable retries"
+        ],
+        "missing_concepts": [
+          "duplicate charge",
+          "retries"
+        ]
+      },
+      {
+        "name": "long-agent-history.md",
+        "method": "naive_tail",
+        "token_budget": 523,
+        "input_tokens_est": 975,
+        "output_tokens_est": 522,
+        "tokens_saved_est": 453,
+        "compression_ratio": 1.87,
+        "evidence": "7/12",
+        "answer_concepts": "6/9",
+        "answer_ready_score": 0.613,
+        "missing_evidence": [
+          "2026-06-20 02:03:11",
+          "payment_intent.succeeded",
+          "idempotency key should be `invoice:${invoiceId}`",
+          "current idempotency key is `customer:${customerId}`",
+          "do not disable retries"
+        ],
+        "missing_concepts": [
+          "idempotency key",
+          "retries",
+          "payment_intent.succeeded"
+        ]
+      },
+      {
+        "name": "long-agent-history.md",
+        "method": "naive_even_lines",
+        "token_budget": 523,
+        "input_tokens_est": 975,
+        "output_tokens_est": 453,
+        "tokens_saved_est": 522,
+        "compression_ratio": 2.15,
+        "evidence": "9/12",
+        "answer_concepts": "9/9",
+        "answer_ready_score": 0.838,
+        "missing_evidence": [
+          "2026-06-20 02:03:11",
+          "/internal/billing/replay",
+          "current idempotency key is `customer:${customerId}`"
+        ],
+        "missing_concepts": []
+      },
+      {
+        "name": "long-agent-history.md",
+        "method": "naive_random_lines",
+        "token_budget": 523,
+        "input_tokens_est": 975,
+        "output_tokens_est": 564,
+        "tokens_saved_est": 411,
+        "compression_ratio": 1.73,
+        "evidence": "8/12",
+        "answer_concepts": "7/9",
+        "answer_ready_score": 0.706,
+        "missing_evidence": [
+          "2026-06-20 02:03:11",
+          "idempotency key should be `invoice:${invoiceId}`",
+          "current idempotency key is `customer:${customerId}`",
+          "do not disable retries"
+        ],
+        "missing_concepts": [
+          "customer:${customerId}",
+          "retries"
+        ]
+      },
+      {
+        "name": "noisy-issue.md",
+        "method": "token_diet",
+        "token_budget": 157,
+        "input_tokens_est": 234,
+        "output_tokens_est": 157,
+        "tokens_saved_est": 77,
+        "compression_ratio": 1.49,
+        "evidence": "7/7",
+        "answer_concepts": "7/7",
+        "answer_ready_score": 1.0,
+        "missing_evidence": [],
+        "missing_concepts": []
+      },
+      {
+        "name": "noisy-issue.md",
+        "method": "naive_head",
+        "token_budget": 157,
+        "input_tokens_est": 234,
+        "output_tokens_est": 157,
+        "tokens_saved_est": 77,
+        "compression_ratio": 1.49,
+        "evidence": "5/7",
+        "answer_concepts": "4/7",
+        "answer_ready_score": 0.664,
+        "missing_evidence": [
+          "WebhookSignatureVerificationError",
+          "idempotency"
+        ],
+        "missing_concepts": [
+          "signature verification / WebhookSignatureVerificationError / signatures found matching expected signature",
+          "raw-body / payload / signature",
+          "idempotency"
+        ]
+      },
+      {
+        "name": "noisy-issue.md",
+        "method": "naive_middle",
+        "token_budget": 157,
+        "input_tokens_est": 234,
+        "output_tokens_est": 148,
+        "tokens_saved_est": 86,
+        "compression_ratio": 1.58,
+        "evidence": "5/7",
+        "answer_concepts": "6/7",
+        "answer_ready_score": 0.764,
+        "missing_evidence": [
+          "2026-06-19",
+          "idempotency"
+        ],
+        "missing_concepts": [
+          "idempotency"
+        ]
+      },
+      {
+        "name": "noisy-issue.md",
+        "method": "naive_tail",
+        "token_budget": 157,
+        "input_tokens_est": 234,
+        "output_tokens_est": 157,
+        "tokens_saved_est": 77,
+        "compression_ratio": 1.49,
+        "evidence": "3/7",
+        "answer_concepts": "6/7",
+        "answer_ready_score": 0.579,
+        "missing_evidence": [
+          "2026-06-19",
+          "/api/checkout/confirm",
+          "checkout.session.completed",
+          "status = pending"
+        ],
+        "missing_concepts": [
+          "stripe webhook"
+        ]
+      },
+      {
+        "name": "noisy-issue.md",
+        "method": "naive_even_lines",
+        "token_budget": 157,
+        "input_tokens_est": 234,
+        "output_tokens_est": 108,
+        "tokens_saved_est": 126,
+        "compression_ratio": 2.17,
+        "evidence": "4/7",
+        "answer_concepts": "5/7",
+        "answer_ready_score": 0.621,
+        "missing_evidence": [
+          "2026-06-19",
+          "checkout.session.completed",
+          "src/payments/webhooks.ts:117"
+        ],
+        "missing_concepts": [
+          "stripe webhook",
+          "src/payments/webhooks.ts:117"
+        ]
+      },
+      {
+        "name": "noisy-issue.md",
+        "method": "naive_random_lines",
+        "token_budget": 157,
+        "input_tokens_est": 234,
+        "output_tokens_est": 163,
+        "tokens_saved_est": 71,
+        "compression_ratio": 1.44,
+        "evidence": "7/7",
+        "answer_concepts": "7/7",
+        "answer_ready_score": 1.0,
+        "missing_evidence": [],
+        "missing_concepts": []
+      },
+      {
+        "name": "research-notes.md",
+        "method": "token_diet",
+        "token_budget": 138,
+        "input_tokens_est": 158,
+        "output_tokens_est": 138,
+        "tokens_saved_est": 20,
+        "compression_ratio": 1.14,
+        "evidence": "7/7",
+        "answer_concepts": "6/6",
+        "answer_ready_score": 1.0,
+        "missing_evidence": [],
+        "missing_concepts": []
+      },
+      {
+        "name": "research-notes.md",
+        "method": "naive_head",
+        "token_budget": 138,
+        "input_tokens_est": 158,
+        "output_tokens_est": 138,
+        "tokens_saved_est": 20,
+        "compression_ratio": 1.14,
+        "evidence": "7/7",
+        "answer_concepts": "6/6",
+        "answer_ready_score": 1.0,
+        "missing_evidence": [],
+        "missing_concepts": []
+      },
+      {
+        "name": "research-notes.md",
+        "method": "naive_middle",
+        "token_budget": 138,
+        "input_tokens_est": 158,
+        "output_tokens_est": 127,
+        "tokens_saved_est": 31,
+        "compression_ratio": 1.24,
+        "evidence": "7/7",
+        "answer_concepts": "6/6",
+        "answer_ready_score": 1.0,
+        "missing_evidence": [],
+        "missing_concepts": []
+      },
+      {
+        "name": "research-notes.md",
+        "method": "naive_tail",
+        "token_budget": 138,
+        "input_tokens_est": 158,
+        "output_tokens_est": 138,
+        "tokens_saved_est": 20,
+        "compression_ratio": 1.14,
+        "evidence": "7/7",
+        "answer_concepts": "6/6",
+        "answer_ready_score": 1.0,
+        "missing_evidence": [],
+        "missing_concepts": []
+      },
+      {
+        "name": "research-notes.md",
+        "method": "naive_even_lines",
+        "token_budget": 138,
+        "input_tokens_est": 158,
+        "output_tokens_est": 82,
+        "tokens_saved_est": 76,
+        "compression_ratio": 1.93,
+        "evidence": "4/7",
+        "answer_concepts": "3/6",
+        "answer_ready_score": 0.546,
+        "missing_evidence": [
+          "2026 was $31.8m",
+          "we did not raise prices in 2026",
+          "usage growth"
+        ],
+        "missing_concepts": [
+          "usage expansion / usage growth",
+          "not price increases / did not raise prices / we did not raise prices in 2026",
+          "we did not raise prices in 2026"
+        ]
+      },
+      {
+        "name": "research-notes.md",
+        "method": "naive_random_lines",
+        "token_budget": 138,
+        "input_tokens_est": 158,
+        "output_tokens_est": 140,
+        "tokens_saved_est": 18,
+        "compression_ratio": 1.13,
+        "evidence": "6/7",
+        "answer_concepts": "6/6",
+        "answer_ready_score": 0.907,
+        "missing_evidence": [
+          "gross margin improved by 4 percentage points"
+        ],
+        "missing_concepts": []
+      }
+    ],
+    "methods": [
+      "naive_even_lines",
+      "naive_head",
+      "naive_middle",
+      "naive_random_lines",
+      "naive_tail",
+      "token_diet"
+    ],
+    "baseline_failure_count": 20,
+    "baseline_row_count": 25,
+    "failures": [
+      {
+        "name": "agent-trace.md",
+        "method": "naive_head",
+        "missing_evidence": [],
+        "missing_concepts": [
+          "state cookie"
+        ]
+      },
+      {
+        "name": "agent-trace.md",
+        "method": "naive_middle",
+        "missing_evidence": [
+          "2026-06-20 09:12:03"
+        ],
+        "missing_concepts": []
+      },
+      {
+        "name": "agent-trace.md",
+        "method": "naive_tail",
+        "missing_evidence": [
+          "2026-06-20 09:12:03",
+          "/api/auth/oauth/callback",
+          "actual status: `401`",
+          "src/auth/sessionCookie.ts:41",
+          "SameSite=Lax",
+          "do not disable csrf checks"
+        ],
+        "missing_concepts": [
+          "oauth callback",
+          "SameSite=Strict",
+          "SameSite=Lax",
+          "src/auth/sessionCookie.ts:41",
+          "csrf checks"
+        ]
+      },
+      {
+        "name": "agent-trace.md",
+        "method": "naive_even_lines",
+        "missing_evidence": [
+          "2026-06-20 09:12:03",
+          "src/auth/sessionCookie.ts:41"
+        ],
+        "missing_concepts": [
+          "src/auth/sessionCookie.ts:41"
+        ]
+      },
+      {
+        "name": "agent-trace.md",
+        "method": "naive_random_lines",
+        "missing_evidence": [
+          "actual status: `401`",
+          "src/auth/sessionCookie.ts:41",
+          "SameSite=Lax"
+        ],
+        "missing_concepts": [
+          "SameSite=Strict",
+          "SameSite=Lax",
+          "src/auth/sessionCookie.ts:41"
+        ]
+      },
+      {
+        "name": "failing-test.log",
+        "method": "naive_head",
+        "missing_evidence": [
+          "Retry-After",
+          "anonymous users",
+          "authenticated users"
+        ],
+        "missing_concepts": [
+          "anonymous users",
+          "ip",
+          "authenticated users",
+          "user id",
+          "Retry-After"
+        ]
+      },
+      {
+        "name": "failing-test.log",
+        "method": "naive_middle",
+        "missing_evidence": [
+          "expected 429 but received 200",
+          "Retry-After",
+          "authenticated users"
+        ],
+        "missing_concepts": [
+          "authenticated users",
+          "user id",
+          "Retry-After"
+        ]
+      },
+      {
+        "name": "failing-test.log",
+        "method": "naive_tail",
+        "missing_evidence": [
+          "expected 429 but received 200"
+        ],
+        "missing_concepts": []
+      },
+      {
+        "name": "failing-test.log",
+        "method": "naive_even_lines",
+        "missing_evidence": [
+          "expected 429 but received 200",
+          "src/middleware/rateLimit.ts:88",
+          "rateLimitExceeded(userId)",
+          "anonymous users"
+        ],
+        "missing_concepts": [
+          "anonymous users",
+          "ip"
+        ]
+      },
+      {
+        "name": "long-agent-history.md",
+        "method": "naive_head",
+        "missing_evidence": [],
+        "missing_concepts": [
+          "duplicate charge"
+        ]
+      },
+      {
+        "name": "long-agent-history.md",
+        "method": "naive_middle",
+        "missing_evidence": [
+          "2026-06-20 02:03:11",
+          "idempotency key should be `invoice:${invoiceId}`",
+          "current idempotency key is `customer:${customerId}`",
+          "do not disable retries"
+        ],
+        "missing_concepts": [
+          "duplicate charge",
+          "retries"
+        ]
+      },
+      {
+        "name": "long-agent-history.md",
+        "method": "naive_tail",
+        "missing_evidence": [
+          "2026-06-20 02:03:11",
+          "payment_intent.succeeded",
+          "idempotency key should be `invoice:${invoiceId}`",
+          "current idempotency key is `customer:${customerId}`",
+          "do not disable retries"
+        ],
+        "missing_concepts": [
+          "idempotency key",
+          "retries",
+          "payment_intent.succeeded"
+        ]
+      },
+      {
+        "name": "long-agent-history.md",
+        "method": "naive_even_lines",
+        "missing_evidence": [
+          "2026-06-20 02:03:11",
+          "/internal/billing/replay",
+          "current idempotency key is `customer:${customerId}`"
+        ],
+        "missing_concepts": []
+      },
+      {
+        "name": "long-agent-history.md",
+        "method": "naive_random_lines",
+        "missing_evidence": [
+          "2026-06-20 02:03:11",
+          "idempotency key should be `invoice:${invoiceId}`",
+          "current idempotency key is `customer:${customerId}`",
+          "do not disable retries"
+        ],
+        "missing_concepts": [
+          "customer:${customerId}",
+          "retries"
+        ]
+      },
+      {
+        "name": "noisy-issue.md",
+        "method": "naive_head",
+        "missing_evidence": [
+          "WebhookSignatureVerificationError",
+          "idempotency"
+        ],
+        "missing_concepts": [
+          "signature verification / WebhookSignatureVerificationError / signatures found matching expected signature",
+          "raw-body / payload / signature",
+          "idempotency"
+        ]
+      },
+      {
+        "name": "noisy-issue.md",
+        "method": "naive_middle",
+        "missing_evidence": [
+          "2026-06-19",
+          "idempotency"
+        ],
+        "missing_concepts": [
+          "idempotency"
+        ]
+      },
+      {
+        "name": "noisy-issue.md",
+        "method": "naive_tail",
+        "missing_evidence": [
+          "2026-06-19",
+          "/api/checkout/confirm",
+          "checkout.session.completed",
+          "status = pending"
+        ],
+        "missing_concepts": [
+          "stripe webhook"
+        ]
+      },
+      {
+        "name": "noisy-issue.md",
+        "method": "naive_even_lines",
+        "missing_evidence": [
+          "2026-06-19",
+          "checkout.session.completed",
+          "src/payments/webhooks.ts:117"
+        ],
+        "missing_concepts": [
+          "stripe webhook",
+          "src/payments/webhooks.ts:117"
+        ]
+      },
+      {
+        "name": "research-notes.md",
+        "method": "naive_even_lines",
+        "missing_evidence": [
+          "2026 was $31.8m",
+          "we did not raise prices in 2026",
+          "usage growth"
+        ],
+        "missing_concepts": [
+          "usage expansion / usage growth",
+          "not price increases / did not raise prices / we did not raise prices in 2026",
+          "we did not raise prices in 2026"
+        ]
+      },
+      {
+        "name": "research-notes.md",
+        "method": "naive_random_lines",
+        "missing_evidence": [
+          "gross margin improved by 4 percentage points"
+        ],
+        "missing_concepts": []
+      }
+    ],
+    "token_diet_evidence": "41/41",
+    "token_diet_answer_concepts": "38/38",
+    "best_naive_evidence": "41/41",
+    "best_naive_answer_concepts": "36/38",
+    "best_naive_rows": [
+      {
+        "name": "agent-trace.md",
+        "method": "naive_head",
+        "token_budget": 431,
+        "input_tokens_est": 711,
+        "output_tokens_est": 431,
+        "tokens_saved_est": 280,
+        "compression_ratio": 1.65,
+        "evidence": "8/8",
+        "answer_concepts": "7/8",
+        "answer_ready_score": 0.956,
+        "missing_evidence": [],
+        "missing_concepts": [
+          "state cookie"
+        ]
+      },
+      {
+        "name": "failing-test.log",
+        "method": "naive_random_lines",
+        "token_budget": 134,
+        "input_tokens_est": 172,
+        "output_tokens_est": 142,
+        "tokens_saved_est": 30,
+        "compression_ratio": 1.21,
+        "evidence": "7/7",
+        "answer_concepts": "8/8",
+        "answer_ready_score": 1.0,
+        "missing_evidence": [],
+        "missing_concepts": []
+      },
+      {
+        "name": "long-agent-history.md",
+        "method": "naive_head",
+        "token_budget": 523,
+        "input_tokens_est": 975,
+        "output_tokens_est": 523,
+        "tokens_saved_est": 452,
+        "compression_ratio": 1.86,
+        "evidence": "12/12",
+        "answer_concepts": "8/9",
+        "answer_ready_score": 0.961,
+        "missing_evidence": [],
+        "missing_concepts": [
+          "duplicate charge"
+        ]
+      },
+      {
+        "name": "noisy-issue.md",
+        "method": "naive_random_lines",
+        "token_budget": 157,
+        "input_tokens_est": 234,
+        "output_tokens_est": 163,
+        "tokens_saved_est": 71,
+        "compression_ratio": 1.44,
+        "evidence": "7/7",
+        "answer_concepts": "7/7",
+        "answer_ready_score": 1.0,
+        "missing_evidence": [],
+        "missing_concepts": []
+      },
+      {
+        "name": "research-notes.md",
+        "method": "naive_middle",
+        "token_budget": 138,
+        "input_tokens_est": 158,
+        "output_tokens_est": 127,
+        "tokens_saved_est": 31,
+        "compression_ratio": 1.24,
+        "evidence": "7/7",
+        "answer_concepts": "6/6",
+        "answer_ready_score": 1.0,
+        "missing_evidence": [],
+        "missing_concepts": []
+      }
+    ]
+  },
+  "multiagent_workflow": {
+    "roles": [
+      {
+        "role": "researcher",
+        "mode": "compressed packets plus proof envelope",
+        "raw_tokens_if_monolithic": 2250,
+        "quad_chain_tokens": 487,
+        "tokens_saved": 1763,
+        "percent_reduction": 78.36,
+        "evidence": "14/14",
+        "answer_concepts": "13/13",
+        "packets": [
+          "research-notes.md",
+          "noisy-issue.md"
+        ]
+      },
+      {
+        "role": "implementer",
+        "mode": "compressed packets plus proof envelope",
+        "raw_tokens_if_monolithic": 2250,
+        "quad_chain_tokens": 1376,
+        "tokens_saved": 874,
+        "percent_reduction": 38.84,
+        "evidence": "27/27",
+        "answer_concepts": "25/25",
+        "packets": [
+          "agent-trace.md",
+          "failing-test.log",
+          "long-agent-history.md"
+        ]
+      },
+      {
+        "role": "reviewer",
+        "mode": "certificate summaries for all packets",
+        "raw_tokens_if_monolithic": 2250,
+        "quad_chain_tokens": 240,
+        "tokens_saved": 2010,
+        "percent_reduction": 89.33,
+        "evidence": "41/41",
+        "answer_concepts": "38/38",
+        "packets": [
+          "agent-trace.md",
+          "failing-test.log",
+          "long-agent-history.md",
+          "noisy-issue.md",
+          "research-notes.md"
+        ]
+      },
+      {
+        "role": "judge_presenter",
+        "mode": "aggregate certificate plus registry receipt",
+        "raw_tokens_if_monolithic": 2250,
+        "quad_chain_tokens": 180,
+        "tokens_saved": 2070,
+        "percent_reduction": 92.0,
+        "evidence": "41/41",
+        "answer_concepts": "38/38",
+        "packets": [
+          "agent-trace.md",
+          "failing-test.log",
+          "long-agent-history.md",
+          "noisy-issue.md",
+          "research-notes.md"
+        ]
+      }
+    ],
+    "workflow_total_tokens_raw": 9000,
+    "workflow_total_tokens_quad_chain": 2283,
+    "workflow_token_savings": 6717,
+    "workflow_percent_reduction": 74.63,
+    "workflow_evidence_preserved": "41/41",
+    "workflow_answer_concepts_preserved": "38/38",
+    "invalid_route_case": {
+      "name": "implementer route missing failing-test.log",
+      "expected": "rejected",
+      "actual": "rejected",
+      "missing_role_critical_packet": "failing-test.log",
+      "packets_after_tamper": [
+        "agent-trace.md",
+        "long-agent-history.md"
+      ],
+      "missing_evidence_items": 7
+    }
+  },
+  "proof_carrying_handoff": {
+    "valid_handoff_acceptance": true,
+    "valid_handoff_verdict": "accepted",
+    "handoff_cases_passed": "4/4",
+    "adversarial_rejections": 4,
+    "adversarial_cases": 4,
+    "adversarial_rejection_rate": 100.0,
+    "invalid_route_case": {
+      "name": "implementer route missing failing-test.log",
+      "expected": "rejected",
+      "actual": "rejected",
+      "missing_role_critical_packet": "failing-test.log",
+      "packets_after_tamper": [
+        "agent-trace.md",
+        "long-agent-history.md"
+      ],
+      "missing_evidence_items": 7
+    }
+  },
+  "large_context_scale": {
+    "large_context_input_tokens": 115038,
+    "large_context_output_tokens": 74813,
+    "large_context_tokens_saved": 40225,
+    "large_context_evidence": "12/12",
+    "raw_monolithic_4_agent_tokens": 460152,
+    "quad_chain_routed_projection_tokens": 152126,
+    "projected_tokens_saved": 308026,
+    "projected_percent_reduction": 66.94
+  },
+  "scale_ladder": {
+    "magnitudes": 6,
+    "smallest_input_tokens": 1126,
+    "largest_input_tokens": 313554,
+    "aggregate_raw_4_agent_tokens": 1858850,
+    "aggregate_quadchain_4_agent_tokens": 605450,
+    "aggregate_workflow_tokens_saved": 1253400,
+    "aggregate_workflow_percent_reduction": 67.43,
+    "evidence": "36/36",
+    "actual_role_prompts": 24,
+    "role_prompt_evidence": "144/144",
+    "rows": [
+      {
+        "target_tokens": 1000,
+        "actual_input_tokens": 1126,
+        "compressed_tokens": 765,
+        "tokens_saved": 361,
+        "compression_ratio": 1.47,
+        "percent_reduction": 32.06,
+        "evidence": "6/6",
+        "same_budget_head_evidence": "6/6",
+        "same_budget_tail_evidence": "0/6",
+        "raw_4_agent_tokens": 4659,
+        "quad_chain_4_agent_tokens": 2127,
+        "workflow_tokens_saved": 2532,
+        "workflow_percent_reduction": 54.35,
+        "role_packets": [
+          {
+            "role": "researcher",
+            "raw_tokens": 1164,
+            "quadchain_tokens": 890,
+            "tokens_saved": 274,
+            "percent_reduction": 23.54,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "compressed context plus proof obligations"
+          },
+          {
+            "role": "implementer",
+            "raw_tokens": 1165,
+            "quadchain_tokens": 891,
+            "tokens_saved": 274,
+            "percent_reduction": 23.52,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "compressed context plus proof obligations"
+          },
+          {
+            "role": "reviewer",
+            "raw_tokens": 1164,
+            "quadchain_tokens": 200,
+            "tokens_saved": 964,
+            "percent_reduction": 82.82,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "certificate and evidence audit"
+          },
+          {
+            "role": "judge_presenter",
+            "raw_tokens": 1166,
+            "quadchain_tokens": 146,
+            "tokens_saved": 1020,
+            "percent_reduction": 87.48,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "aggregate proof envelope"
+          }
+        ]
+      },
+      {
+        "target_tokens": 3000,
+        "actual_input_tokens": 3203,
+        "compressed_tokens": 2122,
+        "tokens_saved": 1081,
+        "compression_ratio": 1.51,
+        "percent_reduction": 33.75,
+        "evidence": "6/6",
+        "same_budget_head_evidence": "6/6",
+        "same_budget_tail_evidence": "3/6",
+        "raw_4_agent_tokens": 12967,
+        "quad_chain_4_agent_tokens": 4849,
+        "workflow_tokens_saved": 8118,
+        "workflow_percent_reduction": 62.61,
+        "role_packets": [
+          {
+            "role": "researcher",
+            "raw_tokens": 3241,
+            "quadchain_tokens": 2248,
+            "tokens_saved": 993,
+            "percent_reduction": 30.64,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "compressed context plus proof obligations"
+          },
+          {
+            "role": "implementer",
+            "raw_tokens": 3242,
+            "quadchain_tokens": 2249,
+            "tokens_saved": 993,
+            "percent_reduction": 30.63,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "compressed context plus proof obligations"
+          },
+          {
+            "role": "reviewer",
+            "raw_tokens": 3241,
+            "quadchain_tokens": 204,
+            "tokens_saved": 3037,
+            "percent_reduction": 93.71,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "certificate and evidence audit"
+          },
+          {
+            "role": "judge_presenter",
+            "raw_tokens": 3243,
+            "quadchain_tokens": 148,
+            "tokens_saved": 3095,
+            "percent_reduction": 95.44,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "aggregate proof envelope"
+          }
+        ]
+      },
+      {
+        "target_tokens": 10000,
+        "actual_input_tokens": 10534,
+        "compressed_tokens": 6909,
+        "tokens_saved": 3625,
+        "compression_ratio": 1.52,
+        "percent_reduction": 34.41,
+        "evidence": "6/6",
+        "same_budget_head_evidence": "6/6",
+        "same_budget_tail_evidence": "3/6",
+        "raw_4_agent_tokens": 42291,
+        "quad_chain_4_agent_tokens": 14419,
+        "workflow_tokens_saved": 27872,
+        "workflow_percent_reduction": 65.91,
+        "role_packets": [
+          {
+            "role": "researcher",
+            "raw_tokens": 10572,
+            "quadchain_tokens": 7033,
+            "tokens_saved": 3539,
+            "percent_reduction": 33.48,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "compressed context plus proof obligations"
+          },
+          {
+            "role": "implementer",
+            "raw_tokens": 10573,
+            "quadchain_tokens": 7034,
+            "tokens_saved": 3539,
+            "percent_reduction": 33.47,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "compressed context plus proof obligations"
+          },
+          {
+            "role": "reviewer",
+            "raw_tokens": 10572,
+            "quadchain_tokens": 206,
+            "tokens_saved": 10366,
+            "percent_reduction": 98.05,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "certificate and evidence audit"
+          },
+          {
+            "role": "judge_presenter",
+            "raw_tokens": 10574,
+            "quadchain_tokens": 146,
+            "tokens_saved": 10428,
+            "percent_reduction": 98.62,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "aggregate proof envelope"
+          }
+        ]
+      },
+      {
+        "target_tokens": 30000,
+        "actual_input_tokens": 31431,
+        "compressed_tokens": 20558,
+        "tokens_saved": 10873,
+        "compression_ratio": 1.53,
+        "percent_reduction": 34.59,
+        "evidence": "6/6",
+        "same_budget_head_evidence": "6/6",
+        "same_budget_tail_evidence": "3/6",
+        "raw_4_agent_tokens": 125879,
+        "quad_chain_4_agent_tokens": 41733,
+        "workflow_tokens_saved": 84146,
+        "workflow_percent_reduction": 66.85,
+        "role_packets": [
+          {
+            "role": "researcher",
+            "raw_tokens": 31469,
+            "quadchain_tokens": 20688,
+            "tokens_saved": 10781,
+            "percent_reduction": 34.26,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "compressed context plus proof obligations"
+          },
+          {
+            "role": "implementer",
+            "raw_tokens": 31470,
+            "quadchain_tokens": 20689,
+            "tokens_saved": 10781,
+            "percent_reduction": 34.26,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "compressed context plus proof obligations"
+          },
+          {
+            "role": "reviewer",
+            "raw_tokens": 31469,
+            "quadchain_tokens": 204,
+            "tokens_saved": 31265,
+            "percent_reduction": 99.35,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "certificate and evidence audit"
+          },
+          {
+            "role": "judge_presenter",
+            "raw_tokens": 31471,
+            "quadchain_tokens": 152,
+            "tokens_saved": 31319,
+            "percent_reduction": 99.52,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "aggregate proof envelope"
+          }
+        ]
+      },
+      {
+        "target_tokens": 100000,
+        "actual_input_tokens": 104632,
+        "compressed_tokens": 68030,
+        "tokens_saved": 36602,
+        "compression_ratio": 1.54,
+        "percent_reduction": 34.98,
+        "evidence": "6/6",
+        "same_budget_head_evidence": "6/6",
+        "same_budget_tail_evidence": "3/6",
+        "raw_4_agent_tokens": 418683,
+        "quad_chain_4_agent_tokens": 136664,
+        "workflow_tokens_saved": 282019,
+        "workflow_percent_reduction": 67.36,
+        "role_packets": [
+          {
+            "role": "researcher",
+            "raw_tokens": 104670,
+            "quadchain_tokens": 68157,
+            "tokens_saved": 36513,
+            "percent_reduction": 34.88,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "compressed context plus proof obligations"
+          },
+          {
+            "role": "implementer",
+            "raw_tokens": 104671,
+            "quadchain_tokens": 68158,
+            "tokens_saved": 36513,
+            "percent_reduction": 34.88,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "compressed context plus proof obligations"
+          },
+          {
+            "role": "reviewer",
+            "raw_tokens": 104670,
+            "quadchain_tokens": 200,
+            "tokens_saved": 104470,
+            "percent_reduction": 99.81,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "certificate and evidence audit"
+          },
+          {
+            "role": "judge_presenter",
+            "raw_tokens": 104672,
+            "quadchain_tokens": 149,
+            "tokens_saved": 104523,
+            "percent_reduction": 99.86,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "aggregate proof envelope"
+          }
+        ]
+      },
+      {
+        "target_tokens": 300000,
+        "actual_input_tokens": 313554,
+        "compressed_tokens": 202527,
+        "tokens_saved": 111027,
+        "compression_ratio": 1.55,
+        "percent_reduction": 35.41,
+        "evidence": "6/6",
+        "same_budget_head_evidence": "6/6",
+        "same_budget_tail_evidence": "3/6",
+        "raw_4_agent_tokens": 1254371,
+        "quad_chain_4_agent_tokens": 405658,
+        "workflow_tokens_saved": 848713,
+        "workflow_percent_reduction": 67.66,
+        "role_packets": [
+          {
+            "role": "researcher",
+            "raw_tokens": 313592,
+            "quadchain_tokens": 202654,
+            "tokens_saved": 110938,
+            "percent_reduction": 35.38,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "compressed context plus proof obligations"
+          },
+          {
+            "role": "implementer",
+            "raw_tokens": 313593,
+            "quadchain_tokens": 202655,
+            "tokens_saved": 110938,
+            "percent_reduction": 35.38,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "compressed context plus proof obligations"
+          },
+          {
+            "role": "reviewer",
+            "raw_tokens": 313592,
+            "quadchain_tokens": 200,
+            "tokens_saved": 313392,
+            "percent_reduction": 99.94,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "certificate and evidence audit"
+          },
+          {
+            "role": "judge_presenter",
+            "raw_tokens": 313594,
+            "quadchain_tokens": 149,
+            "tokens_saved": 313445,
+            "percent_reduction": 99.95,
+            "evidence": "6/6",
+            "payload_evidence": "6/6",
+            "certificate_evidence": "6/6",
+            "final_prompt_evidence": "6/6",
+            "obligation_leakage_delta": 0,
+            "mode": "aggregate proof envelope"
+          }
+        ]
+      }
+    ]
+  },
+  "frontier_benchmark": {
+    "cases": 20,
+    "rows": 2880,
+    "datasets": [
+      "longbench_style_qa",
+      "needle_in_haystack_style",
+      "ruler_style_multihop",
+      "token_diet_local_fixture"
+    ],
+    "methods": [
+      "bm25_keyword",
+      "embedding_topk_proxy",
+      "head_truncation",
+      "llm_summary_proxy",
+      "llmlingua2_proxy",
+      "middle_truncation",
+      "protected_span_only",
+      "quadchain",
+      "random_deletion",
+      "raw",
+      "selective_context_proxy",
+      "tail_truncation"
+    ],
+    "quadchain_mean_task_score": 0.635,
+    "quadchain_task_score_ci95": [
+      0.5987,
+      0.6782
+    ],
+    "raw_mean_task_score": 0.8679,
+    "quadchain_vs_raw_delta": -0.2329,
+    "quadchain_mean_token_reduction": 57.85,
+    "role_payload_preservation": "144/144",
+    "role_final_prompt_preservation": "144/144",
+    "role_obligation_leakage_delta": 0,
+    "role_tasks_raw_success_rate": 50.0,
+    "role_tasks_quadchain_success_rate": 75.0,
+    "role_tasks_workflow_percent_reduction": 74.22,
+    "paired_comparisons": [
+      {
+        "baseline": "head_truncation",
+        "quadchain_wins": 51,
+        "quadchain_losses": 0,
+        "ties": 189,
+        "mean_score_delta": 0.0345,
+        "delta_ci95": [
+          0.025,
+          0.0466
+        ]
+      },
+      {
+        "baseline": "middle_truncation",
+        "quadchain_wins": 111,
+        "quadchain_losses": 69,
+        "ties": 60,
+        "mean_score_delta": 0.0647,
+        "delta_ci95": [
+          0.0228,
+          0.1055
+        ]
+      },
+      {
+        "baseline": "tail_truncation",
+        "quadchain_wins": 108,
+        "quadchain_losses": 69,
+        "ties": 63,
+        "mean_score_delta": 0.0408,
+        "delta_ci95": [
+          -0.0084,
+          0.0903
+        ]
+      },
+      {
+        "baseline": "random_deletion",
+        "quadchain_wins": 120,
+        "quadchain_losses": 40,
+        "ties": 80,
+        "mean_score_delta": 0.1356,
+        "delta_ci95": [
+          0.0984,
+          0.1771
+        ]
+      },
+      {
+        "baseline": "bm25_keyword",
+        "quadchain_wins": 48,
+        "quadchain_losses": 141,
+        "ties": 51,
+        "mean_score_delta": -0.2295,
+        "delta_ci95": [
+          -0.2649,
+          -0.1909
+        ]
+      },
+      {
+        "baseline": "embedding_topk_proxy",
+        "quadchain_wins": 48,
+        "quadchain_losses": 141,
+        "ties": 51,
+        "mean_score_delta": -0.2288,
+        "delta_ci95": [
+          -0.2647,
+          -0.1894
+        ]
+      },
+      {
+        "baseline": "llm_summary_proxy",
+        "quadchain_wins": 54,
+        "quadchain_losses": 135,
+        "ties": 51,
+        "mean_score_delta": -0.2438,
+        "delta_ci95": [
+          -0.2775,
+          -0.2023
+        ]
+      },
+      {
+        "baseline": "protected_span_only",
+        "quadchain_wins": 9,
+        "quadchain_losses": 141,
+        "ties": 90,
+        "mean_score_delta": -0.26,
+        "delta_ci95": [
+          -0.2933,
+          -0.2216
+        ]
+      },
+      {
+        "baseline": "llmlingua2_proxy",
+        "quadchain_wins": 0,
+        "quadchain_losses": 0,
+        "ties": 240,
+        "mean_score_delta": 0.0,
+        "delta_ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "baseline": "selective_context_proxy",
+        "quadchain_wins": 33,
+        "quadchain_losses": 15,
+        "ties": 192,
+        "mean_score_delta": 0.0101,
+        "delta_ci95": [
+          -0.0001,
+          0.0209
+        ]
+      }
+    ]
+  },
+  "registry_payload_raw_context_bytes": 0
+}

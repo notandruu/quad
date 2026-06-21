@@ -139,6 +139,12 @@ export default function Home() {
               {demoState === "loading" ? "Loading..." : "Load demo"}
             </button>
             <span className="text-xs text-neutral-600">Live audit employee</span>
+            <a
+              href="/quadchain"
+              className="rounded-lg border border-edge bg-panel px-3 py-1 text-xs font-medium text-accent hover:border-accent/50"
+            >
+              Quadchain
+            </a>
           </div>
         </header>
 
