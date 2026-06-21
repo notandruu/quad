@@ -205,3 +205,7 @@ external session is needed. Search for `TODO` to find the seams:
 Seeded with **BrightPath**, a youth nonprofit whose internal brain lists three
 programs while its website only explains one. That gap drives the headline
 audit moment: "Your internal brain says X, but your website only says Y."
+
+## Pitch Deck 
+
+https://drive.google.com/file/d/1jy_SMS4MhHv272ew9djQFgzbsw2jsouQ/view?usp=sharing
