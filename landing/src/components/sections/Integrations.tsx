@@ -25,16 +25,10 @@ const LOGOS: [string, string][] = [
 function Cell({ logo }: { logo: [string, string] }) {
   const [k, name] = logo;
   return (
-    <div className="group flex h-[118px] flex-col items-center justify-center gap-2.5 bg-paper transition-colors duration-200 hover:bg-cream">
+    <div className="flex h-[118px] flex-col items-center justify-center gap-2.5 bg-paper">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={`/assets/logos/${k}.svg`}
-        alt={name}
-        className="h-7 w-auto opacity-90 transition duration-300 group-hover:-translate-y-0.5 group-hover:opacity-100"
-      />
-      <span className="font-mono text-[11px] tracking-[0.02em] text-ink/55 transition-colors group-hover:text-ink">
-        {name}
-      </span>
+      <img src={`/assets/logos/${k}.svg`} alt={name} className="h-7 w-auto" />
+      <span className="font-mono text-[11px] tracking-[0.02em] text-ink/55">{name}</span>
     </div>
   );
 }

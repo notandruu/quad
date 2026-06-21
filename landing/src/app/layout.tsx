@@ -1,8 +1,17 @@
 import type { Metadata } from "next";
 import { Geist, IBM_Plex_Mono, Playfair_Display } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import SmoothScroll from "@/components/SmoothScroll";
 import Grain from "@/components/Grain";
+
+const canela = localFont({
+  src: [
+    { path: "./fonts/Canela-Regular.otf", weight: "400", style: "normal" },
+    { path: "./fonts/Canela-Medium.otf", weight: "500", style: "normal" },
+  ],
+  variable: "--font-canela",
+});
 
 const geist = Geist({
   subsets: ["latin"],
@@ -34,7 +43,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${geist.variable} ${mono.variable} ${serif.variable}`}>
+    <html lang="en" className={`${geist.variable} ${mono.variable} ${serif.variable} ${canela.variable}`}>
       <body>
         <Grain />
         <SmoothScroll>{children}</SmoothScroll>

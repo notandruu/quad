@@ -159,7 +159,7 @@ export default function Footer() {
             <div className="relative leading-[0.78] tracking-[-0.03em]">
               <span
                 className="block text-ink"
-                style={{ fontFamily: "var(--font-serif), Georgia, serif", fontWeight: 800 }}
+                style={{ fontFamily: "var(--font-canela), Georgia, serif", fontWeight: 400 }}
               >
                 Quad
               </span>
@@ -168,8 +168,8 @@ export default function Footer() {
                 aria-hidden
                 className="pointer-events-none absolute inset-0 block leading-[0.78] tracking-[-0.03em]"
                 style={{
-                  fontFamily: "var(--font-serif), Georgia, serif",
-                  fontWeight: 800,
+                  fontFamily: "var(--font-canela), Georgia, serif",
+                  fontWeight: 400,
                   backgroundImage: "radial-gradient(circle, #FF5CAB 36%, transparent 39%)",
                   backgroundSize: "7px 7px",
                   WebkitBackgroundClip: "text",
