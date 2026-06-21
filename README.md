@@ -79,6 +79,8 @@ High-risk mutation routes are protected by org-scoped rate limits and optional `
 
 `/api/connectors/credentials` installs, lists, and revokes connector credentials. Stored credentials are encrypted with `QUAD_CONNECTOR_ENCRYPTION_KEY` and list responses return only metadata, scopes, status, and credential hashes.
 
+`POST /api/publish/dry-run` stages approved connector artifacts only when the metaregistry says the target connector is active for the org. `cms.publisher` and `task.publisher` must be configured, force-installed if disabled by default, and explicitly allowlisted because they are write-capable tools. Blocked connector attempts create blocked task stream events instead of ready artifacts.
+
 `POST /api/verify-fix` runs post-ship verification over staged connector artifacts, emits verification reports, creates executed or blocked receipts, and attaches quadchain `connector_action` packets to the run.
 
 `GET /api/health/backend` reports whether Supabase platform tables, Redis, hosted API auth, credential encryption, the backend worker, Browserbase, voice, Sentry, and Phoenix are configured and reachable. Run `docs/backend/platform-schema.sql` in Supabase before relying on durable runs.

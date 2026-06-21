@@ -1,5 +1,6 @@
 import { createQuadChainPacket, summarizeQuadChainPacket, type QuadChainPacketSummary } from "@/lib/quad-chain";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
+import { summarizeCapabilities } from "@/lib/metaregistry";
 import {
   addArtifact,
   addTask,
@@ -31,6 +32,7 @@ export type DryRunPublisherInput = {
   orgId?: string;
   actor?: string;
   now?: string;
+  env?: Record<string, string | undefined>;
 };
 
 export async function dryRunPublish(input: DryRunPublisherInput): Promise<DryRunPublishResult> {
@@ -53,6 +55,30 @@ export async function dryRunPublish(input: DryRunPublisherInput): Promise<DryRun
 
   const now = input.now ?? new Date().toISOString();
   const drafts = buildDrafts(loaded, trustPacket, input.actor ?? "quad.publisher_agent");
+  const capabilitySummary = summarizeCapabilities(input.env ?? process.env, { orgId: loaded.run.orgId });
+  const activeCapabilities = new Set(capabilitySummary.activeTools.map((tool) => tool.id));
+  const installStates = new Map(capabilitySummary.installed.map((state) => [state.id, state]));
+  const blockedDrafts = drafts.filter((draft) => !activeCapabilities.has(draft.capabilityId));
+  if (blockedDrafts.length > 0) {
+    for (const draft of blockedDrafts) {
+      const state = installStates.get(draft.capabilityId);
+      addTask({
+        runId: loaded.run.id,
+        title: draft.taskTitle,
+        status: "blocked",
+        owner: "connector",
+        capabilityId: draft.capabilityId,
+        detail: state?.reason ?? "Capability is not active in the metaregistry.",
+        now,
+      });
+    }
+    await saveRunSnapshot(loaded.run.id);
+    throw new DryRunPublishError(
+      "capability_blocked",
+      409,
+      `Connector capability blocked: ${blockedDrafts.map((draft) => draft.capabilityId).join(", ")}.`
+    );
+  }
   const staged: DryRunPublishArtifact[] = [];
 
   for (const draft of drafts) {

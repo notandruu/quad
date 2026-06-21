@@ -5,6 +5,7 @@ import {
   createWorkflowRun,
   getRunSnapshot,
   requestApproval,
+  summarizeTaskStream,
 } from "@/lib/runs";
 import { getQuadChainPackets } from "@/lib/quad-chain/registry";
 import { DryRunPublishError, dryRunPublish } from "./publisher";
@@ -34,6 +35,7 @@ describe("dry-run publisher", () => {
       orgId: "org_publish",
       actor: "test.publisher",
       now: "2026-06-21T00:00:04.000Z",
+      env: publisherEnv(),
     });
 
     const snapshot = getRunSnapshot(run.runId);
@@ -46,9 +48,50 @@ describe("dry-run publisher", () => {
     expect(result.staged.every((item) => item.packet.type === "connector_action")).toBe(true);
     expect(snapshot?.artifacts.some((artifact) => artifact.kind === "cms_draft")).toBe(true);
     expect(snapshot?.receipts.filter((receipt) => receipt.status === "ready").length).toBeGreaterThanOrEqual(3);
+    expect(summarizeTaskStream(snapshot!).filter((event) => event.kind === "task.completed")).toHaveLength(3);
     expect(packets).toHaveLength(3);
   });
+
+  it("blocks staging when write connector capabilities are not allowlisted", async () => {
+    const run = createRunWithTrustPacket("run_publish_policy_blocked");
+    await decideWorkflowApproval({
+      runId: run.runId,
+      approvalId: run.approvalId,
+      decision: "approved",
+      approver: "stephen",
+      now: "2026-06-21T00:00:03.000Z",
+    });
+
+    await expect(
+      dryRunPublish({
+        runId: run.runId,
+        orgId: "org_publish",
+        actor: "test.publisher",
+        now: "2026-06-21T00:00:04.000Z",
+        env: {},
+      })
+    ).rejects.toMatchObject({
+      code: "capability_blocked",
+      status: 409,
+    } satisfies Partial<DryRunPublishError>);
+
+    const snapshot = getRunSnapshot(run.runId);
+    expect(snapshot?.artifacts.some((artifact) => artifact.kind === "cms_draft")).toBe(false);
+    expect(summarizeTaskStream(snapshot!).filter((event) => event.kind === "task.blocked")).toHaveLength(2);
+    expect(summarizeTaskStream(snapshot!).map((event) => event.capabilityId)).toEqual(
+      expect.arrayContaining(["cms.publisher", "task.publisher"])
+    );
+  });
 });
+
+function publisherEnv() {
+  return {
+    QUAD_CAPABILITY_ALLOWLIST: "cms.publisher,task.publisher,trust_packet.exporter",
+    QUAD_CAPABILITY_FORCE_INSTALLED: "cms.publisher,task.publisher",
+    CMS_API_KEY: "cms_test",
+    LINEAR_API_KEY: "linear_test",
+  };
+}
 
 function createRunWithTrustPacket(runId: string): { runId: string; approvalId: string } {
   const run = createWorkflowRun({
