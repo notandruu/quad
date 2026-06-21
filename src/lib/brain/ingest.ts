@@ -5,6 +5,7 @@ import { embed } from "./embeddings";
 import { addMemory } from "./store";
 import { createQuadChainPacket, type QuadChainPacketSummary } from "@/lib/quad-chain";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
+import { normalizeMemoryPermissions, type BrainMemoryVisibility } from "./permissions";
 
 export type IngestInput = {
   orgId: string;
@@ -16,6 +17,10 @@ export type IngestInput = {
   entities?: string[];
   confidence?: number;
   permissions?: string[];
+  visibility?: BrainMemoryVisibility;
+  userId?: string;
+  teamId?: string;
+  teamIds?: string[];
   evidence?: BrainEvidence[];
 };
 
@@ -50,7 +55,7 @@ export async function ingestMemoryWithReceipt(input: IngestInput): Promise<Inges
       entities: input.entities ?? [],
       embedding,
       confidence: input.confidence ?? 0.6,
-      permissions: input.permissions ?? [],
+      permissions: normalizeMemoryPermissions(input),
       createdAt: now,
       updatedAt: now,
       evidence: input.evidence ?? [],

@@ -1,5 +1,6 @@
 import type { QuadEmployee, Intent, BrainMemory } from "@/lib/types";
 import { retrieveMemoriesWithPackets, type RetrievedMemoryWithPacket } from "@/lib/brain";
+import type { BrainMemoryRequester } from "@/lib/brain/permissions";
 import { summarizeCapabilities, type ActiveTool, type CapabilitySummary } from "@/lib/metaregistry";
 import {
   createQuadChainPacket,
@@ -32,11 +33,13 @@ export type QuadCoreContextInput = {
   pinnedUrl?: string;
   hasActiveAudit?: boolean;
   contextMode?: "load" | "skip";
+  requester?: BrainMemoryRequester;
   env?: Record<string, string | undefined>;
   retrieve?: (input: {
     orgId: string;
     query: string;
     limit: number;
+    requester?: BrainMemoryRequester;
   }) => Promise<RetrievedMemoryWithPacket[]>;
   publish?: (runId: string, type: string, payload: Record<string, unknown>) => Promise<unknown>;
 };
@@ -101,6 +104,7 @@ export async function buildQuadCoreContext(input: QuadCoreContextInput): Promise
       orgId: input.orgId,
       query: input.text,
       limit: 6,
+      requester: input.requester,
     }).catch(async (error) => {
       await emit("core.context_failed", {
         reason: error instanceof Error ? error.message : "Context retrieval failed.",

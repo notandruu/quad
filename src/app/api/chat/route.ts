@@ -9,6 +9,7 @@ import { buildAuditChatSystemPrompt } from "@/lib/runtime/prompts";
 import type { AuditReport, BrainMemory } from "@/lib/types";
 import { loadAuditChatContext } from "@/lib/runtime/auditChatContext";
 import { buildQuadCoreContext, saveQuadCoreReceipt } from "@/lib/core";
+import type { BrainMemoryRequester } from "@/lib/brain/permissions";
 import type { QuadChainPacketSummary, QuadChainSource } from "@/lib/quad-chain";
 
 export const runtime = "nodejs";
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
   const orgId: string = body.orgId ?? DEMO_ORG_ID;
   const runId: string = body.runId ?? "";
   const employee = getEmployee(body.employeeId);
+  const requester = buildMemoryRequester(body);
 
   return withSpan("chat.request", { orgId, runId, employeeId: employee.id }, async () => {
     const effectiveRunId = runId || crypto.randomUUID();
@@ -42,13 +44,14 @@ export async function POST(req: NextRequest) {
       surface: "chat",
       pinnedUrl: body.pinnedUrl,
       hasActiveAudit: body.hasActiveAudit || Boolean(runId),
+      requester,
     });
 
     // If there's a runId, try the audit-grounded path first.
     if (runId) {
       const auditContext = await loadAuditChatContext({ orgId, runId });
       if (auditContext.report) {
-        const grounded = await auditGroundedChat(text, orgId, employee, auditContext.report);
+        const grounded = await auditGroundedChat(text, orgId, employee, auditContext.report, requester);
         const quadChain = await saveQuadCoreReceipt({
           context: coreContext,
           output: grounded.reply,
@@ -100,9 +103,10 @@ async function auditGroundedChat(
   text: string,
   orgId: string,
   employee: ReturnType<typeof getEmployee>,
-  report: AuditReport
+  report: AuditReport,
+  requester?: BrainMemoryRequester
 ): Promise<{ reply: string; verifiedContext: QuadChainPacketSummary[] }> {
-  const retrieved = await retrieveMemoriesWithPackets({ orgId, query: text, limit: 5 });
+  const retrieved = await retrieveMemoriesWithPackets({ orgId, query: text, limit: 5, requester });
   const brainContext = retrieved.map((item) => item.memory);
   const verifiedContext = retrieved
     .map((item) => item.quadChain)
@@ -133,6 +137,18 @@ async function auditGroundedChat(
     reply: reply ?? `Based on the audit of ${report.targetUrl}: ${report.summary}`,
     verifiedContext,
   };
+}
+
+function buildMemoryRequester(body: Record<string, unknown>): BrainMemoryRequester | undefined {
+  const userId = typeof body.userId === "string" ? body.userId : undefined;
+  const teamIds = Array.isArray(body.teamIds)
+    ? body.teamIds.map(String)
+    : typeof body.teamId === "string"
+      ? [body.teamId]
+      : undefined;
+  const includePersonal = body.includePersonal === true;
+  if (!userId && !teamIds?.length && !includePersonal) return undefined;
+  return { userId, teamIds, includePersonal };
 }
 
 function buildMemorySources(memories: BrainMemory[]): QuadChainSource[] {

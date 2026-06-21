@@ -116,6 +116,31 @@ Acceptance:
 - approval creates a real `brain_memory_write` receipt, not just a status flip.
 - chat/retrieval can later cite the approved memory's quadchain packet.
 
+## Gap 2.7: permission-aware memory scopes
+
+Status: shipped v1.
+
+What was missing:
+
+- company, team, and personal memory were product concepts but not enforced in retrieval.
+- chat and audit retrieval could accidentally treat every org memory as broadly readable.
+- public memory ingest did not normalize the intended memory scope into durable permission tokens.
+
+Shipped v1:
+
+- brain permissions now have a compact grammar on the existing `permissions` array: `scope:company`, `scope:team`, `scope:personal`, `team:<id>`, and `user:<id>`.
+- legacy `read` and `internal` memories remain company-readable for backward compatibility.
+- retrieval filters ranked memories by requester context before returning them to chat, audit, tools, or model prompts.
+- team memories require a matching `teamId`; personal memories require matching `userId` plus explicit `includePersonal`.
+- `/api/ingest` accepts `visibility`, `userId`, `teamId`, and `teamIds`, and approval previews show the normalized permissions that will be written.
+- platform schemas now include a `brain_memory_permissions_idx` GIN index for durable permission-aware retrieval.
+
+Acceptance:
+
+- no requester context sees only company-readable memory.
+- team context can see matching team memory but not personal memory.
+- personal context only appears for the owner with explicit personal opt-in.
+
 ## Gap 3: dry-run publisher workbench
 
 Status: shipped v1.
@@ -351,4 +376,4 @@ Next:
 1. scheduled worker canary after deploy.
 2. richer connector-specific publish payloads.
 3. sponsor proof fixtures and demo script.
-4. permission-aware brain scopes beyond org-level filtering.
+4. normalized context graph records with stale-after and owner metadata.

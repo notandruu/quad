@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS brain_memory (
 
 CREATE INDEX IF NOT EXISTS brain_memory_org_idx ON brain_memory (org_id);
 CREATE INDEX IF NOT EXISTS brain_memory_source_type_idx ON brain_memory (source_type);
+CREATE INDEX IF NOT EXISTS brain_memory_permissions_idx ON brain_memory USING gin (permissions);
 
 -- Approximate nearest neighbor index for retrieval.
 CREATE INDEX IF NOT EXISTS brain_memory_embedding_idx

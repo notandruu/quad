@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { addMemory, deleteMemoryStore } from "./store";
-import { retrieveMemoriesWithPackets } from "./retrieve";
+import { retrieveMemories, retrieveMemoriesWithPackets } from "./retrieve";
 import { createQuadChainPacket } from "@/lib/quad-chain";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
 
@@ -68,4 +68,77 @@ describe("retrieveMemoriesWithPackets", () => {
 
     deleteMemoryStore({ orgId });
   });
+
+  it("filters team and personal memories by requester context", async () => {
+    const orgId = "org_retrieve_permissions";
+    deleteMemoryStore({ orgId });
+    addMemory(memory({
+      id: "mem_company",
+      orgId,
+      sourceId: "company_1",
+      title: "Company memory",
+      content: "Shared deployment policy.",
+      permissions: ["scope:company"],
+    }));
+    addMemory(memory({
+      id: "mem_team_security",
+      orgId,
+      sourceId: "team_1",
+      title: "Security team memory",
+      content: "Security team keeps the private incident runbook.",
+      permissions: ["scope:team", "team:security"],
+    }));
+    addMemory(memory({
+      id: "mem_personal_maddy",
+      orgId,
+      sourceId: "personal_1",
+      title: "Maddy personal memory",
+      content: "Maddy prefers storyboard notes in the morning.",
+      permissions: ["scope:personal", "user:maddy"],
+    }));
+
+    const anonymous = await retrieveMemories({ orgId, query: "policy runbook storyboard", limit: 10 });
+    const security = await retrieveMemories({
+      orgId,
+      query: "policy runbook storyboard",
+      limit: 10,
+      requester: { teamIds: ["security"] },
+    });
+    const maddy = await retrieveMemories({
+      orgId,
+      query: "policy runbook storyboard",
+      limit: 10,
+      requester: { userId: "maddy", includePersonal: true },
+    });
+
+    expect(anonymous.map((item) => item.id)).toEqual(["mem_company"]);
+    expect(security.map((item) => item.id)).toEqual(expect.arrayContaining(["mem_company", "mem_team_security"]));
+    expect(security.map((item) => item.id)).not.toContain("mem_personal_maddy");
+    expect(maddy.map((item) => item.id)).toEqual(expect.arrayContaining(["mem_company", "mem_personal_maddy"]));
+    expect(maddy.map((item) => item.id)).not.toContain("mem_team_security");
+
+    deleteMemoryStore({ orgId });
+  });
 });
+
+function memory(input: {
+  id: string;
+  orgId: string;
+  sourceId: string;
+  title: string;
+  content: string;
+  permissions: string[];
+}) {
+  const now = new Date().toISOString();
+  return {
+    sourceType: "manual" as const,
+    summary: input.content,
+    entities: [],
+    embedding: [],
+    confidence: 0.8,
+    createdAt: now,
+    updatedAt: now,
+    evidence: [],
+    ...input,
+  };
+}

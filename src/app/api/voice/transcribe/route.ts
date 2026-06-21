@@ -114,6 +114,7 @@ export async function POST(request: Request) {
         entities: ["voice", "company_context"],
         confidence: normalizeConfidence(result.confidence),
         permissions: ["internal"],
+        visibility: "company",
         evidence: [
           {
             quote: transcript,

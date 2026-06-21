@@ -72,6 +72,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [x] model gateway with provider policy, payload minimization, and redaction hooks
 - [x] company brain ingestion for docs, notes, urls, and transcripts
 - [ ] scoped context graph for company, team, and personal memories
+- [x] permission-aware retrieval filters for company, team, and personal memory scopes
 - [ ] durable memory store with source provenance, confidence, permissions, and embeddings
 - [ ] memory freshness/staleness metadata with explicit refresh paths
 - [ ] event-driven context capture pipeline with signal/noise extraction before writeback

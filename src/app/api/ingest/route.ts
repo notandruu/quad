@@ -74,6 +74,10 @@ export async function POST(req: NextRequest) {
       entities: body.entities,
       confidence: body.confidence,
       permissions: body.permissions,
+      visibility: body.visibility,
+      userId: body.userId,
+      teamId: body.teamId,
+      teamIds: body.teamIds,
       evidence: body.evidence,
     };
     const responseBody = body.mode === "write"

@@ -46,6 +46,29 @@ describe("POST /api/ingest", () => {
     expect(snapshot?.approvals).toHaveLength(1);
     expect(memory).toBeNull();
   });
+
+  it("records scoped memory permissions in the proposal preview", async () => {
+    vi.stubEnv("QUAD_API_SECRET", "");
+    vi.stubEnv("QUAD_SERVICE_TOKENS", "");
+
+    const response = await POST(jsonRequest({
+      title: "Private operator preference",
+      content: "Stephen wants deploy notes grouped by sponsor track.",
+      sourceId: "route_memory_personal_1",
+      sourceType: "manual",
+      visibility: "personal",
+      userId: "stephen",
+    }));
+    const body = await response.json();
+    const snapshot = getRunSnapshot(body.runId);
+    const data = snapshot?.artifacts[0]?.data as { preview?: { permissions?: string[] } } | undefined;
+
+    expect(response.status).toBe(200);
+    expect(data?.preview?.permissions).toEqual(expect.arrayContaining([
+      "scope:personal",
+      "user:stephen",
+    ]));
+  });
 });
 
 function jsonRequest(body: Record<string, unknown>): NextRequest {

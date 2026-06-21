@@ -6,12 +6,14 @@ import { embed, cosineSimilarity } from "./embeddings";
 import { seedMemories } from "./store";
 import { getLatestQuadChainPacket } from "@/lib/quad-chain/registry";
 import { summarizeQuadChainPacket, type QuadChainPacketSummary } from "@/lib/quad-chain";
+import { filterReadableMemories, canReadMemory, type BrainMemoryRequester } from "./permissions";
 
 export type RetrieveOptions = {
   orgId: string;
   query: string;
   scope?: BrainScope;
   limit?: number;
+  requester?: BrainMemoryRequester;
 };
 
 export type RetrievedMemoryWithPacket = {
@@ -39,11 +41,11 @@ export async function retrieveMemories(
         query_embedding: `[${queryEmbedding.join(",")}]`,
         org_id: orgId,
         source_types: types ?? null,
-        match_count: limit,
+        match_count: limit * 3,
       });
 
       if (error) throw new Error(`Brain retrieve failed: ${error.message}`);
-      return (data ?? []).map(rowToMemory);
+      return filterReadableMemories<BrainMemory>((data ?? []).map(rowToMemory), opts.requester).slice(0, limit);
     }
 
     // In-memory fallback over seed data.
@@ -51,6 +53,7 @@ export async function retrieveMemories(
     return seedMemories
       .filter((m) => m.orgId === orgId)
       .filter((m) => !types || types.includes(m.sourceType))
+      .filter((m) => canReadMemory(m, opts.requester).readable)
       .map((m) => ({ m, score: cosineSimilarity(queryEmbedding, m.embedding) }))
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
@@ -85,7 +88,8 @@ export async function retrieveMemoriesWithPackets(
  */
 export async function findMemoryBySourceId(
   orgId: string,
-  sourceId: string
+  sourceId: string,
+  requester?: BrainMemoryRequester
 ): Promise<BrainMemory | null> {
   const db = getClient();
   if (db) {
@@ -97,10 +101,12 @@ export async function findMemoryBySourceId(
       .limit(1)
       .maybeSingle();
     if (error || !data) return null;
-    return rowToMemory(data);
+    const memory = rowToMemory(data);
+    return canReadMemory(memory, requester).readable ? memory : null;
   }
   const found = seedMemories.find((m) => m.orgId === orgId && m.sourceId === sourceId);
-  return found ? { ...found } : null;
+  if (!found || !canReadMemory(found, requester).readable) return null;
+  return { ...found };
 }
 
 function scopeToTypes(scope?: BrainScope): string[] | null {

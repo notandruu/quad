@@ -18,6 +18,7 @@ import {
 import { summarizeAgentTask } from "@/lib/runs";
 import type { BrainEvidence } from "@/lib/types";
 import type { IngestInput } from "./ingest";
+import { normalizeMemoryPermissions } from "./permissions";
 
 export const MEMORY_WRITE_PROPOSAL_TYPE = "brain_memory_write" as const;
 
@@ -177,6 +178,7 @@ export function isMemoryWriteProposalPayload(value: unknown): value is MemoryWri
 }
 
 function buildMemoryWriteProposalPayload(input: IngestInput): MemoryWriteProposalPayload {
+  const permissions = normalizeMemoryPermissions(input);
   return {
     proposalType: MEMORY_WRITE_PROPOSAL_TYPE,
     memory: input,
@@ -186,7 +188,7 @@ function buildMemoryWriteProposalPayload(input: IngestInput): MemoryWriteProposa
       sourceType: input.sourceType,
       summary: input.summary ?? input.content.slice(0, 240),
       confidence: input.confidence ?? 0.6,
-      permissions: input.permissions ?? [],
+      permissions,
       evidenceCount: input.evidence?.length ?? 0,
     },
     policy: {
