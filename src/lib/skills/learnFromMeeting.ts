@@ -82,7 +82,7 @@ export async function learnFromMeeting(input: LearnFromMeetingInput): Promise<Le
   const writePolicy = input.writePolicy ?? "direct";
 
   const emit = async (type: string, payload: Record<string, unknown>) => {
-    const event = await publishAuditEvent(runId, type, payload);
+    const event = await publishAuditEvent(runId, type, payload, { orgId });
     if (event && input.onEvent) input.onEvent(event);
   };
 

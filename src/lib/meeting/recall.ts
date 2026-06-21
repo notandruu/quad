@@ -141,6 +141,31 @@ export async function createRecallBot(input: {
   return response.json() as Promise<RecallBot>;
 }
 
+export async function sendRecallChatMessage(input: {
+  botId: string;
+  apiKey: string;
+  message: string;
+  pin?: boolean;
+}): Promise<void> {
+  const response = await fetch(`${RECALL_API_BASE}/bot/${input.botId}/send_chat_message/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Token ${input.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      to: "everyone",
+      message: input.message,
+      pin: input.pin ?? false,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Recall chat message failed (${response.status}): ${body}`);
+  }
+}
+
 function buildTranscriptProvider(provider: RecallTranscriptionProvider) {
   if (provider === "meeting_captions") return { meeting_captions: {} };
   if (provider === "recallai") {

@@ -57,13 +57,18 @@ export const PROOF_EVENTS = [
 ] as const;
 
 /**
- * Live-meeting capture pipeline. Quad sits in a meeting, transcribes it
- * (Deepgram), and extracts candidate facts. Each fact is grounded and judged
+ * Live-meeting capture pipeline. Quad sits in a meeting, captures transcript
+ * events from Recall, and extracts candidate facts. Each fact is grounded and judged
  * before it is written to the company brain — the UI streams every step so you
  * can watch the agent think and watch the brain grow.
  */
 export const MEETING_EVENTS = [
   "meeting.started",
+  "meeting.session",
+  "meeting.bot.created",
+  "meeting.chat.sent",
+  "meeting.chat.failed",
+  "meeting.no_redis",
   "meeting.transcript",
   "meeting.thinking",
   "fact.extracted",

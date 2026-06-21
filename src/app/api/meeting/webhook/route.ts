@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMeetingSessionByBotId, updateMeetingSession } from "@/lib/meeting/sessions";
+import { getDurableMeetingSessionByBotId, updateDurableMeetingSession } from "@/lib/meeting/sessions";
 import { recallEntryToText, type RecallWebhookEvent } from "@/lib/meeting/recall";
 import { learnFromMeeting } from "@/lib/skills/learnFromMeeting";
 import { publishAuditEvent } from "@/lib/redis/publisher";
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
   // --- Bot status events ---
   if (event === "bot.status_change" && botId) {
-    const session = getMeetingSessionByBotId(botId);
+    const session = await getDurableMeetingSessionByBotId(botId);
     if (session) {
       const code = data.status?.code;
       const status =
@@ -40,11 +40,20 @@ export async function POST(req: NextRequest) {
             : code === "fatal"
               ? "failed"
               : session.status;
-      updateMeetingSession(session.runId, { status });
       await publishAuditEvent(session.runId, "meeting.thinking", {
         step: "status",
         detail: `Bot status: ${code ?? "unknown"}`,
-      });
+      }, { orgId: session.orgId });
+
+      if (status === "ended" && !session.endedAt) {
+        await finalizeMeetingSession(session);
+        await updateDurableMeetingSession(session.runId, {
+          status,
+          endedAt: new Date().toISOString(),
+        });
+      } else {
+        await updateDurableMeetingSession(session.runId, { status });
+      }
     }
     return NextResponse.json({ ok: true });
   }
@@ -63,40 +72,64 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, skipped: true });
     }
 
-    const session = getMeetingSessionByBotId(botId);
+    const session = await getDurableMeetingSessionByBotId(botId);
     if (!session) {
-      return NextResponse.json({ ok: true, skipped: "no session" });
+      return NextResponse.json({ ok: true, skipped: "no durable session" });
     }
 
     const line = `${speaker}: ${text}`;
     const updatedTranscript = session.transcript
       ? `${session.transcript}\n${line}`
       : line;
-    updateMeetingSession(session.runId, { transcript: updatedTranscript });
-
-    // Run a single-utterance learn pass and stream every step to Redis.
-    const result = await learnFromMeeting({
-      orgId: session.orgId,
-      runId: session.runId,
-      title: session.title,
-      utterances: [{ speaker, text }],
-    }).catch(async (err) => {
-      await publishAuditEvent(session.runId, "meeting.failed", {
-        error: err instanceof Error ? err.message : String(err),
-        utterance: text,
-      });
-      return null;
+    await updateDurableMeetingSession(session.runId, {
+      transcript: updatedTranscript,
+      status: session.status === "joining" ? "live" : session.status,
     });
 
-    if (result) {
-      updateMeetingSession(session.runId, {
-        learnedCount: session.learnedCount + result.learnedCount,
-        rejectedCount: session.rejectedCount + result.rejectedCount,
-      });
-    }
+    await publishAuditEvent(session.runId, "meeting.transcript", {
+      speaker,
+      text,
+      botId,
+    }, { orgId: session.orgId });
 
-    return NextResponse.json({ ok: true, learned: result?.learnedCount ?? 0 });
+    return NextResponse.json({ ok: true, transcript: true });
   }
 
   return NextResponse.json({ ok: true });
+}
+
+async function finalizeMeetingSession(session: Awaited<ReturnType<typeof getDurableMeetingSessionByBotId>>) {
+  if (!session?.transcript.trim()) return;
+  const utterances = session.transcript
+    .split("\n")
+    .map((line) => {
+      const splitAt = line.indexOf(":");
+      if (splitAt === -1) return { speaker: "Speaker", text: line.trim() };
+      return {
+        speaker: line.slice(0, splitAt).trim() || "Speaker",
+        text: line.slice(splitAt + 1).trim(),
+      };
+    })
+    .filter((line) => line.text.length > 0);
+
+  if (!utterances.length) return;
+
+  const result = await learnFromMeeting({
+    orgId: session.orgId,
+    runId: session.runId,
+    title: session.title,
+    utterances,
+  }).catch(async (err) => {
+    await publishAuditEvent(session.runId, "meeting.failed", {
+      error: err instanceof Error ? err.message : String(err),
+    }, { orgId: session.orgId });
+    return null;
+  });
+
+  if (result) {
+    await updateDurableMeetingSession(session.runId, {
+      learnedCount: result.learnedCount,
+      rejectedCount: result.rejectedCount,
+    });
+  }
 }

@@ -28,6 +28,11 @@ type LearnedFact = {
 
 const THINKING_META: Record<string, { label: string; tone: ThinkingStep["tone"] }> = {
   "meeting.started":    { label: "Meeting started",      tone: "active" },
+  "meeting.session":    { label: "Session linked",       tone: "active" },
+  "meeting.bot.created":{ label: "Bot created",          tone: "active" },
+  "meeting.chat.sent":  { label: "Chat sent",            tone: "success" },
+  "meeting.chat.failed":{ label: "Chat unavailable",     tone: "warning" },
+  "meeting.no_redis":   { label: "Local stream",         tone: "warning" },
   "meeting.thinking":  { label: "Scanning…",             tone: "active" },
   "fact.extracted":    { label: "Fact found",            tone: "warning" },
   "fact.evaluated":    { label: "Verified",              tone: "success" },
@@ -88,6 +93,11 @@ export function MeetingPanel({ onEnded }: MeetingPanelProps) {
     const meta = THINKING_META[type];
     if (meta && type !== "meeting.transcript") {
       const detail =
+        type === "meeting.session"    ? String(evt.session ? "connected to live meeting session" : "") :
+        type === "meeting.bot.created"? String(evt.detail ?? "") :
+        type === "meeting.chat.sent"  ? String(evt.detail ?? "") :
+        type === "meeting.chat.failed"? String(evt.detail ?? "") :
+        type === "meeting.no_redis"   ? "redis is unavailable; live replay is limited" :
         type === "meeting.thinking"   ? String(evt.detail ?? "") :
         type === "fact.extracted"     ? String(evt.claim ?? "") :
         type === "fact.learned"       ? `${String(evt.claim ?? "")}` :
@@ -155,6 +165,13 @@ export function MeetingPanel({ onEnded }: MeetingPanelProps) {
   async function handleJoin() {
     reset();
     setStatus("joining");
+    setThinking([{
+      id: crypto.randomUUID(),
+      type: "meeting.thinking",
+      label: "Creating bot",
+      detail: "Sending Quad AI to the meeting through Recall.",
+      tone: "active",
+    }]);
     try {
       const res  = await fetch("/api/meeting/join", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ meetingUrl, orgId: "org_redcross" }) });
       const data = await res.json() as { runId?: string; error?: string };

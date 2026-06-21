@@ -4,6 +4,8 @@
  * Survives Next.js dev hot-reloads via globalThis pinning.
  */
 
+import { eventTtlSeconds, getRedis } from "@/lib/redis";
+
 export type MeetingSession = {
   runId: string;
   orgId: string;
@@ -70,6 +72,50 @@ export function updateMeetingSession(
   return session;
 }
 
+export async function persistMeetingSession(session: MeetingSession): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+  await redis.set(meetingSessionKey(session.runId), session, { ex: eventTtlSeconds() });
+  if (session.botId) {
+    await redis.set(meetingBotKey(session.botId), session.runId, { ex: eventTtlSeconds() });
+  }
+}
+
+export async function getDurableMeetingSession(runId: string): Promise<MeetingSession | null> {
+  const memory = getMeetingSession(runId);
+  if (memory) return memory;
+
+  const redis = getRedis();
+  if (!redis) return null;
+  const session = await redis.get<MeetingSession>(meetingSessionKey(runId)).catch(() => null);
+  if (!session) return null;
+  sessions.set(session.runId, session);
+  return session;
+}
+
+export async function getDurableMeetingSessionByBotId(botId: string): Promise<MeetingSession | null> {
+  const memory = getMeetingSessionByBotId(botId);
+  if (memory) return memory;
+
+  const redis = getRedis();
+  if (!redis) return null;
+  const runId = await redis.get<string>(meetingBotKey(botId)).catch(() => null);
+  if (!runId) return null;
+  return getDurableMeetingSession(runId);
+}
+
+export async function updateDurableMeetingSession(
+  runId: string,
+  patch: Partial<Omit<MeetingSession, "runId">>
+): Promise<MeetingSession | null> {
+  const existing = (await getDurableMeetingSession(runId)) ?? updateMeetingSession(runId, patch);
+  if (!existing) return null;
+  const updated = { ...existing, ...patch };
+  sessions.set(runId, updated);
+  await persistMeetingSession(updated);
+  return updated;
+}
+
 export function listMeetingSessions(orgId?: string): MeetingSession[] {
   const all = [...sessions.values()];
   return orgId ? all.filter((s) => s.orgId === orgId) : all;
@@ -81,4 +127,12 @@ function pruneSessions() {
     (a, b) => a.startedAt.localeCompare(b.startedAt)
   )[0];
   if (oldest) sessions.delete(oldest.runId);
+}
+
+function meetingSessionKey(runId: string) {
+  return `meeting:session:${runId}`;
+}
+
+function meetingBotKey(botId: string) {
+  return `meeting:bot:${botId}`;
 }

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-import { getMeetingSession } from "@/lib/meeting/sessions";
+import { getDurableMeetingSession } from "@/lib/meeting/sessions";
 import { getRedis, eventTtlSeconds } from "@/lib/redis";
-import { streamKeys } from "@/lib/redis/keys";
+import { auditEventStreamKey } from "@/lib/redis/publisher";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -32,7 +32,7 @@ export async function GET(
         }
       };
 
-      const session = getMeetingSession(runId);
+      const session = await getDurableMeetingSession(runId);
       if (session) {
         send({ type: "meeting.session", runId, session });
       }
@@ -44,14 +44,16 @@ export async function GET(
         return;
       }
 
-      const key = streamKeys.auditEvents(runId);
+      const key = auditEventStreamKey(runId, session?.orgId);
+      let lastSeenCount = 0;
 
       // Replay all events already in the stream (survives page refresh).
       try {
         const existing = (await redis.xrange(key, "-", "+")) as unknown as Record<
           string, Record<string, unknown>
         >;
-        for (const fields of Object.values(existing)) {
+        const existingValues = Object.values(existing);
+        for (const fields of existingValues) {
           const raw = fields?.data;
           if (raw == null) continue;
           try {
@@ -61,13 +63,13 @@ export async function GET(
             // Skip malformed.
           }
         }
+        lastSeenCount = existingValues.length;
       } catch {
         // Redis replay failed — fall through to polling.
       }
 
       // Poll every 2 seconds for new events, up to maxDuration.
       const pollUntil = Date.now() + 278_000;
-      let lastSeenCount = 0;
 
       while (Date.now() < pollUntil) {
         await sleep(2000);
@@ -83,34 +85,21 @@ export async function GET(
             const fresh = values.slice(lastSeenCount);
             lastSeenCount = values.length;
 
-            let ended = false;
             for (const fields of fresh) {
               const raw = fields?.data;
               if (raw == null) continue;
               try {
                 const evt = typeof raw === "string" ? JSON.parse(raw) : raw;
                 send(evt);
-                if (
-                  evt &&
-                  typeof evt === "object" &&
-                  (evt as Record<string, unknown>).type === "meeting.ended"
-                ) {
-                  ended = true;
-                }
               } catch {
                 // Skip.
               }
-            }
-
-            if (ended) {
-              controller.close();
-              return;
             }
           }
 
           // Also check session status so we close when the meeting ends
           // even if the event was already emitted before we started polling.
-          const current = getMeetingSession(runId);
+          const current = await getDurableMeetingSession(runId);
           if (current?.status === "ended" || current?.status === "failed") {
             controller.close();
             return;
