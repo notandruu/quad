@@ -2,6 +2,7 @@
  * Centralized Redis key builders. Keep every key shape here so the event
  * spine stays consistent across publisher, replay, and counters.
  */
+import { tenantKey } from "@/lib/security";
 
 export const streamKeys = {
   auditEvents: (runId: string) => `audit:run:${runId}:events`,
@@ -26,3 +27,12 @@ export const counterKeys = {
 };
 
 export type CounterName = keyof typeof counterKeys;
+
+export const tenantScopedKeys = {
+  auditEvents: (orgId: string, runId: string) => tenantKey(orgId, "audit", "run", runId, "events"),
+  auditRun: (orgId: string, runId: string) => tenantKey(orgId, "audit", "run", runId, "meta"),
+  pagesDiscovered: (orgId: string, runId: string) =>
+    tenantKey(orgId, "audit", "run", runId, "pages_discovered"),
+  modelCall: (orgId: string, requestId: string) => tenantKey(orgId, "model", "call", requestId),
+  approval: (orgId: string, approvalId: string) => tenantKey(orgId, "approval", approvalId),
+};

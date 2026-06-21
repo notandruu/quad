@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isRedisConfigured } from "@/lib/redis";
 import { isBrainConfigured, pingBrain } from "@/lib/brain";
 import { isEmbeddingConfigured } from "@/lib/brain/embeddings";
+import { securityReadiness } from "@/lib/security";
 import { getMoshiSettings } from "@/lib/voice/moshi";
 
 export const runtime = "nodejs";
@@ -13,6 +14,7 @@ export const runtime = "nodejs";
 export async function GET() {
   const brainPing = isBrainConfigured() ? await pingBrain() : { ok: false };
   const moshi = getMoshiSettings();
+  const security = securityReadiness(process.env);
 
   return NextResponse.json({
     redis: isRedisConfigured(),
@@ -30,5 +32,6 @@ export async function GET() {
     voiceNextAction: moshi.nextAction,
     chatModel: process.env.QUAD_CHAT_MODEL ?? "claude-opus-4-8",
     auditModel: process.env.QUAD_AUDIT_MODEL ?? "claude-opus-4-8",
+    security,
   });
 }

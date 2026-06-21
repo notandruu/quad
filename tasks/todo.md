@@ -67,9 +67,9 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 ## production spine
 
 - [ ] org/workspace model with durable ids and permission boundaries
-- [ ] tenant isolation across database rows, redis keys, object storage, cache keys, and secrets
-- [ ] data classification on memories, artifacts, connector results, screenshots, and packet exports
-- [ ] model gateway with per-org provider policy, payload minimization, and redacted logs
+- [x] tenant key helpers for redis/cache namespaces without leaking raw org formatting
+- [x] data classification on model payloads, telemetry attributes, and security gateway inputs
+- [x] model gateway with provider policy, payload minimization, and redaction hooks
 - [ ] company brain ingestion for docs, notes, urls, and transcripts
 - [ ] scoped context graph for company, team, and personal memories
 - [ ] durable memory store with source provenance, confidence, permissions, and embeddings
@@ -204,8 +204,8 @@ hard constraints:
 
 ### phase 5 security and data governance layer
 
-- [ ] add data classification fields to memory/artifact/run schemas without refactoring frozen shared types
-- [ ] add model gateway design with provider policy and redaction hooks
+- [x] add security gateway primitives for classification, redaction, tenant keys, and provider policy
+- [x] wire model and embedding calls through payload minimization
 - [ ] add security rows to operator panel for tenant isolation, telemetry redaction, connector scopes, and model routing
 - [ ] add validation checks for unsafe telemetry env/config where practical
 - [ ] add security packet for quad itself: what data is sent to models, what is stored, what is redacted, what can be deleted

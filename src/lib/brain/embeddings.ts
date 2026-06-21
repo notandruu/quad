@@ -1,4 +1,5 @@
 import { traced, SPAN } from "@/lib/observability/phoenix";
+import { assertModelCallAllowed, prepareModelPayload } from "@/lib/security";
 
 export const EMBEDDING_DIM = 1536;
 
@@ -9,6 +10,12 @@ export const EMBEDDING_DIM = 1536;
  */
 export async function embed(text: string): Promise<number[]> {
   return traced(SPAN.embeddingCreate, { "text.length": text.length }, async (span) => {
+    const decision = prepareModelPayload({
+      purpose: "embedding",
+      text,
+    });
+    assertModelCallAllowed(decision);
+
     if (process.env.OPENAI_API_KEY) {
       const res = await fetch("https://api.openai.com/v1/embeddings", {
         method: "POST",
@@ -18,7 +25,7 @@ export async function embed(text: string): Promise<number[]> {
         },
         body: JSON.stringify({
           model: "text-embedding-3-small",
-          input: text.slice(0, 8000), // model max is 8191 tokens
+          input: decision.payload.text, // model max is 8191 tokens
           dimensions: EMBEDDING_DIM,
         }),
       });
@@ -37,7 +44,7 @@ export async function embed(text: string): Promise<number[]> {
     }
 
     span.setAttribute("embedding.mode", "pseudo");
-    return pseudoEmbedding(text);
+    return pseudoEmbedding(decision.payload.text);
   });
 }
 

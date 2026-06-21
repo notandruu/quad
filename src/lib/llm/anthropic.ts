@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { assertModelCallAllowed, prepareModelPayload } from "@/lib/security";
 
 let client: Anthropic | null = null;
 
@@ -30,12 +31,24 @@ export async function complete(opts: {
 }): Promise<string | null> {
   const anthropic = getAnthropic();
   if (!anthropic) return null;
+  const promptDecision = prepareModelPayload({
+    purpose: opts.model === auditModel() ? "audit" : "chat",
+    text: opts.prompt,
+  });
+  const systemDecision = opts.system
+    ? prepareModelPayload({
+        purpose: opts.model === auditModel() ? "audit" : "chat",
+        text: opts.system,
+      })
+    : null;
+  assertModelCallAllowed(promptDecision);
+  if (systemDecision) assertModelCallAllowed(systemDecision);
 
   const res = await anthropic.messages.create({
     model: opts.model,
     max_tokens: opts.maxTokens ?? 2048,
-    system: opts.system,
-    messages: [{ role: "user", content: opts.prompt }],
+    system: systemDecision?.payload.text,
+    messages: [{ role: "user", content: promptDecision.payload.text }],
   });
 
   return res.content
