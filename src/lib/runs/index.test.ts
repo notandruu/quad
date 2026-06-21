@@ -12,7 +12,17 @@ import {
   requestApproval,
   saveRunSnapshot,
   summarizeAgentTask,
+  toWorkflowApprovalRow,
+  toWorkflowArtifactRow,
+  toWorkflowReceiptRow,
+  toWorkflowRunRow,
+  toWorkflowTaskRow,
   transitionRun,
+  fromWorkflowApprovalRow,
+  fromWorkflowArtifactRow,
+  fromWorkflowReceiptRow,
+  fromWorkflowRunRow,
+  fromWorkflowTaskRow,
 } from ".";
 
 describe("run ledger", () => {
@@ -165,5 +175,97 @@ describe("run ledger", () => {
       process.env.SUPABASE_URL = oldUrl;
       process.env.SUPABASE_SERVICE_KEY = oldKey;
     }
+  });
+
+  it("maps workflow records to first-class durable rows and back", () => {
+    const run = createWorkflowRun({
+      id: "run_rows",
+      orgId: "org_rows",
+      workflowKind: "enterprise_proof",
+      title: "Enterprise proof",
+      createdBy: "dashboard",
+      targetUrl: "https://example.com",
+      now: "2026-06-21T01:00:00.000Z",
+    });
+    transitionRun(run.id, "running", { now: "2026-06-21T01:00:01.000Z" });
+    const task = addTask({
+      runId: run.id,
+      title: "Collect evidence",
+      status: "completed",
+      owner: "quad",
+      detail: "Evidence collected.",
+      dependsOn: ["task_previous"],
+      capabilityId: "browserbase.render",
+      now: "2026-06-21T01:00:02.000Z",
+    });
+    const artifact = addArtifact({
+      runId: run.id,
+      kind: "trust_packet",
+      title: "Trust packet",
+      data: { claims: ["sso"], nested: { ok: true } },
+      now: "2026-06-21T01:00:03.000Z",
+    });
+    const approval = requestApproval({
+      runId: run.id,
+      artifactId: artifact.id,
+      reason: "Needs approval.",
+      evidenceVisible: true,
+      now: "2026-06-21T01:00:04.000Z",
+    });
+    const receipt = createReceipt({
+      runId: run.id,
+      artifactId: artifact.id,
+      approvalId: approval.id,
+      status: "ready",
+      summary: "Ready.",
+      now: "2026-06-21T01:00:05.000Z",
+    });
+    const snapshot = getRunSnapshot(run.id)!;
+
+    const runRow = toWorkflowRunRow(snapshot.run);
+    const taskRow = toWorkflowTaskRow(task);
+    const artifactRow = toWorkflowArtifactRow(artifact);
+    const approvalRow = toWorkflowApprovalRow(approval);
+    const receiptRow = toWorkflowReceiptRow(receipt);
+
+    expect(runRow).toMatchObject({
+      id: run.id,
+      org_id: "org_rows",
+      workflow_kind: "enterprise_proof",
+      status: "needs_approval",
+      target_url: "https://example.com",
+    });
+    expect(taskRow).toMatchObject({
+      run_id: run.id,
+      depends_on: ["task_previous"],
+      capability_id: "browserbase.render",
+    });
+    expect(artifactRow).toMatchObject({
+      artifact_kind: "trust_packet",
+      hash: artifact.hash,
+      data: { claims: ["sso"], nested: { ok: true } },
+    });
+    expect(approvalRow).toMatchObject({
+      artifact_id: artifact.id,
+      decision: "pending",
+      evidence_visible: true,
+    });
+    expect(receiptRow).toMatchObject({
+      approval_id: approval.id,
+      artifact_hash: artifact.hash,
+    });
+
+    expect(
+      fromWorkflowRunRow(runRow, {
+        taskIds: [task.id],
+        artifactIds: [artifact.id],
+        approvalIds: [approval.id],
+        receiptIds: [receipt.id],
+      })
+    ).toEqual(snapshot.run);
+    expect(fromWorkflowTaskRow(taskRow)).toEqual(task);
+    expect(fromWorkflowArtifactRow(artifactRow)).toEqual(artifact);
+    expect(fromWorkflowApprovalRow(approvalRow)).toEqual(approval);
+    expect(fromWorkflowReceiptRow(receiptRow)).toEqual(receipt);
   });
 });

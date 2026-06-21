@@ -99,6 +99,7 @@ export type RunLedgerSnapshot = {
 export type RunLedgerPersistResult = {
   mode: "supabase" | "memory";
   snapshot: RunLedgerSnapshot;
+  durableTables?: boolean;
 };
 
 export type CreateWorkflowRunInput = {
@@ -175,7 +176,9 @@ export async function saveRunSnapshot(runId: string): Promise<RunLedgerPersistRe
     .upsert(toRunSnapshotRow(snapshot), { onConflict: "id" });
   if (error) return { mode: "memory", snapshot };
 
-  return { mode: "supabase", snapshot };
+  const durableTables = await saveNormalizedRunLedger(db, snapshot);
+
+  return { mode: "supabase", snapshot, durableTables };
 }
 
 export async function loadRunSnapshot(runId: string): Promise<RunLedgerSnapshot | null> {
@@ -190,8 +193,8 @@ export async function loadRunSnapshot(runId: string): Promise<RunLedgerSnapshot 
     .select("*")
     .eq("id", runId)
     .maybeSingle();
-  if (error) return null;
-  if (!data) return null;
+  if (error) return loadNormalizedRunLedger(db, runId);
+  if (!data) return loadNormalizedRunLedger(db, runId);
 
   const snapshot = fromRunSnapshotRow(data);
   ledger.set(snapshot.run.id, cloneSnapshot(snapshot));
@@ -525,6 +528,248 @@ function fromRunSnapshotRow(row: Record<string, unknown>): RunLedgerSnapshot {
   const snapshot = row.snapshot as RunLedgerSnapshot | undefined;
   if (!snapshot?.run) throw new Error("Run ledger row is missing snapshot data.");
   return cloneSnapshot(snapshot);
+}
+
+async function saveNormalizedRunLedger(
+  db: SupabaseClient,
+  snapshot: RunLedgerSnapshot
+): Promise<boolean> {
+  try {
+    const run = toWorkflowRunRow(snapshot.run);
+    const { error: runError } = await db
+      .from("workflow_runs")
+      .upsert(run, { onConflict: "id" });
+    if (runError) return false;
+
+    const taskRows = snapshot.tasks.map(toWorkflowTaskRow);
+    if (taskRows.length > 0) {
+      const { error } = await db.from("workflow_tasks").upsert(taskRows, { onConflict: "id" });
+      if (error) return false;
+    }
+
+    const artifactRows = snapshot.artifacts.map(toWorkflowArtifactRow);
+    if (artifactRows.length > 0) {
+      const { error } = await db.from("workflow_artifacts").upsert(artifactRows, { onConflict: "id" });
+      if (error) return false;
+    }
+
+    const approvalRows = snapshot.approvals.map(toWorkflowApprovalRow);
+    if (approvalRows.length > 0) {
+      const { error } = await db.from("workflow_approvals").upsert(approvalRows, { onConflict: "id" });
+      if (error) return false;
+    }
+
+    const receiptRows = snapshot.receipts.map(toWorkflowReceiptRow);
+    if (receiptRows.length > 0) {
+      const { error } = await db.from("workflow_receipts").upsert(receiptRows, { onConflict: "id" });
+      if (error) return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function loadNormalizedRunLedger(
+  db: SupabaseClient,
+  runId: string
+): Promise<RunLedgerSnapshot | null> {
+  try {
+    const { data: runRow, error: runError } = await db
+      .from("workflow_runs")
+      .select("*")
+      .eq("id", runId)
+      .maybeSingle();
+    if (runError || !runRow) return null;
+
+    const [tasks, artifacts, approvals, receipts] = await Promise.all([
+      db.from("workflow_tasks").select("*").eq("run_id", runId).order("created_at", { ascending: true }),
+      db.from("workflow_artifacts").select("*").eq("run_id", runId).order("created_at", { ascending: true }),
+      db.from("workflow_approvals").select("*").eq("run_id", runId).order("requested_at", { ascending: true }),
+      db.from("workflow_receipts").select("*").eq("run_id", runId).order("created_at", { ascending: true }),
+    ]);
+
+    if (tasks.error || artifacts.error || approvals.error || receipts.error) return null;
+
+    const taskRecords = (tasks.data ?? []).map(fromWorkflowTaskRow);
+    const artifactRecords = (artifacts.data ?? []).map(fromWorkflowArtifactRow);
+    const approvalRecords = (approvals.data ?? []).map(fromWorkflowApprovalRow);
+    const receiptRecords = (receipts.data ?? []).map(fromWorkflowReceiptRow);
+    const run = fromWorkflowRunRow(runRow as Record<string, unknown>, {
+      taskIds: taskRecords.map((task) => task.id),
+      artifactIds: artifactRecords.map((artifact) => artifact.id),
+      approvalIds: approvalRecords.map((approval) => approval.id),
+      receiptIds: receiptRecords.map((receipt) => receipt.id),
+    });
+
+    const snapshot = {
+      run,
+      tasks: taskRecords,
+      artifacts: artifactRecords,
+      approvals: approvalRecords,
+      receipts: receiptRecords,
+    };
+    ledger.set(snapshot.run.id, cloneSnapshot(snapshot));
+    pruneLedger();
+    return cloneSnapshot(snapshot);
+  } catch {
+    return null;
+  }
+}
+
+export function toWorkflowRunRow(run: WorkflowRunRecord) {
+  return {
+    id: run.id,
+    org_id: run.orgId,
+    workflow_kind: run.workflowKind,
+    title: run.title,
+    status: run.status,
+    created_by: run.createdBy,
+    target_url: run.targetUrl ?? null,
+    failure_reason: run.failureReason ?? null,
+    created_at: run.createdAt,
+    updated_at: run.updatedAt,
+  };
+}
+
+export function toWorkflowTaskRow(task: WorkflowTaskRecord) {
+  return {
+    id: task.id,
+    run_id: task.runId,
+    title: task.title,
+    status: task.status,
+    owner: task.owner,
+    depends_on: task.dependsOn,
+    capability_id: task.capabilityId ?? null,
+    detail: task.detail,
+    created_at: task.createdAt,
+    updated_at: task.updatedAt,
+  };
+}
+
+export function toWorkflowArtifactRow(artifact: WorkflowArtifactRecord) {
+  return {
+    id: artifact.id,
+    run_id: artifact.runId,
+    artifact_kind: artifact.kind,
+    title: artifact.title,
+    hash: artifact.hash,
+    data: artifact.data,
+    created_at: artifact.createdAt,
+  };
+}
+
+export function toWorkflowApprovalRow(approval: ApprovalRecord) {
+  return {
+    id: approval.id,
+    run_id: approval.runId,
+    artifact_id: approval.artifactId,
+    decision: approval.decision,
+    approver: approval.approver,
+    evidence_visible: approval.evidenceVisible,
+    reason: approval.reason,
+    requested_at: approval.requestedAt,
+    decided_at: approval.decidedAt,
+  };
+}
+
+export function toWorkflowReceiptRow(receipt: ReceiptRecord) {
+  return {
+    id: receipt.id,
+    run_id: receipt.runId,
+    approval_id: receipt.approvalId,
+    artifact_id: receipt.artifactId,
+    status: receipt.status,
+    summary: receipt.summary,
+    artifact_hash: receipt.artifactHash,
+    created_at: receipt.createdAt,
+  };
+}
+
+export function fromWorkflowRunRow(
+  row: Record<string, unknown>,
+  ids: {
+    taskIds?: string[];
+    artifactIds?: string[];
+    approvalIds?: string[];
+    receiptIds?: string[];
+  } = {}
+): WorkflowRunRecord {
+  return {
+    id: String(row.id),
+    orgId: String(row.org_id),
+    workflowKind: row.workflow_kind as WorkflowKind,
+    title: String(row.title),
+    status: row.status as WorkflowRunStatus,
+    createdBy: row.created_by as WorkflowRunRecord["createdBy"],
+    targetUrl: optionalString(row.target_url),
+    failureReason: optionalString(row.failure_reason),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+    taskIds: ids.taskIds ?? [],
+    artifactIds: ids.artifactIds ?? [],
+    approvalIds: ids.approvalIds ?? [],
+    receiptIds: ids.receiptIds ?? [],
+  };
+}
+
+export function fromWorkflowTaskRow(row: Record<string, unknown>): WorkflowTaskRecord {
+  return {
+    id: String(row.id),
+    runId: String(row.run_id),
+    title: String(row.title),
+    status: row.status as WorkflowTaskRecord["status"],
+    owner: row.owner as WorkflowTaskRecord["owner"],
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+    dependsOn: Array.isArray(row.depends_on) ? row.depends_on.map(String) : [],
+    capabilityId: optionalString(row.capability_id),
+    detail: String(row.detail),
+  };
+}
+
+export function fromWorkflowArtifactRow(row: Record<string, unknown>): WorkflowArtifactRecord {
+  return {
+    id: String(row.id),
+    runId: String(row.run_id),
+    kind: row.artifact_kind as ArtifactKind,
+    title: String(row.title),
+    hash: String(row.hash) as `fnv1a:${string}`,
+    createdAt: String(row.created_at),
+    data: row.data,
+  };
+}
+
+export function fromWorkflowApprovalRow(row: Record<string, unknown>): ApprovalRecord {
+  return {
+    id: String(row.id),
+    runId: String(row.run_id),
+    artifactId: String(row.artifact_id),
+    requestedAt: String(row.requested_at),
+    decision: row.decision as ApprovalDecision,
+    decidedAt: optionalString(row.decided_at) ?? null,
+    approver: optionalString(row.approver) ?? null,
+    evidenceVisible: Boolean(row.evidence_visible),
+    reason: String(row.reason),
+  };
+}
+
+export function fromWorkflowReceiptRow(row: Record<string, unknown>): ReceiptRecord {
+  return {
+    id: String(row.id),
+    runId: String(row.run_id),
+    approvalId: optionalString(row.approval_id) ?? null,
+    artifactId: String(row.artifact_id),
+    status: row.status as ReceiptRecord["status"],
+    createdAt: String(row.created_at),
+    summary: String(row.summary),
+    artifactHash: String(row.artifact_hash) as `fnv1a:${string}`,
+  };
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
 function clampListLimit(value: number | undefined): number {
