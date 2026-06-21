@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { QuadChainWorkbench } from "@/components/QuadChainWorkbench";
 import {
   buildQuadChainCertificate,
   verifyQuadChainCertificate,
@@ -12,6 +13,7 @@ import {
   quadChainThesis,
   totalRouteSavings,
 } from "@/lib/quad-chain/metrics";
+import { buildQuadChainComparison } from "@/lib/quad-chain/workbench";
 
 const sources: QuadChainSource[] = [
   {
@@ -87,6 +89,10 @@ export default function QuadChainPage() {
     requiredEvidence,
   });
   const routeTotals = totalRouteSavings();
+  const initialComparison = buildQuadChainComparison({
+    prompt: "Audit the oauth signup trace and produce the smallest safe fix.",
+    createdAt: "2026-06-20T00:00:00.000Z",
+  });
 
   return (
     <main className="min-h-screen px-4 py-6 text-[var(--ink)] sm:px-6 lg:px-8">
@@ -116,6 +122,8 @@ export default function QuadChainPage() {
             </div>
           ))}
         </section>
+
+        <QuadChainWorkbench initial={initialComparison} />
 
         <section className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="rounded-lg border border-edge bg-panel/80 p-4 shadow-sm">
