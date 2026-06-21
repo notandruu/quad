@@ -4,6 +4,7 @@ import { getBackendReadiness } from "@/lib/backend/readiness";
 import { listBrainMemoryTrail } from "@/lib/brain";
 import { listConnectorCredentials } from "@/lib/connectors";
 import { getWorkerCanaryHealth, getWorkerQueueHealth, getWorkerRuntimeHealth } from "@/lib/jobs/queue";
+import { getLatestModelCallReceipts, type ModelCallReceipt } from "@/lib/llm/gateway";
 import { summarizeCapabilities } from "@/lib/metaregistry";
 import { getQuadChainPackets, summarizeQuadChainPackets } from "@/lib/quad-chain/registry";
 import { buildShipTrail, listRunSnapshots, summarizeAgentTask } from "@/lib/runs";
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
   // each source to a safe empty value instead.
   const snapshots = await listRunSnapshots({ orgId, limit }).catch(() => []);
   const capabilities = summarizeCapabilities(process.env, { orgId });
-  const [connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness, quadChainPackets, memoryTrail] = await Promise.all([
+  const [connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness, quadChainPackets, memoryTrail, modelReceipts] = await Promise.all([
     listConnectorCredentials({ orgId }).catch(() => []),
     getWorkerQueueHealth().catch(() => null),
     getWorkerRuntimeHealth().catch(() => null),
@@ -39,6 +40,7 @@ export async function GET(request: Request) {
     getBackendReadiness().catch(() => null),
     getQuadChainPackets({ orgId, limit: 20 }).catch(() => []),
     listBrainMemoryTrail({ orgId, limit: 6 }).catch(() => null),
+    getLatestModelCallReceipts({ orgId, limit: 8 }).catch(() => []),
   ]);
   const security = summarizeSecurityPacket(buildSecurityPacket({ orgId }));
   const runs = snapshots.map((snapshot) => summarizeAgentTask(snapshot));
@@ -96,6 +98,7 @@ export async function GET(request: Request) {
     },
     backendReadiness: backendReadiness ? summarizeBackendReadiness(backendReadiness) : null,
     quadChain: summarizeQuadChainPackets(quadChainPackets),
+    modelGateway: summarizeModelReceipts(modelReceipts),
     memory: memoryTrail,
     connectorCredentials,
     security,
@@ -268,6 +271,38 @@ function summarizeBackendReadiness(report: NonNullable<Awaited<ReturnType<typeof
         },
       ])
     ),
+  };
+}
+
+function summarizeModelReceipts(receipts: ModelCallReceipt[]) {
+  return {
+    total: receipts.length,
+    completed: receipts.filter((receipt) => receipt.status === "completed").length,
+    blocked: receipts.filter((receipt) => receipt.status === "blocked").length,
+    failed: receipts.filter((receipt) => receipt.status === "failed").length,
+    skipped: receipts.filter((receipt) => receipt.status === "skipped").length,
+    redactions: receipts.reduce((total, receipt) => total + receipt.input.redactionCount, 0),
+    latest: receipts.slice(0, 5).map((receipt) => ({
+      id: receipt.id,
+      runId: receipt.runId ?? null,
+      provider: receipt.provider,
+      model: receipt.model,
+      purpose: receipt.purpose,
+      status: receipt.status,
+      attempts: receipt.attempts,
+      durationMs: receipt.durationMs,
+      createdAt: receipt.createdAt,
+      input: {
+        originalChars: receipt.input.originalChars,
+        sanitizedChars: receipt.input.sanitizedChars,
+        redactionCount: receipt.input.redactionCount,
+        classifications: receipt.input.classifications,
+      },
+      output: {
+        chars: receipt.output.chars,
+      },
+      errorClass: receipt.errorClass ?? null,
+    })),
   };
 }
 

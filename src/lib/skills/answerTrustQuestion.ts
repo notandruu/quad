@@ -47,7 +47,13 @@ export type TrustQuestionInput = {
   question: string;
   runId: string;
   /** Injected for tests — skips the LLM judge call. */
-  _judgeOverride?: (opts: { question: string; answer: string; sources: string[] }) => Promise<JudgeResult | null>;
+  _judgeOverride?: (opts: {
+    orgId?: string;
+    runId?: string;
+    question: string;
+    answer: string;
+    sources: string[];
+  }) => Promise<JudgeResult | null>;
   /** Injected for tests — intercepts brain writeback. */
   _ingestOverride?: (input: IngestInput) => Promise<BrainMemory>;
 };
@@ -130,7 +136,7 @@ export async function answerTrustQuestion(input: TrustQuestionInput): Promise<Tr
 
   // Step 4: draft answer
   const contextBlock = buildContextBlock(memories, connectorDocs);
-  const answer = await draftAnswer({ question, contextBlock }) ?? buildHeuristicAnswer(memories, connectorDocs);
+  const answer = await draftAnswer({ orgId, runId, question, contextBlock }) ?? buildHeuristicAnswer(memories, connectorDocs);
   await publishAuditEvent(runId, "answer.drafted", { questionId, answerLength: answer.length });
 
   // Step 5: evaluate. The judge must see the SAME evidence the drafter saw —
@@ -140,7 +146,7 @@ export async function answerTrustQuestion(input: TrustQuestionInput): Promise<Tr
     ...memories.map((m) => `${m.title}: ${m.content}`),
     ...connectorDocs.map((d) => `${d.title}: ${d.content}`),
   ];
-  const evaluation = await judgeImpl({ question, answer, sources: judgeSources });
+  const evaluation = await judgeImpl({ orgId, runId, question, answer, sources: judgeSources });
 
   // Two ways to land in needs_human:
   //  1. the answer is not grounded in the sources (judge failed / unavailable)
@@ -280,13 +286,26 @@ function buildContextBlock(memories: BrainMemory[], docs: ConnectorDocument[]): 
   return parts.join("\n\n---\n\n");
 }
 
-async function draftAnswer(opts: { question: string; contextBlock: string }): Promise<string | null> {
+async function draftAnswer(opts: {
+  orgId: string;
+  runId: string;
+  question: string;
+  contextBlock: string;
+}): Promise<string | null> {
   const system =
     "You are a compliance analyst drafting answers to enterprise security questionnaires. " +
     "Answer ONLY from the provided context. If the context does not fully support the answer, say so explicitly. " +
     "Be concise and precise. Cite your sources by title. Do not fabricate facts.";
   const prompt = `Context:\n${opts.contextBlock}\n\nQuestion: ${opts.question}\n\nAnswer:`;
-  return complete({ model: auditModel(), system, prompt, maxTokens: 512, purpose: "trust_packet" });
+  return complete({
+    orgId: opts.orgId,
+    runId: opts.runId,
+    model: auditModel(),
+    system,
+    prompt,
+    maxTokens: 512,
+    purpose: "trust_packet",
+  });
 }
 
 function buildHeuristicAnswer(memories: BrainMemory[], docs: ConnectorDocument[]): string {
@@ -301,6 +320,8 @@ function buildHeuristicAnswer(memories: BrainMemory[], docs: ConnectorDocument[]
 }
 
 async function defaultJudge(opts: {
+  orgId?: string;
+  runId?: string;
   question: string;
   answer: string;
   sources: string[];
@@ -322,7 +343,15 @@ async function defaultJudge(opts: {
   // 256 tokens truncates the JSON mid-object when the reason is verbose, which
   // makes the parse fail and silently escalates a perfectly good answer. Give
   // the verdict enough room to close its braces.
-  const raw = await complete({ model: auditModel(), system, prompt, maxTokens: 600, purpose: "evaluation" });
+  const raw = await complete({
+    orgId: opts.orgId,
+    runId: opts.runId,
+    model: auditModel(),
+    system,
+    prompt,
+    maxTokens: 600,
+    purpose: "evaluation",
+  });
   if (!raw) return null;
 
   const obj = extractJsonObject(raw);

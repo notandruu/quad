@@ -81,6 +81,7 @@ required controls:
 - prompt and response logging disabled or redacted by default
 - strict payload size limits
 - source minimization before model calls
+- safe model-call receipts that store hashes, lengths, redaction counts, usage, status, and attempts instead of raw prompts or raw responses
 
 the default should be:
 
@@ -302,4 +303,3 @@ long-term:
 ## killer line
 
 > quad does not ask enterprises to trust a black-box agent with their company brain. it minimizes context, proves what was used, gates every write, and leaves an audit trail.
-

@@ -126,6 +126,8 @@ async function auditGroundedChat(
   );
 
   const reply = await complete({
+    orgId,
+    runId: report.runId,
     model: chatModel(),
     system,
     prompt: text,

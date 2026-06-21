@@ -48,7 +48,7 @@ export async function runEmployee(input: RuntimeInput): Promise<RuntimeResult> {
   // Synthesize the final response with the chat model, grounded in retrieved
   // memories. Falls back to a deterministic acknowledgement with no API key.
   const message =
-    (await synthesizeReply(employee, text, core.memories)) ??
+    (await synthesizeReply({ orgId, runId, employee, text, context: core.memories })) ??
     draftMessage(core.intent, core.memories.length, core.detectedUrl);
 
   return {
@@ -65,19 +65,23 @@ export async function runEmployee(input: RuntimeInput): Promise<RuntimeResult> {
  * Answer the user grounded in retrieved company memories, in the employee's
  * tone. Returns null when no model is configured so the caller can fall back.
  */
-async function synthesizeReply(
-  employee: QuadEmployee,
-  text: string,
-  context: RuntimeResult["context"]
-): Promise<string | null> {
-  const memos = context
+async function synthesizeReply(input: {
+  orgId: string;
+  runId: string;
+  employee: QuadEmployee;
+  text: string;
+  context: RuntimeResult["context"];
+}): Promise<string | null> {
+  const memos = input.context
     .map((m) => `- [${m.sourceType}] ${m.title}: ${m.summary ?? m.content}`)
     .join("\n");
 
   return complete({
+    orgId: input.orgId,
+    runId: input.runId,
     model: chatModel(),
-    system: `You are ${employee.name}, an AI ${employee.role.replace("_", " ")}. Tone: ${employee.tone}. Answer only from the company memory provided. Cite the source titles you used. If the memory does not cover it, say so plainly.`,
-    prompt: `COMPANY MEMORY:\n${memos || "(none retrieved)"}\n\nUSER:\n${text}`,
+    system: `You are ${input.employee.name}, an AI ${input.employee.role.replace("_", " ")}. Tone: ${input.employee.tone}. Answer only from the company memory provided. Cite the source titles you used. If the memory does not cover it, say so plainly.`,
+    prompt: `COMPANY MEMORY:\n${memos || "(none retrieved)"}\n\nUSER:\n${input.text}`,
     maxTokens: 800,
     purpose: "chat",
   });

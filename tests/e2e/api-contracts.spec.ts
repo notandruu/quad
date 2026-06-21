@@ -104,6 +104,15 @@ test.describe("api contracts", () => {
     expect(json.backendReadiness.components).toHaveProperty("redis");
     expect(json.backendReadiness.components).toHaveProperty("worker");
     expect(json.backendReadiness.components).toHaveProperty("observability");
+    expect(json.modelGateway).toMatchObject({
+      total: expect.any(Number),
+      completed: expect.any(Number),
+      blocked: expect.any(Number),
+      failed: expect.any(Number),
+      skipped: expect.any(Number),
+      redactions: expect.any(Number),
+      latest: expect.any(Array),
+    });
     expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
     expect(JSON.stringify(json)).not.toMatch(/QUAD_REDIS_REST_TOKEN|SENTRY_DSN|PHOENIX_API_KEY/);
   });

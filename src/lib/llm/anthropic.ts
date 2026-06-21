@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { assertModelCallAllowed, prepareModelPayload, type ModelPurpose } from "@/lib/security";
+import { runTextModelCall } from "@/lib/llm/gateway";
+import type { ModelPurpose } from "@/lib/security";
 
 let client: Anthropic | null = null;
 
@@ -24,39 +25,50 @@ export function chatModel(): string {
  * when no API key is configured so callers can fall back to a heuristic.
  */
 export async function complete(opts: {
+  orgId?: string;
+  runId?: string;
   model: string;
   system?: string;
   prompt: string;
   maxTokens?: number;
   purpose?: Extract<ModelPurpose, "chat" | "audit" | "evaluation" | "trust_packet">;
+  maxAttempts?: number;
 }): Promise<string | null> {
   const anthropic = getAnthropic();
-  if (!anthropic) return null;
   const purpose = opts.purpose ?? "chat";
-  const promptDecision = prepareModelPayload({
-    purpose,
-    text: opts.prompt,
-  });
-  const systemDecision = opts.system
-    ? prepareModelPayload({
-        purpose,
-        text: opts.system,
-      })
-    : null;
-  assertModelCallAllowed(promptDecision);
-  if (systemDecision) assertModelCallAllowed(systemDecision);
-
-  const res = await anthropic.messages.create({
+  const result = await runTextModelCall({
+    orgId: opts.orgId,
+    runId: opts.runId,
+    provider: "anthropic",
     model: opts.model,
-    max_tokens: opts.maxTokens ?? 2048,
-    system: systemDecision?.payload.text,
-    messages: [{ role: "user", content: promptDecision.payload.text }],
+    system: opts.system,
+    prompt: opts.prompt,
+    maxTokens: opts.maxTokens ?? 2048,
+    purpose,
+    maxAttempts: opts.maxAttempts,
+    execute: anthropic
+      ? async (payload) => {
+          const res = await anthropic.messages.create({
+            model: payload.model,
+            max_tokens: payload.maxTokens,
+            system: payload.system,
+            messages: [{ role: "user", content: payload.prompt }],
+          });
+          return {
+            text: res.content
+              .map((block) => (block.type === "text" ? block.text : ""))
+              .join("")
+              .trim(),
+            usage: {
+              inputTokens: res.usage.input_tokens,
+              outputTokens: res.usage.output_tokens,
+            },
+          };
+        }
+      : null,
   });
 
-  return res.content
-    .map((block) => (block.type === "text" ? block.text : ""))
-    .join("")
-    .trim();
+  return result.text;
 }
 
 /** Pull the first JSON array out of a model response, tolerating prose around it. */

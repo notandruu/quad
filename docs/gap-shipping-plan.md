@@ -429,6 +429,13 @@ Shipped v5:
 - Phoenix collector endpoints must use HTTPS before traces leave the runtime.
 - production-ready security posture now requires every control to pass, not only a high aggregate score.
 
+Shipped v6:
+
+- `complete()` now routes Anthropic text calls through a model gateway receipt layer.
+- model receipts record provider, model, purpose, org/run ids, sanitized length, redaction count, attempts, duration, usage, status, and output hash without storing raw prompts or responses.
+- unconfigured providers, blocked restricted payloads, retries, failures, and successful calls all produce safe receipts.
+- `/api/operator` exposes a compact `modelGateway` summary so operators can see model-call health without leaking customer context.
+
 Build:
 
 - document what stays off-chain/off-registry.

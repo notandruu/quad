@@ -59,6 +59,7 @@ async function llmJudge(
   evidence: RenderedPageEvidence | undefined
 ): Promise<JudgeResult | null> {
   const raw = await complete({
+    runId: finding.runId,
     model: auditModel(),
     system:
       "You are a strict evaluator of website-audit findings. Judge only against the evidence given. Output a single JSON object.",

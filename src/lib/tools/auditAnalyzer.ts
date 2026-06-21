@@ -105,7 +105,7 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
 
         await emit("page.analyzing", { url });
         const brain = await retrieveMemories({ orgId, query: evidence.text.slice(0, 500), scope: "internal" });
-        const findings = await analyzePage(evidence, brain, runId);
+        const findings = await analyzePage(evidence, brain, orgId, runId);
 
         for (const f of findings) {
           f.eval = await evaluateFinding(f, evidence, seenTitles);
@@ -166,11 +166,14 @@ export async function runAudit(input: RunAuditInput): Promise<AuditReport> {
 async function analyzePage(
   page: RenderedPageEvidence,
   brain: Awaited<ReturnType<typeof retrieveMemories>>,
+  orgId: string,
   runId: string
 ): Promise<AuditFinding[]> {
   return traced(SPAN.analyzePage, { "page.url": page.url }, async () => {
     const prompt = buildAnalyzePrompt(page, brain);
     const raw = await complete({
+      orgId,
+      runId,
       model: auditModel(),
       system: "You are a precise website auditor. Output only a JSON array of findings.",
       prompt,
@@ -294,6 +297,8 @@ async function synthesize(
     // Ask the model for an executive summary grounded in the findings.
     const summaryText =
       (await complete({
+        orgId,
+        runId,
         model: auditModel(),
         system: "You are a concise, company-aware AI employee. Output only plain text.",
         prompt: buildSynthesisPrompt(targetUrl, shown, brainSummary),
