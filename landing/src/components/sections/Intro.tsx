@@ -55,9 +55,12 @@ export default function Intro() {
             muted
             loop
             playsInline
-            className="aspect-[16/8] w-full object-cover [filter:saturate(0.18)_brightness(0.66)_contrast(1.06)_sepia(0.22)]"
+            className="aspect-[16/8] w-full object-cover [filter:grayscale(1)_brightness(0.52)_contrast(1.08)]"
           />
-          <div className="pointer-events-none absolute inset-0 bg-ink/30" />
+          {/* Quad-pink duotone tint over the grayscale footage */}
+          <div className="pointer-events-none absolute inset-0 bg-flame/30 mix-blend-color" />
+          {/* cinematic depth gradient */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/75 via-ink/15 to-ink/35" />
           <button
             onClick={() => {
               const v = videoRef.current;

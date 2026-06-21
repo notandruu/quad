@@ -42,7 +42,12 @@ export function Logo({ className = "" }: { className?: string }) {
   );
 }
 
-const NAV = ["Platform", "Security", "Customers", "Docs"];
+const NAV = [
+  { label: "Platform", href: "#features" },
+  { label: "Proof", href: "#numbers" },
+  { label: "Security", href: "#security" },
+  { label: "QuadChain", href: "#quadchain" },
+];
 
 export default function Header() {
   const [open, setOpen] = useState(false);
@@ -74,13 +79,13 @@ export default function Header() {
           <nav className="relative mr-10 hidden items-center gap-9 md:flex">
             {NAV.map((n, i) => (
               <a
-                key={n}
-                href="#"
+                key={n.label}
+                href={n.href}
                 className={`navlink text-[14px] tracking-[0.01em] transition-colors ${
                   i === 0 ? "text-bone" : "text-bone/55 hover:text-bone"
                 }`}
               >
-                {n}
+                {n.label}
               </a>
             ))}
           </nav>
@@ -108,8 +113,13 @@ export default function Header() {
       {open && (
         <div className="flex flex-col gap-1 bg-[rgba(20,20,20,0.95)] px-6 py-4 backdrop-blur-md md:hidden">
           {NAV.map((n) => (
-            <a key={n} href="#" className="py-2 text-[15px] text-bone/85">
-              {n}
+            <a
+              key={n.label}
+              href={n.href}
+              onClick={() => setOpen(false)}
+              className="py-2 text-[15px] text-bone/85"
+            >
+              {n.label}
             </a>
           ))}
           <a
