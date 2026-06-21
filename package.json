@@ -19,6 +19,7 @@
     "e2e:api": "node scripts/e2e.mjs",
     "demo": "node scripts/demo.mjs",
     "canary:worker": "node scripts/worker-canary.mjs",
+    "worker:preflight": "node scripts/worker-preflight.mjs",
     "worker": "tsx scripts/worker.ts",
     "worker:once": "tsx scripts/worker.ts --once",
     "smoke:prod": "node scripts/prod-smoke.mjs"

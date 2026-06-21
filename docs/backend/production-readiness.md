@@ -115,7 +115,7 @@ Backend readiness and security packets only expose token labels, scopes, counts,
    Railway command:
 
    ```bash
-   npm run worker
+   npm run worker:preflight && npm run worker
    ```
 
    Required Railway env must match Vercel:
@@ -123,8 +123,24 @@ Backend readiness and security packets only expose token labels, scopes, counts,
    - `QUAD_REDIS_REST_URL`
    - `QUAD_REDIS_REST_TOKEN`
    - `QUAD_WORKER_SECRET`
+   - `QUAD_API_SECRET` or a service token that can call protected web routes
+   - `QUAD_SERVICE_TOKENS` with `worker`, `jobs:read`, `jobs:write`, `observability:read`, and `observability:write` scopes
    - model/provider keys used by audit and agent jobs
    - Supabase env if the worker persists run state
+
+   The checked-in `railway.json` starts the worker with the preflight first:
+
+   ```bash
+   npm run worker:preflight && npm run worker
+   ```
+
+   Optional hosted health preflight:
+
+   ```bash
+   QUAD_WORKER_PREFLIGHT_BASE_URL=https://quad.stephenhung.me npm run worker:preflight
+   ```
+
+   The preflight checks required worker env, validates scoped service token shape, warns when model/observability/browser/voice env is missing, and verifies that the hosted web backend can see Redis when `QUAD_WORKER_PREFLIGHT_BASE_URL` is set.
 
 3. Configure observability.
 
@@ -146,6 +162,8 @@ Backend readiness and security packets only expose token labels, scopes, counts,
 - durable workflow ledger: `src/lib/runs`
 - worker queue and canary: `src/lib/jobs`
 - worker runtime command: `scripts/worker.ts`
+- worker preflight: `scripts/worker-preflight.mjs`
+- Railway worker config: `railway.json`
 - quadchain packet registry: `src/lib/quad-chain/registry.ts`
 - backend readiness: `src/lib/backend/readiness.ts`
 - security and retention: `src/lib/security`

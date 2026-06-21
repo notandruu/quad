@@ -104,6 +104,7 @@ The async backend path is now available:
 
 ```bash
 npm run worker       # long-running worker loop for Railway
+npm run worker:preflight # fail fast when Railway worker env is incomplete
 npm run worker:once  # process one queued job locally
 npm run canary:worker # run the hosted worker canary and verify jobs health
 ```
@@ -115,9 +116,16 @@ Set `QUAD_WORKER_SECRET` for protected worker processing calls. When it is confi
 For Vercel plus Railway:
 
 1. Deploy the Next.js app on Vercel with the shared app env.
-2. Run the Railway worker service with `npm run worker`.
+2. Run the Railway worker service with `npm run worker:preflight && npm run worker`. The checked-in `railway.json` uses this start command.
 3. Set `QUAD_WORKER_ENABLED=true`, `QUAD_WORKER_SECRET`, `QUAD_REDIS_REST_URL`, and `QUAD_REDIS_REST_TOKEN` in both hosted environments.
-4. After deploy, run:
+4. Set `QUAD_SERVICE_TOKENS` with a worker token scoped to `worker`, `jobs:read`, `jobs:write`, `observability:read`, and `observability:write`.
+5. Optionally point preflight at the hosted web backend:
+
+```bash
+QUAD_WORKER_PREFLIGHT_BASE_URL=https://quad.stephenhung.me npm run worker:preflight
+```
+
+6. After deploy, run:
 
 ```bash
 QUAD_CANARY_BASE_URL=https://quad.stephenhung.me npm run canary:worker
