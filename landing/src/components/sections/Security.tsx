@@ -2,6 +2,7 @@
 
 import Panel from "@/components/Panel";
 import Reveal from "@/components/Reveal";
+import SecurityFlow from "@/components/SecurityFlow";
 
 const CONTROLS = [
   {
@@ -67,20 +68,34 @@ export default function Security() {
       desc="Enterprise AI deals are blocked by data security before model quality. Quad is built for the security review, not around it."
       title="Minimize what leaves the tenant. Prove what did."
     >
-      <Reveal
-        stagger
-        className="mt-9 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-ink/12 bg-ink/12 sm:grid-cols-2 lg:grid-cols-4"
-      >
+      {/* animated data-minimization flow */}
+      <Reveal className="mt-9">
+        <div className="overflow-hidden rounded-xl border border-ink/12 bg-ink">
+          <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-3">
+            <div className="flex items-center gap-2.5">
+              <span className="h-2 w-2 rounded-full bg-flame" />
+              <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-bone">Data minimization</span>
+            </div>
+            <span className="font-mono text-[11px] text-tan/55">only the verified packet leaves your tenant</span>
+          </div>
+          <SecurityFlow className="h-[300px] w-full md:h-[340px]" />
+        </div>
+      </Reveal>
+
+      {/* supporting controls */}
+      <div className="mt-6 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-ink/12 bg-ink/12 sm:grid-cols-2 lg:grid-cols-4">
         {CONTROLS.map((c) => (
-          <div key={c.title} className="flex flex-col bg-paper p-6 transition-colors duration-200 hover:bg-cream">
-            <span className="mb-5 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blush">
-              <Ctl kind={c.icon} />
-            </span>
-            <h3 className="text-[16px] font-medium text-ink">{c.title}</h3>
-            <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">{c.body}</p>
+          <div key={c.title} className="flex flex-col bg-paper p-5 transition-colors duration-200 hover:bg-cream">
+            <div className="flex items-center gap-2.5">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blush">
+                <Ctl kind={c.icon} />
+              </span>
+              <h3 className="text-[14px] font-medium text-ink">{c.title}</h3>
+            </div>
+            <p className="mt-2.5 text-[12.5px] leading-relaxed text-ink-soft">{c.body}</p>
           </div>
         ))}
-      </Reveal>
+      </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
         {BADGES.map((b) => (
