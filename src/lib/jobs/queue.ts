@@ -11,7 +11,7 @@ import {
 } from "@/lib/runs";
 
 export type JobType = "audit" | "agent_run";
-export type JobStatus = "queued" | "running" | "completed" | "failed";
+export type JobStatus = "queued" | "running" | "retrying" | "completed" | "failed" | "dead_letter";
 
 export type AuditJobPayload = {
   orgId: string;
@@ -39,7 +39,14 @@ export type QuadJob = {
   updatedAt: string;
   startedAt?: string;
   completedAt?: string;
+  retryAt?: string;
+  deadLetteredAt?: string;
   error?: string;
+  errorHistory?: Array<{
+    attempt: number;
+    message: string;
+    at: string;
+  }>;
   result?: unknown;
 };
 
@@ -56,6 +63,19 @@ export type EnqueueJobResult = {
   job: QuadJob;
   task: AgentTaskSummary | null;
   mode: "redis" | "memory";
+};
+
+export type WorkerQueueHealth = {
+  mode: "redis" | "memory";
+  configured: boolean;
+  queueDepth: number;
+  running: number;
+  retrying: number;
+  completed: number;
+  failed: number;
+  deadLetter: number;
+  oldestQueuedAt: string | null;
+  latestUpdatedAt: string | null;
 };
 
 const QUEUE_KEY = "quad:jobs:queue";
@@ -179,11 +199,12 @@ export async function claimNextJob(): Promise<QuadJob | null> {
       const jobId = await redis.rpop<string>(QUEUE_KEY);
       if (jobId) {
         const job = await getJob(jobId);
-        if (job && job.status === "queued") {
+        if (job && isClaimable(job)) {
           return updateJob(job.id, {
             status: "running",
             attempts: job.attempts + 1,
             startedAt: new Date().toISOString(),
+            retryAt: undefined,
           });
         }
       }
@@ -196,15 +217,84 @@ export async function claimNextJob(): Promise<QuadJob | null> {
     const jobId = memoryQueue.shift();
     if (!jobId) continue;
     const job = memoryJobs.get(jobId);
-    if (!job || job.status !== "queued") continue;
+    if (!job || !isClaimable(job)) continue;
     return updateJob(job.id, {
       status: "running",
       attempts: job.attempts + 1,
       startedAt: new Date().toISOString(),
+      retryAt: undefined,
     });
   }
 
   return null;
+}
+
+export async function retryJob(
+  job: QuadJob,
+  input: { error: string; retryDelayMs?: number; now?: string } 
+): Promise<QuadJob> {
+  const now = input.now ?? new Date().toISOString();
+  const retryAt = new Date(Date.parse(now) + (input.retryDelayMs ?? retryDelayMs(job.attempts))).toISOString();
+  const updated = await updateJob(job.id, {
+    status: "retrying",
+    error: input.error,
+    retryAt,
+    errorHistory: [
+      ...(job.errorHistory ?? []),
+      {
+        attempt: job.attempts,
+        message: input.error,
+        at: now,
+      },
+    ],
+  });
+  await pushJobId(job.id);
+  return updated ?? job;
+}
+
+export async function deadLetterJob(
+  job: QuadJob,
+  input: { error: string; now?: string }
+): Promise<QuadJob> {
+  const now = input.now ?? new Date().toISOString();
+  return (await updateJob(job.id, {
+    status: "dead_letter",
+    error: input.error,
+    completedAt: now,
+    deadLetteredAt: now,
+    errorHistory: [
+      ...(job.errorHistory ?? []),
+      {
+        attempt: job.attempts,
+        message: input.error,
+        at: now,
+      },
+    ],
+  })) ?? job;
+}
+
+export async function getWorkerQueueHealth(): Promise<WorkerQueueHealth> {
+  const jobs = [...memoryJobs.values()];
+  const queued = jobs.filter((job) => job.status === "queued" || job.status === "retrying");
+  const latest = jobs
+    .map((job) => job.updatedAt)
+    .sort((a, b) => b.localeCompare(a))[0] ?? null;
+  const oldestQueued = queued
+    .map((job) => job.createdAt)
+    .sort((a, b) => a.localeCompare(b))[0] ?? null;
+
+  return {
+    mode: getRedis() ? "redis" : "memory",
+    configured: Boolean(process.env.QUAD_REDIS_REST_URL && process.env.QUAD_REDIS_REST_TOKEN),
+    queueDepth: queued.length,
+    running: jobs.filter((job) => job.status === "running").length,
+    retrying: jobs.filter((job) => job.status === "retrying").length,
+    completed: jobs.filter((job) => job.status === "completed").length,
+    failed: jobs.filter((job) => job.status === "failed").length,
+    deadLetter: jobs.filter((job) => job.status === "dead_letter").length,
+    oldestQueuedAt: oldestQueued,
+    latestUpdatedAt: latest,
+  };
 }
 
 export async function updateJob(
@@ -277,6 +367,17 @@ export async function deleteJobs(input: { orgId: string; runId?: string }): Prom
   return jobs.length;
 }
 
+async function pushJobId(jobId: string): Promise<void> {
+  memoryQueue.push(jobId);
+  const redis = getRedis();
+  if (!redis) return;
+  try {
+    await redis.lpush(QUEUE_KEY, jobId);
+  } catch {
+    // Memory queue remains the local fallback.
+  }
+}
+
 async function loadRedisJob(jobId: string): Promise<QuadJob | null> {
   const redis = getRedis();
   if (!redis) return null;
@@ -290,6 +391,20 @@ async function loadRedisJob(jobId: string): Promise<QuadJob | null> {
 
 function jobKey(jobId: string): string {
   return `${JOB_KEY_PREFIX}${jobId}`;
+}
+
+function isClaimable(job: QuadJob): boolean {
+  if (job.status === "queued") return true;
+  if (job.status !== "retrying") return false;
+  if (!job.retryAt) return true;
+  return Date.parse(job.retryAt) <= Date.now();
+}
+
+function retryDelayMs(attempts: number): number {
+  const configured = Number.parseInt(process.env.QUAD_WORKER_RETRY_DELAY_MS ?? "", 10);
+  if (Number.isFinite(configured)) return Math.max(0, configured);
+  const base = 1000 * 2 ** Math.max(0, attempts - 1);
+  return Math.min(base, 30_000);
 }
 
 function clampLimit(value: number | undefined): number {

@@ -13,7 +13,7 @@ import {
 
 export const runtime = "nodejs";
 
-const STATUSES: JobStatus[] = ["queued", "running", "completed", "failed"];
+const STATUSES: JobStatus[] = ["queued", "running", "retrying", "completed", "failed", "dead_letter"];
 
 const JobBody = z.object({
   orgId: z.string().min(1).optional(),

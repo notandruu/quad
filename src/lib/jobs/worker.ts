@@ -14,6 +14,8 @@ import { cacheReport } from "@/lib/runtime/reportCache";
 import { runAudit } from "@/lib/tools/auditAnalyzer";
 import {
   claimNextJob,
+  deadLetterJob,
+  retryJob,
   updateJob,
   type AgentRunJobPayload,
   type AuditJobPayload,
@@ -50,11 +52,18 @@ export async function processJob(job: QuadJob): Promise<QuadJob> {
     }))!;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const failed = await updateJob(job.id, {
-      status: "failed",
-      error: message,
-      completedAt: new Date().toISOString(),
-    });
+    if (job.attempts < job.maxAttempts) {
+      const retrying = await retryJob(job, { error: message });
+      try {
+        transitionRun(job.runId, "running", { failureReason: `Retrying after worker error: ${message}` });
+        await saveRunSnapshot(job.runId);
+      } catch {
+        // Job retry state is still authoritative even if the run snapshot is unavailable.
+      }
+      return retrying;
+    }
+
+    const failed = await deadLetterJob(job, { error: message });
 
     try {
       transitionRun(job.runId, "failed", { failureReason: message });

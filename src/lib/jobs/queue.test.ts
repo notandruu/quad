@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { getRunSnapshot } from "@/lib/runs";
-import { claimNextJob, enqueueAuditJob, getJob, listJobs, updateJob } from "./queue";
+import {
+  claimNextJob,
+  enqueueAuditJob,
+  getJob,
+  getWorkerQueueHealth,
+  listJobs,
+  retryJob,
+  updateJob,
+} from "./queue";
 
 describe("job queue", () => {
   it("enqueues audit jobs with a workflow run and memory fallback", async () => {
@@ -63,5 +71,35 @@ describe("job queue", () => {
     expect(updated?.createdAt).toBe(result.job.createdAt);
     expect(updated?.updatedAt).toBeTruthy();
     expect(updated?.result).toEqual({ ok: true });
+  });
+
+  it("requeues retrying jobs and reports worker queue health", async () => {
+    vi.stubEnv("QUAD_REDIS_REST_URL", "");
+    vi.stubEnv("QUAD_REDIS_REST_TOKEN", "");
+
+    const result = await enqueueAuditJob({
+      orgId: "org_jobs",
+      targetUrl: "https://example.edu",
+      runId: "run_job_queue_4",
+    });
+    const claimed = await claimNextJob();
+    expect(claimed?.id).toBe(result.job.id);
+
+    const retrying = await retryJob(claimed!, {
+      error: "browser session timed out",
+      retryDelayMs: -1,
+      now: "2026-06-21T00:00:00.000Z",
+    });
+    const health = await getWorkerQueueHealth();
+    const reclaimed = await claimNextJob();
+
+    expect(retrying.status).toBe("retrying");
+    expect(retrying.errorHistory?.[0]).toMatchObject({
+      attempt: 1,
+      message: "browser session timed out",
+    });
+    expect(health.retrying).toBeGreaterThanOrEqual(1);
+    expect(reclaimed?.id).toBe(result.job.id);
+    expect(reclaimed?.attempts).toBe(2);
   });
 });
