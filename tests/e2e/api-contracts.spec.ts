@@ -105,6 +105,31 @@ test.describe("api contracts", () => {
     expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
   });
 
+  test("returns the current org workspace boundary", async ({ request }) => {
+    const response = await request.get("/api/orgs?orgId=org_redcross");
+
+    expect(response.ok()).toBe(true);
+    const json = await response.json();
+    expect(json).toMatchObject({
+      ok: true,
+      orgId: "org_redcross",
+      current: {
+        org: {
+          id: "org_redcross",
+          status: "active",
+        },
+        workspace: {
+          orgId: "org_redcross",
+          defaultVisibility: "company",
+        },
+        boundary: {
+          tenantKeyPrefix: "org:org_redcross",
+        },
+      },
+    });
+    expect(JSON.stringify(json)).not.toMatch(/SUPABASE_SERVICE_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+  });
+
   test("runs the scripted meeting agent into governed artifacts", async ({ request }) => {
     const response = await request.post("/api/meeting/scripted", {
       timeout: 60_000,
@@ -223,6 +248,17 @@ test.describe("api contracts", () => {
     const json = await response.json();
     expect(json.ok).toBe(true);
     expect(json.workline).toEqual(["audit", "packet", "approval", "publish"]);
+    expect(json.workspace).toMatchObject({
+      org: {
+        id: "org_redcross",
+      },
+      workspace: {
+        defaultVisibility: "company",
+      },
+      boundary: {
+        tenantKeyPrefix: "org:org_redcross",
+      },
+    });
     expect(Array.isArray(json.runs)).toBe(true);
     expect(Array.isArray(json.pendingApprovals)).toBe(true);
     expect(Array.isArray(json.artifacts)).toBe(true);

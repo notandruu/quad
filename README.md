@@ -67,13 +67,15 @@ npm run db:migrate
 npm run db:status
 ```
 
-The migration applies `docs/backend/platform-schema.sql`, which creates the brain memory, workflow ledger, quadchain packet, approval, receipt, and connector credential tables with `IF NOT EXISTS` guards. `npm run db:status` checks the required tables and pgvector extension without printing database credentials.
+The migration applies `docs/backend/platform-schema.sql`, which creates the org/workspace boundary, brain memory, workflow ledger, quadchain packet, approval, receipt, and connector credential tables with `IF NOT EXISTS` guards. `npm run db:status` checks the required tables and pgvector extension without printing database credentials.
 
 Hosted API routes accept `Authorization: Bearer $QUAD_API_SECRET` or `x-quad-api-key: $QUAD_API_SECRET`. In zero-key mode, org-owned routes only allow the seeded demo org. Set `QUAD_ALLOWED_ORGS` to a comma-separated allowlist before hosting customer data.
 
 `GET /api/security/packet` returns an org-scoped security posture packet: data flows, model routing, storage posture, retention/deletion gaps, connector scopes, redaction guarantees, and warnings. It is protected by the same hosted API guard and never includes raw env secret values.
 
 The security packet also includes a `registryBoundary` policy. It states that v1 uses local receipts only, blockchain anchoring is optional future work, and public anchors can contain only packet ids, certificate ids, hashes, Merkle roots, verifier versions, and handoff ids. Raw context, evidence quotes, audio bytes, screenshots, prompts, responses, credentials, and customer documents stay off-chain and out of public registries.
+
+`GET /api/orgs?orgId=...` returns the authorized organization, default workspace, requester role, and tenant boundary summary for the current org. Zero-key demo mode returns only the seeded demo org; hosted mode requires the existing API secret or a service token with `orgs:read`.
 
 Public summary routes are covered by secret-leak tests. `src/lib/security/publicPayload.ts` scans nested response payloads against configured secret env values, and the settings, sponsor-proof, and public agent descriptor routes prove they expose statuses and env key names without returning API keys, DSNs, service tokens, connector secrets, or database credentials.
 
@@ -93,7 +95,7 @@ High-risk mutation routes are protected by org-scoped rate limits and optional `
 
 `POST /api/verify-fix` runs post-ship verification over staged, executed, and browser-action artifacts, emits verification reports, creates executed or blocked receipts, and attaches quadchain `connector_action` packets to the run.
 
-`GET /api/health/backend` reports whether Supabase platform tables, Redis, hosted API auth, credential encryption, the backend worker, Browserbase, voice, Sentry, and Phoenix are configured and reachable. Run `docs/backend/platform-schema.sql` in Supabase before relying on durable runs.
+`GET /api/health/backend` reports whether Supabase platform tables, Redis, hosted API auth, credential encryption, the backend worker, Browserbase, voice, Sentry, and Phoenix are configured and reachable. The required table set includes `quad_orgs`, `quad_workspaces`, and `quad_workspace_memberships`, so production readiness does not ignore tenant-boundary storage. Run `docs/backend/platform-schema.sql` in Supabase before relying on durable runs.
 
 `GET /api/jobs/health` reports worker queue depth, running jobs, retrying jobs, completed jobs, failed jobs, dead-lettered jobs, the latest worker heartbeat, and the latest worker canary receipt. Worker failures retry up to `maxAttempts`, then move to `dead_letter` for operator review.
 
@@ -147,7 +149,7 @@ Enterprise-proof learned facts are written with explicit target scope. Company s
 
 The main chat surface detects security-questionnaire and trust-question prompts and runs the enterprise-proof loop directly. The response shows whether quad learned a company memory, reused verified memory, or needs human evidence before writing anything.
 
-`GET /api/operator` exposes the memory trail for the dashboard: latest readable memories, freshness counts, company/team/personal scope counts, relationship edges, and confidence/evidence metadata. The operator console renders this so stale or narrowly scoped context is visible before agents rely on it.
+`GET /api/operator` exposes the current workspace boundary plus the memory trail for the dashboard: latest readable memories, freshness counts, company/team/personal scope counts, relationship edges, and confidence/evidence metadata. The operator console renders this so stale or narrowly scoped context is visible before agents rely on it.
 
 `POST /api/brain/refresh` turns stale context into an approval-backed memory refresh proposal. It preserves the original scope, evidence, freshness metadata, and relationship trail, and the refreshed memory is not retrievable until the proposal is approved.
 

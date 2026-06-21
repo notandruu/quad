@@ -68,7 +68,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 
 ## production spine
 
-- [ ] org/workspace model with durable ids and permission boundaries
+- [x] org/workspace model with durable ids and permission boundaries
 - [x] tenant key helpers for redis/cache namespaces without leaking raw org formatting
 - [x] data classification on model payloads, telemetry attributes, and security gateway inputs
 - [x] model gateway with provider policy, payload minimization, and redaction hooks

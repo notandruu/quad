@@ -8,6 +8,7 @@ import { getWorkerCanaryHealth, getWorkerQueueHealth, getWorkerRuntimeHealth } f
 import { getLatestModelCallReceipts, type ModelCallReceipt } from "@/lib/llm/gateway";
 import { summarizeCapabilities } from "@/lib/metaregistry";
 import { getLatestRuntimeTraceReceipts, summarizeRuntimeTraceReceipts } from "@/lib/observability";
+import { getOrgWorkspaceContext } from "@/lib/orgs";
 import { getQuadChainPackets, summarizeQuadChainPackets } from "@/lib/quad-chain/registry";
 import { buildShipTrail, listRunSnapshots, summarizeAgentTask } from "@/lib/runs";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
@@ -38,7 +39,8 @@ export async function GET(request: Request) {
   // each source to a safe empty value instead.
   const snapshots = await listRunSnapshots({ orgId, limit }).catch(() => []);
   const capabilities = summarizeCapabilities(process.env, { orgId });
-  const [connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness, quadChainPackets, memoryTrail, modelReceipts, runtimeTraces, evidenceBundles] = await Promise.all([
+  const [workspaceContext, connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness, quadChainPackets, memoryTrail, modelReceipts, runtimeTraces, evidenceBundles] = await Promise.all([
+    getOrgWorkspaceContext({ orgId }).catch(() => null),
     listConnectorCredentials({ orgId }).catch(() => []),
     getWorkerQueueHealth().catch(() => null),
     getWorkerRuntimeHealth().catch(() => null),
@@ -72,6 +74,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     ok: true,
     orgId,
+    workspace: workspaceContext ? summarizeWorkspaceContext(workspaceContext) : null,
     workline: ["audit", "packet", "approval", "publish"],
     runs,
     shipTrails,
@@ -113,6 +116,18 @@ export async function GET(request: Request) {
     connectorCredentials,
     security,
   });
+}
+
+type WorkspaceContext = Awaited<ReturnType<typeof getOrgWorkspaceContext>>;
+
+function summarizeWorkspaceContext(context: WorkspaceContext) {
+  return {
+    org: context.org,
+    workspace: context.workspace,
+    membershipCount: context.memberships.length,
+    requester: context.requester,
+    boundary: context.boundary,
+  };
 }
 
 function publicEnterpriseProofDemoEnv() {

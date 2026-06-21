@@ -16,6 +16,30 @@ Quad currently ships the core loop:
 
 The remaining work is not about inventing a new product. It is about making the loop durable, governable, and capable of staging approved work.
 
+## Gap 0: org and workspace boundary
+
+Status: shipped v1.
+
+What was missing:
+
+- `orgId` existed on records, but there was no first-class organization or workspace object.
+- service tokens could be scoped to org ids, but the product could not show the tenant boundary, default visibility, region, retention window, or requester role.
+- backend readiness could claim table durability without checking for org/workspace tables.
+
+Shipped v1:
+
+- `src/lib/orgs` adds organization, workspace, membership, requester role, and boundary records with in-memory fallback plus optional Supabase persistence.
+- seeded demo orgs now resolve to workspace contexts for Red Cross and enterprise-proof demos.
+- `GET /api/orgs` returns the current authorized workspace boundary without exposing token values.
+- `/api/operator` includes workspace context beside runs, approvals, memory, model gateway, and worker state.
+- platform schema and backend readiness now require `quad_orgs`, `quad_workspaces`, and `quad_workspace_memberships`.
+
+Acceptance:
+
+- every operator/demo surface can show which org/workspace boundary it is operating inside.
+- scoped service tokens can read org workspace context only when they have `orgs:read`.
+- production readiness no longer ignores missing tenant tables.
+
 ## Gap 1: durable approval ledger
 
 Status: shipped v1.

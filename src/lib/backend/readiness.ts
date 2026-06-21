@@ -77,6 +77,9 @@ export type BackendReadinessInput = {
 };
 
 export const PLATFORM_REQUIRED_TABLES = [
+  "quad_orgs",
+  "quad_workspaces",
+  "quad_workspace_memberships",
   "brain_memory",
   "workflow_run_snapshots",
   "workflow_runs",

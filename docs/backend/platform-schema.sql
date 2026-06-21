@@ -33,6 +33,51 @@ CREATE INDEX IF NOT EXISTS brain_memory_embedding_idx
   ON brain_memory USING ivfflat (embedding vector_cosine_ops)
   WITH (lists = 100);
 
+CREATE TABLE IF NOT EXISTS quad_orgs (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  slug       TEXT NOT NULL,
+  status     TEXT NOT NULL DEFAULT 'active',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS quad_orgs_slug_idx ON quad_orgs (slug);
+CREATE INDEX IF NOT EXISTS quad_orgs_status_idx ON quad_orgs (status);
+
+CREATE TABLE IF NOT EXISTS quad_workspaces (
+  id                 TEXT PRIMARY KEY,
+  org_id             TEXT NOT NULL REFERENCES quad_orgs(id) ON DELETE CASCADE,
+  name               TEXT NOT NULL,
+  slug               TEXT NOT NULL,
+  status             TEXT NOT NULL DEFAULT 'active',
+  region             TEXT NOT NULL DEFAULT 'us',
+  retention_days     INTEGER,
+  default_visibility TEXT NOT NULL DEFAULT 'company',
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS quad_workspaces_org_idx ON quad_workspaces (org_id);
+CREATE UNIQUE INDEX IF NOT EXISTS quad_workspaces_org_slug_idx ON quad_workspaces (org_id, slug);
+CREATE INDEX IF NOT EXISTS quad_workspaces_status_idx ON quad_workspaces (status);
+
+CREATE TABLE IF NOT EXISTS quad_workspace_memberships (
+  id           TEXT PRIMARY KEY,
+  org_id       TEXT NOT NULL REFERENCES quad_orgs(id) ON DELETE CASCADE,
+  workspace_id TEXT NOT NULL REFERENCES quad_workspaces(id) ON DELETE CASCADE,
+  user_id      TEXT NOT NULL,
+  email        TEXT,
+  role         TEXT NOT NULL,
+  status       TEXT NOT NULL DEFAULT 'active',
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS quad_workspace_memberships_org_idx ON quad_workspace_memberships (org_id);
+CREATE INDEX IF NOT EXISTS quad_workspace_memberships_workspace_idx ON quad_workspace_memberships (workspace_id);
+CREATE UNIQUE INDEX IF NOT EXISTS quad_workspace_memberships_user_idx ON quad_workspace_memberships (workspace_id, user_id);
+
 CREATE TABLE IF NOT EXISTS workflow_run_snapshots (
   id                     TEXT PRIMARY KEY,
   org_id                 TEXT NOT NULL,
