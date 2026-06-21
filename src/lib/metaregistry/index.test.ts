@@ -210,17 +210,58 @@ describe("metaregistry", () => {
       includeWriteTools: true,
     });
 
-    expect(plan.newlyAllowlisted).toEqual(expect.arrayContaining(["cms.publisher", "task.publisher"]));
+    expect(plan.newlyAllowlisted).toEqual(expect.arrayContaining(["cms.publisher", "task.publisher", "browserbase.write_browser"]));
     expect(plan.newlyForceInstalled).toEqual(expect.arrayContaining(["cms.publisher", "task.publisher", "browserbase.write_browser"]));
     expect(plan.envRequired).toEqual(
       expect.arrayContaining([
         { id: "cms.publisher", missingEnv: ["CMS_API_KEY"] },
         { id: "task.publisher", missingEnv: ["LINEAR_API_KEY"] },
+        { id: "browserbase.write_browser", missingEnv: ["BROWSERBASE_API_KEY", "BROWSERBASE_PROJECT_ID"] },
       ])
     );
     expect(plan.blockedAfterInstall.map((item) => item.id)).toEqual(
-      expect.arrayContaining(["cms.publisher", "task.publisher"])
+      expect.arrayContaining(["cms.publisher", "task.publisher", "browserbase.write_browser"])
     );
+  });
+
+  it("treats browser form fill as an allowlisted write capability", () => {
+    const blocked = summarizeCapabilities({
+      QUAD_CAPABILITY_FORCE_INSTALLED: "browserbase.write_browser",
+      BROWSERBASE_API_KEY: "bb",
+      BROWSERBASE_PROJECT_ID: "project",
+    }).installed.find((state) => state.id === "browserbase.write_browser");
+
+    const allowed = summarizeCapabilities({
+      QUAD_CAPABILITY_ALLOWLIST: "browserbase.write_browser",
+      QUAD_CAPABILITY_FORCE_INSTALLED: "browserbase.write_browser",
+      BROWSERBASE_API_KEY: "bb",
+      BROWSERBASE_PROJECT_ID: "project",
+    });
+    const allowedState = allowed.installed.find((state) => state.id === "browserbase.write_browser");
+    const allowedTool = allowed.activeTools.find((tool) => tool.id === "browserbase.write_browser");
+
+    expect(CAPABILITY_CATALOG.find((manifest) => manifest.id === "browserbase.write_browser")).toMatchObject({
+      writes: true,
+      approvalMode: "human_approval",
+      scopes: ["browser:write", "forms:stage"],
+      tags: expect.arrayContaining(["customer-write"]),
+    });
+    expect(blocked).toMatchObject({
+      installed: true,
+      active: false,
+      reason: "Write capability requires explicit org allowlisting.",
+    });
+    expect(allowedState).toMatchObject({
+      installed: true,
+      active: true,
+      allowlisted: true,
+      installSource: "forced",
+    });
+    expect(allowedTool).toMatchObject({
+      approvalMode: "human_approval",
+      scopes: ["browser:write", "forms:stage"],
+      sponsor: "Browserbase",
+    });
   });
 
   it("keeps unknown capability ids out of policy previews", () => {

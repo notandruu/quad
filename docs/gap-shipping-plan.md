@@ -393,6 +393,12 @@ Shipped v5:
 - field-fill stream output and ledger payloads carry answer hashes and lengths instead of raw answer text.
 - browser action events use explicit task event kinds, so later dashboard, fetch, and replay surfaces can show per-field action history without parsing generic log strings.
 
+Shipped v6:
+
+- `browserbase.write_browser` is now treated as a real customer-write capability in the metaregistry, with `browser:write` and `forms:stage` scopes.
+- install previews force-install and allowlist the browser write capability alongside cms/task publishers when write tools are requested.
+- browser form fill remains deferred behind human approval and explicit org allowlisting even though final submit is paused.
+
 ## Gap 4: post-ship verification
 
 Status: shipped v2.

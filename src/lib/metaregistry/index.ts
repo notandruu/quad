@@ -154,10 +154,10 @@ export const CAPABILITY_CATALOG: CapabilityManifest[] = [
     sponsor: "Browserbase",
     env: ["BROWSERBASE_API_KEY", "BROWSERBASE_PROJECT_ID"],
     scopes: ["browser:write", "forms:stage"],
-    writes: false,
+    writes: true,
     approvalMode: "human_approval",
     enabledByDefault: false,
-    tags: ["fde", "browser"],
+    tags: ["fde", "browser", "customer-write"],
   },
   {
     id: "quad.company_brain",
