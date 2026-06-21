@@ -1,0 +1,114 @@
+# Backend production readiness
+
+Last updated: 2026-06-21
+
+Quad can run with zero keys for demos, but the production backend is only green when the durable stores, worker runtime, auth guardrails, and observability are all live.
+
+## What exists now
+
+- Next.js API routes for audits, chat, voice transcription, agent runs, workflow runs, approvals, trust packets, quadchain packets, jobs, security, and backend health.
+- Redis-backed job queue with memory fallback.
+- Long-running worker command for Railway: `npm run worker`.
+- Worker canary route: `POST /api/jobs/canary`.
+- Queue/runtime health route: `GET /api/jobs/health`.
+- Backend readiness route: `GET /api/health/backend`.
+- Retention and deletion policy route: `GET /api/security/data`.
+- Supabase-backed workflow ledger and quadchain packet registry, with Redis/memory fallback.
+- Platform schema SQL in `docs/backend/platform-schema.sql`.
+
+## Production gates
+
+Run these before claiming the hosted backend is ready:
+
+```bash
+npm run typecheck
+npm test
+npm run build
+npm run db:status
+QUAD_SMOKE_BASE_URL=https://quad.example.com npm run smoke:prod
+```
+
+`npm run smoke:prod` checks:
+
+- unauthenticated worker canary calls are blocked when worker auth is configured.
+- authenticated worker canary completes.
+- jobs health reports the latest canary receipt.
+- backend readiness exposes component status for Supabase, Redis, worker, auth, encryption, observability, voice, and Browserbase.
+- retention policy is readable through the authenticated security route.
+
+Required environment:
+
+- `QUAD_SMOKE_BASE_URL`
+- `QUAD_API_SECRET`
+- `QUAD_WORKER_SECRET`
+- `QUAD_SMOKE_ORG_ID` if testing a non-demo org.
+
+The smoke script prints whether auth is configured, but never prints secrets.
+
+## Current blockers to a fully green backend
+
+1. Apply the platform schema in Supabase.
+
+   The backend readiness route expects these tables:
+
+   - `brain_memory`
+   - `workflow_run_snapshots`
+   - `workflow_runs`
+   - `workflow_tasks`
+   - `workflow_artifacts`
+   - `workflow_approvals`
+   - `workflow_receipts`
+   - `quadchain_packets`
+   - `connector_credentials`
+
+   If `npm run db:status` fails with DNS or connection errors, use the Supabase SQL editor to run `docs/backend/platform-schema.sql`, or replace `DATABASE_URL` with the correct Supabase direct or pooler connection string.
+
+2. Run the worker on Railway.
+
+   The web app can enqueue jobs, but production readiness remains degraded until a long-running worker is heartbeating against the same Redis instance.
+
+   Railway command:
+
+   ```bash
+   npm run worker
+   ```
+
+   Required Railway env must match Vercel:
+
+   - `QUAD_REDIS_REST_URL`
+   - `QUAD_REDIS_REST_TOKEN`
+   - `QUAD_WORKER_SECRET`
+   - model/provider keys used by audit and agent jobs
+   - Supabase env if the worker persists run state
+
+3. Configure observability.
+
+   Sentry and Phoenix are part of the sponsor-visible proof. Backend readiness is not fully production-ready until both are configured:
+
+   - `SENTRY_DSN`
+   - `PHOENIX_COLLECTOR_ENDPOINT`
+
+4. Keep customer writes behind approvals.
+
+   Backend routes may stage draft artifacts, but customer-facing mutation paths must keep using approval checks and quadchain receipts. Real connector writes should stay blocked until a run has an approved trust packet and a verification receipt.
+
+5. Upgrade auth before enterprise use.
+
+   `QUAD_API_SECRET` is enough for hackathon-hosted protected routes. Enterprise use needs real org membership, rbac, audit logs for access, and scoped service tokens.
+
+## Backend ownership map
+
+- durable workflow ledger: `src/lib/runs`
+- worker queue and canary: `src/lib/jobs`
+- worker runtime command: `scripts/worker.ts`
+- quadchain packet registry: `src/lib/quad-chain/registry.ts`
+- backend readiness: `src/lib/backend/readiness.ts`
+- security and retention: `src/lib/security`
+- platform schema: `docs/backend/platform-schema.sql`
+- production smoke: `scripts/prod-smoke.mjs`
+
+## Demo-safe claim
+
+The accurate claim right now is:
+
+> Quad has a production-shaped backend with durable schema support, protected worker APIs, Redis queueing, quadchain receipts, retention controls, and a repeatable production smoke test. The remaining production blockers are applying the Supabase schema, running the Railway worker continuously, and turning on Sentry/Phoenix observability.
