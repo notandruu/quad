@@ -366,7 +366,7 @@ export default function Home() {
                   ...m,
                   {
                     role: "quad",
-                    text: `Meeting ended. ${count} verified fact${count !== 1 ? "s" : ""} added to the Red Cross brain. Switch to Audit to see how the website gaps compare.`,
+                    text: `Meeting ended. ${count} fact${count !== 1 ? "s" : ""} captured from the Red Cross staff sync — pending operator approval before writing to the brain. Switch to Audit to see the website gaps.`,
                   },
                 ]);
               }}

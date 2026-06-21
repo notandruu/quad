@@ -22,7 +22,7 @@ type ThinkingStep = {
 type LearnedFact = {
   id: string;
   claim: string;
-  status: "learned" | "reused" | "rejected";
+  status: "learned" | "proposed" | "reused" | "rejected";
   confidence?: number;
 };
 
@@ -31,6 +31,7 @@ const THINKING_META: Record<string, { label: string; tone: ThinkingStep["tone"] 
   "meeting.thinking":  { label: "Scanning…",             tone: "active" },
   "fact.extracted":    { label: "Fact found",            tone: "warning" },
   "fact.evaluated":    { label: "Verified",              tone: "success" },
+  "fact.proposed":     { label: "Pending approval",      tone: "warning" },
   "fact.learned":      { label: "Brain updated",         tone: "success" },
   "fact.rejected":     { label: "Not durable",           tone: "error" },
   "meeting.summarized":{ label: "Summary ready",         tone: "success" },
@@ -66,8 +67,12 @@ export function MeetingPanel({ onEnded }: MeetingPanelProps) {
     thinkingRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [thinking]);
 
-  const handleEvent = useCallback((evt: Record<string, unknown>) => {
-    const type = String(evt.type ?? "");
+  const handleEvent = useCallback((raw: Record<string, unknown>) => {
+    const type = String(raw.type ?? "");
+    // Published events wrap data under `payload`; direct events are flat.
+    const evt: Record<string, unknown> = (raw.payload && typeof raw.payload === "object")
+      ? { ...raw, ...(raw.payload as Record<string, unknown>) }
+      : raw;
 
     if (type === "meeting.started" || type === "meeting.session") setStatus("live");
     if (type === "meeting.ended")   { setStatus("ended"); }
@@ -93,6 +98,10 @@ export function MeetingPanel({ onEnded }: MeetingPanelProps) {
       setThinking((t) => [...t, { id: crypto.randomUUID(), type, label: meta.label, detail, tone: meta.tone }]);
     }
 
+    if (type === "fact.proposed") {
+      setFacts((f) => [...f, { id: crypto.randomUUID(), claim: String(evt.claim ?? ""), status: "proposed", confidence: typeof evt.confidence === "number" ? evt.confidence : undefined }]);
+      setLearned((c) => c + 1);
+    }
     if (type === "fact.learned") {
       const reused = Boolean(evt.reused);
       setFacts((f) => [...f, { id: crypto.randomUUID(), claim: String(evt.claim ?? ""), status: reused ? "reused" : "learned", confidence: typeof evt.confidence === "number" ? evt.confidence : undefined }]);
@@ -283,9 +292,22 @@ export function MeetingPanel({ onEnded }: MeetingPanelProps) {
               <div className="flex-1 overflow-y-auto p-3 space-y-1.5" style={{ maxHeight: "150px" }}>
                 {facts.length === 0 && <p className="text-xs text-neutral-600">Verified facts will appear here…</p>}
                 {facts.map((fact) => (
-                  <div key={fact.id} className={`rounded border px-2.5 py-1.5 text-xs ${fact.status === "learned" ? "border-emerald-800/50 bg-emerald-950/20" : fact.status === "reused" ? "border-blue-800/50 bg-blue-950/20" : "border-neutral-800 opacity-40"}`}>
-                    <span className={`text-[10px] font-semibold ${fact.status === "learned" ? "text-emerald-400" : fact.status === "reused" ? "text-blue-400" : "text-neutral-600"}`}>
-                      {fact.status === "learned" ? "✓ learned" : fact.status === "reused" ? "↩ known" : "✗ rejected"}
+                  <div key={fact.id} className={`rounded border px-2.5 py-1.5 text-xs ${
+                    fact.status === "learned"  ? "border-emerald-800/50 bg-emerald-950/20" :
+                    fact.status === "proposed" ? "border-yellow-800/50 bg-yellow-950/20" :
+                    fact.status === "reused"   ? "border-blue-800/50 bg-blue-950/20" :
+                                                  "border-neutral-800 opacity-40"
+                  }`}>
+                    <span className={`text-[10px] font-semibold ${
+                      fact.status === "learned"  ? "text-emerald-400" :
+                      fact.status === "proposed" ? "text-yellow-400" :
+                      fact.status === "reused"   ? "text-blue-400" :
+                                                    "text-neutral-600"
+                    }`}>
+                      {fact.status === "learned"  ? "✓ learned" :
+                       fact.status === "proposed" ? "⏳ pending approval" :
+                       fact.status === "reused"   ? "↩ already known" :
+                                                     "✗ not durable"}
                       {fact.confidence !== undefined && ` · ${Math.round(fact.confidence * 100)}%`}
                     </span>
                     <p className="mt-0.5 text-neutral-300 leading-snug">{fact.claim}</p>
