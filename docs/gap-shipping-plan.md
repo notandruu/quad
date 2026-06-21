@@ -206,7 +206,7 @@ Shipped v1:
 Next:
 
 - show richer diffs in the operator console.
-- add connector-specific fixture payloads for CMS, tasks, and browser write actions.
+- add browser-write fixture payloads once Browserbase write tools are approved.
 - never perform customer-facing writes without `assertCustomerWriteAllowed`.
 
 Acceptance:
@@ -214,6 +214,12 @@ Acceptance:
 - unapproved run returns a blocked receipt.
 - approved run can produce staged CMS/task artifacts.
 - every staged action has a packet summary.
+
+Shipped v2:
+
+- dry-run publisher artifacts now use `quad.connector_draft.v1` payloads.
+- CMS, task, and trust-packet export drafts include connector id, dry-run mode, target metadata, action type, reversibility, approval requirement, proof binding, and validation checks.
+- operator artifacts show connector-specific destination, action, and validation preview while full payload detail stays behind the hosted artifact route.
 
 ## Gap 4: post-ship verification
 

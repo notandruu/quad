@@ -121,6 +121,7 @@ function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorA
       .slice(0, 3)
       .map((artifact) => {
         const receipt = run.receipts.find((item) => item.artifactHash === artifact.hash);
+        const connector = summarizeConnectorDraft(artifact.kind);
 
         return {
           id: `artifact_${artifact.id}`,
@@ -131,14 +132,14 @@ function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorA
           title: artifact.title,
           kind: artifact.kind,
           status: receipt?.status ?? "ready",
-          headline: "Dry-run publisher artifact staged. No customer-facing write was executed.",
+          headline: connector.headline,
           preview: {
-            label: "Publisher artifact",
-            primaryMetric: "dry",
-            primaryLabel: "run mode",
-            secondaryMetric: artifact.kind.replace("_", " "),
-            secondaryLabel: "connector",
-            risk: "staged only",
+            label: connector.label,
+            primaryMetric: connector.primaryMetric,
+            primaryLabel: connector.primaryLabel,
+            secondaryMetric: connector.secondaryMetric,
+            secondaryLabel: connector.secondaryLabel,
+            risk: connector.risk,
           },
           proof: [
             {
@@ -212,6 +213,43 @@ function buildOperatorArtifacts(runs: OperatorRunSummary[], approvals: OperatorA
   }));
 
   return [...stagedArtifacts, ...approvalArtifacts, ...runArtifacts].slice(0, 7);
+}
+
+function summarizeConnectorDraft(fallbackKind: string) {
+  const connectorId = connectorIdForArtifactKind(fallbackKind);
+  const actionType = actionTypeForArtifactKind(fallbackKind);
+  const destination = destinationForArtifactKind(fallbackKind);
+
+  return {
+    label: "Connector draft",
+    headline: "Dry-run publisher artifact staged. No customer-facing write was executed.",
+    primaryMetric: "ready",
+    primaryLabel: "validation",
+    secondaryMetric: connectorId,
+    secondaryLabel: destination,
+    risk: actionType.replace(/_/g, " "),
+  };
+}
+
+function connectorIdForArtifactKind(kind: string): string {
+  if (kind === "cms_draft") return "cms.publisher";
+  if (kind === "task_draft") return "task.publisher";
+  if (kind === "trust_packet_export") return "trust_packet.exporter";
+  return kind.replace("_", ".");
+}
+
+function actionTypeForArtifactKind(kind: string): string {
+  if (kind === "cms_draft") return "upsert_page_section";
+  if (kind === "task_draft") return "create_implementation_task";
+  if (kind === "trust_packet_export") return "export_markdown_packet";
+  return "stage_artifact";
+}
+
+function destinationForArtifactKind(kind: string): string {
+  if (kind === "cms_draft") return "website_cms";
+  if (kind === "task_draft") return "task_tracker";
+  if (kind === "trust_packet_export") return "customer_trust_packet";
+  return kind.replace("_", " ");
 }
 
 function summarizeBackendReadiness(report: NonNullable<Awaited<ReturnType<typeof getBackendReadiness>>>) {

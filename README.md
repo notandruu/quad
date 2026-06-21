@@ -83,7 +83,7 @@ High-risk mutation routes are protected by org-scoped rate limits and optional `
 
 `POST /api/metaregistry/install-request` turns that dry-run plan into an approval-backed run ledger entry. It creates a capability-install workflow, an approval artifact, task stream events, and a receipt, but still does not install secrets or enable write tools without operator review.
 
-`POST /api/publish/dry-run` stages approved connector artifacts only when the metaregistry says the target connector is active for the org. `cms.publisher` and `task.publisher` must be configured, force-installed if disabled by default, and explicitly allowlisted because they are write-capable tools. Blocked connector attempts create blocked task stream events instead of ready artifacts.
+`POST /api/publish/dry-run` stages approved connector artifacts only when the metaregistry says the target connector is active for the org. `cms.publisher` and `task.publisher` must be configured, force-installed if disabled by default, and explicitly allowlisted because they are write-capable tools. Blocked connector attempts create blocked task stream events instead of ready artifacts. Successful dry runs create `quad.connector_draft.v1` payloads with target metadata, action type, approval requirement, proof binding, and validation checks.
 
 `POST /api/verify-fix` runs post-ship verification over staged connector artifacts, emits verification reports, creates executed or blocked receipts, and attaches quadchain `connector_action` packets to the run.
 

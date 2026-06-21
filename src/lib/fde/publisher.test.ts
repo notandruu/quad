@@ -45,6 +45,29 @@ describe("dry-run publisher", () => {
       "task_draft",
       "trust_packet_export",
     ]);
+    expect(result.staged.map((item) => item.artifact.data)).toEqual([
+      expect.objectContaining({
+        schemaVersion: "quad.connector_draft.v1",
+        connector: expect.objectContaining({ id: "cms.publisher", mode: "dry_run" }),
+        action: expect.objectContaining({ type: "upsert_page_section", approvalRequired: true }),
+        proof: expect.objectContaining({ trustPacketArtifactId: expect.any(String), trustPacketHash: expect.any(String) }),
+        validation: expect.objectContaining({ ready: true }),
+      }),
+      expect.objectContaining({
+        schemaVersion: "quad.connector_draft.v1",
+        connector: expect.objectContaining({ id: "task.publisher", mode: "dry_run" }),
+        action: expect.objectContaining({ type: "create_implementation_task", approvalRequired: true }),
+        proof: expect.objectContaining({ trustPacketArtifactId: expect.any(String), trustPacketHash: expect.any(String) }),
+        validation: expect.objectContaining({ ready: true }),
+      }),
+      expect.objectContaining({
+        schemaVersion: "quad.connector_draft.v1",
+        connector: expect.objectContaining({ id: "trust_packet.exporter", mode: "dry_run" }),
+        action: expect.objectContaining({ type: "export_markdown_packet", approvalRequired: true }),
+        proof: expect.objectContaining({ trustPacketArtifactId: expect.any(String), trustPacketHash: expect.any(String) }),
+        validation: expect.objectContaining({ ready: true }),
+      }),
+    ]);
     expect(result.staged.every((item) => item.packet.type === "connector_action")).toBe(true);
     expect(snapshot?.artifacts.some((artifact) => artifact.kind === "cms_draft")).toBe(true);
     expect(snapshot?.receipts.filter((receipt) => receipt.status === "ready").length).toBeGreaterThanOrEqual(3);

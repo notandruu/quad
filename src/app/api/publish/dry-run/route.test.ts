@@ -52,6 +52,16 @@ describe("POST /api/publish/dry-run", () => {
       "task_draft",
       "trust_packet_export",
     ]);
+    expect(snapshot?.artifacts.find((artifact) => artifact.kind === "cms_draft")?.data).toMatchObject({
+      schemaVersion: "quad.connector_draft.v1",
+      connector: { id: "cms.publisher", mode: "dry_run" },
+      action: { type: "upsert_page_section", approvalRequired: true },
+      proof: {
+        trustPacketArtifactId: expect.any(String),
+        trustPacketHash: expect.any(String),
+      },
+      validation: { ready: true },
+    });
     expect(snapshot?.receipts.filter((receipt) => receipt.status === "ready").length).toBeGreaterThanOrEqual(3);
     expect(summarizeTaskStream(snapshot!).filter((event) => event.kind === "task.completed")).toHaveLength(3);
   });

@@ -172,8 +172,56 @@ type DraftSpec = {
   kind: "cms_draft" | "task_draft" | "trust_packet_export";
   title: string;
   taskTitle: string;
-  capabilityId: "cms.publisher" | "task.publisher" | "trust_packet.exporter";
-  data: Record<string, unknown>;
+  capabilityId: PublishCapabilityId;
+  data: ConnectorDraftPayload;
+};
+
+type PublishCapabilityId = "cms.publisher" | "task.publisher" | "trust_packet.exporter";
+
+type ConnectorDraftPayload = {
+  schemaVersion: "quad.connector_draft.v1";
+  connector: {
+    id: PublishCapabilityId;
+    mode: "dry_run";
+    writeIntent: "stage_only";
+  };
+  target: {
+    url: string;
+    destination: string;
+    selector?: string;
+  };
+  action: {
+    type: string;
+    summary: string;
+    reversible: boolean;
+    approvalRequired: true;
+  };
+  payload: Record<string, unknown>;
+  proof: {
+    trustPacketArtifactId: string;
+    trustPacketHash: string;
+    sourceTitle: string;
+    sourceSummary: string;
+    evidencePreserved: boolean;
+  };
+  validation: {
+    checks: Array<{
+      id: string;
+      passed: boolean;
+      detail: string;
+    }>;
+    ready: boolean;
+  };
+  targetUrl: string;
+  actor: string;
+  dryRun: true;
+  sectionTitle?: string;
+  body?: string;
+  callout?: string;
+  title?: string;
+  description?: string;
+  acceptanceCriteria?: string[];
+  markdown?: string;
 };
 
 function buildDrafts(snapshot: RunLedgerSnapshot, trustPacket: WorkflowArtifactRecord, actor: string): DraftSpec[] {
@@ -183,6 +231,13 @@ function buildDrafts(snapshot: RunLedgerSnapshot, trustPacket: WorkflowArtifactR
   const firstFinding = packetArtifacts[0];
   const headline = String(firstFinding?.title ?? snapshot.run.title);
   const summary = String(firstFinding?.summary ?? "Publish the approved enterprise proof update.");
+  const proof = {
+    trustPacketArtifactId: trustPacket.id,
+    trustPacketHash: trustPacket.hash,
+    sourceTitle: headline,
+    sourceSummary: summary,
+    evidencePreserved: Boolean(firstFinding),
+  };
 
   return [
     {
@@ -190,21 +245,73 @@ function buildDrafts(snapshot: RunLedgerSnapshot, trustPacket: WorkflowArtifactR
       title: "Cms proof block draft",
       taskTitle: "Stage cms proof block",
       capabilityId: "cms.publisher",
-      data: {
+      data: withValidation({
+        schemaVersion: "quad.connector_draft.v1",
+        connector: {
+          id: "cms.publisher",
+          mode: "dry_run",
+          writeIntent: "stage_only",
+        },
+        target: {
+          url: targetUrl,
+          destination: "website_cms",
+          selector: "[data-quad-proof-block]",
+        },
+        action: {
+          type: "upsert_page_section",
+          summary: `Stage proof block on ${targetUrl}.`,
+          reversible: true,
+          approvalRequired: true,
+        },
+        payload: {
+          sectionKey: "quad-proof-block",
+          sectionTitle: headline,
+          body: summary,
+          callout: "This update is staged for review and has not been published.",
+          source: "approved_trust_packet",
+        },
+        proof,
         targetUrl,
         actor,
         dryRun: true,
         sectionTitle: headline,
         body: summary,
         callout: "This update is staged for review and has not been published.",
-      },
+      }),
     },
     {
       kind: "task_draft",
       title: "Implementation task draft",
       taskTitle: "Stage implementation task",
       capabilityId: "task.publisher",
-      data: {
+      data: withValidation({
+        schemaVersion: "quad.connector_draft.v1",
+        connector: {
+          id: "task.publisher",
+          mode: "dry_run",
+          writeIntent: "stage_only",
+        },
+        target: {
+          url: targetUrl,
+          destination: "task_tracker",
+        },
+        action: {
+          type: "create_implementation_task",
+          summary: `Create an implementation task for ${headline}.`,
+          reversible: true,
+          approvalRequired: true,
+        },
+        payload: {
+          title: `Ship approved proof update: ${headline}`,
+          description: summary,
+          labels: ["quad", "trust-packet", "dry-run"],
+          acceptanceCriteria: [
+            "copy preserves approved evidence",
+            "page contains the staged proof block",
+            "quad post-ship verification passes",
+          ],
+        },
+        proof,
         targetUrl,
         actor,
         dryRun: true,
@@ -215,14 +322,35 @@ function buildDrafts(snapshot: RunLedgerSnapshot, trustPacket: WorkflowArtifactR
           "page contains the staged proof block",
           "quad post-ship verification passes",
         ],
-      },
+      }),
     },
     {
       kind: "trust_packet_export",
       title: "Customer trust packet export",
       taskTitle: "Stage trust packet export",
       capabilityId: "trust_packet.exporter",
-      data: {
+      data: withValidation({
+        schemaVersion: "quad.connector_draft.v1",
+        connector: {
+          id: "trust_packet.exporter",
+          mode: "dry_run",
+          writeIntent: "stage_only",
+        },
+        target: {
+          url: targetUrl,
+          destination: "customer_trust_packet",
+        },
+        action: {
+          type: "export_markdown_packet",
+          summary: `Export approved packet for ${targetUrl}.`,
+          reversible: true,
+          approvalRequired: true,
+        },
+        payload: {
+          format: "markdown",
+          filename: `${slugify(snapshot.run.title)}.md`,
+        },
+        proof,
         targetUrl,
         actor,
         dryRun: true,
@@ -239,9 +367,49 @@ function buildDrafts(snapshot: RunLedgerSnapshot, trustPacket: WorkflowArtifactR
           "",
           "staged only. no customer-facing write executed.",
         ].join("\n"),
-      },
+      }),
     },
   ];
+}
+
+function withValidation(payload: Omit<ConnectorDraftPayload, "validation">): ConnectorDraftPayload {
+  const checks = [
+    {
+      id: "dry_run_only",
+      passed: payload.dryRun === true && payload.connector.mode === "dry_run",
+      detail: "Artifact is explicitly staged in dry-run mode.",
+    },
+    {
+      id: "approval_required",
+      passed: payload.action.approvalRequired === true,
+      detail: "Customer-facing execution still requires approval.",
+    },
+    {
+      id: "proof_bound",
+      passed: Boolean(payload.proof.trustPacketArtifactId && payload.proof.trustPacketHash),
+      detail: "Draft is bound to an approved trust packet artifact and hash.",
+    },
+    {
+      id: "target_present",
+      passed: Boolean(payload.target.url),
+      detail: "Draft includes a customer target.",
+    },
+  ];
+  return {
+    ...payload,
+    validation: {
+      checks,
+      ready: checks.every((check) => check.passed),
+    },
+  };
+}
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 80) || "quad-trust-packet";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
