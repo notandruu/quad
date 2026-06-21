@@ -882,6 +882,25 @@
   color: rgba(255, 255, 255, 0.84);
 }
 
+.browserEvent em,
+.browserEvent a {
+  display: block;
+  margin-top: 3px;
+  color: rgba(255, 222, 244, 0.58);
+  font-style: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.browserEvent a {
+  color: #7af0ad;
+  text-decoration: none;
+}
+
+.browserEvent a:hover {
+  text-decoration: underline;
+}
+
 .browser_write span,
 .browser_proof span {
   color: #7af0ad;

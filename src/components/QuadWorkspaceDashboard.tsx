@@ -131,6 +131,8 @@ type BrowserEvent = {
   label: string;
   detail: string;
   questionId?: string;
+  sessionId?: string;
+  screenshotUrl?: string;
 };
 
 type ChatMessage = {
@@ -180,10 +182,6 @@ function createSeededRandom(seed: number) {
     state = (state * 1664525 + 1013904223) >>> 0;
     return state / 4294967296;
   };
-}
-
-function wait(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 export function QuadWorkspaceDashboard() {
@@ -255,44 +253,85 @@ export function QuadWorkspaceDashboard() {
     setLogs((current) => [...current, { id: uid("log"), tone, text }].slice(-80));
   }
 
-  function addBrowserEvent(tone: BrowserEvent["tone"], label: string, detail: string, questionId?: string) {
-    setBrowserEvents((current) => [...current, { id: uid("browser"), tone, label, detail, questionId }].slice(-60));
+  function addBrowserEvent(
+    tone: BrowserEvent["tone"],
+    label: string,
+    detail: string,
+    questionId?: string,
+    meta?: Pick<BrowserEvent, "sessionId" | "screenshotUrl">
+  ) {
+    setBrowserEvents((current) => [...current, { id: uid("browser"), tone, label, detail, questionId, ...meta }].slice(-60));
   }
 
   function addChat(role: ChatMessage["role"], text: string) {
     setChat((current) => [...current, { id: uid("msg"), role, text }]);
   }
 
-  async function streamBrowserStep(index: number, question: TrustQuestion) {
-    setBrowserPhase(`q${index + 1} controlled browser`);
-    addBrowserEvent("session", "browserbase session", `reuse authenticated vendor session · org ${ORG_ID}`, question.id);
-    await wait(130);
-    if (cancelledRef.current) return;
-    addBrowserEvent("nav", "page.goto", "https://trust.secureflow.com/vendor/redcross/security-questionnaire", question.id);
-    await wait(160);
-    if (cancelledRef.current) return;
-    addBrowserEvent("focus", "locator.focus", `[data-question-id="${question.id}"]`, question.id);
-    await wait(190);
-    if (cancelledRef.current) return;
-    addBrowserEvent("proof", "read company brain", "retrieve memories, connector docs, and quadchain receipts", question.id);
+  async function streamRealBrowserbaseStep(index: number, question: TrustQuestion, card: AnswerCard) {
+    setBrowserPhase(`q${index + 1} real browserbase session`);
+    addBrowserEvent("session", "browserbase.request", "requesting remote browser session", question.id);
+    try {
+      const response = await fetch("/api/browserbase/questionnaire-step", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId: ORG_ID,
+          question: question.text,
+          questionId: question.id,
+          answer: card.answer,
+          index,
+          runId: card.runId ?? undefined,
+        }),
+      });
+      if (!response.ok || !response.body) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? `browserbase failed (${response.status})`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+        for (const part of parts) {
+          const line = part.split("\n").find((item) => item.startsWith("data: "));
+          if (!line) continue;
+          const event = JSON.parse(line.slice(6)) as {
+            type?: string;
+            label?: string;
+            detail?: string;
+            sessionId?: string;
+            screenshotUrl?: string;
+          };
+          const label = event.label ?? event.type ?? "browserbase.event";
+          const detail = event.detail ?? "";
+          setBrowserPhase(label);
+          addBrowserEvent(browserEventTone(event.type ?? label), label, detail, question.id, {
+            sessionId: event.sessionId,
+            screenshotUrl: event.screenshotUrl,
+          });
+        }
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setBrowserPhase("browserbase failed");
+      addBrowserEvent("error", "browserbase.error", message, question.id);
+      addLog("error", `browserbase.write_browser failed · ${message}`);
+    }
   }
 
-  async function completeBrowserStep(index: number, card: AnswerCard) {
-    setBrowserPhase(`q${index + 1} writing answer`);
-    addBrowserEvent(
-      card.status === "answered" ? "write" : "pause",
-      card.status === "answered" ? "locator.fill" : "pause_before_submit",
-      card.status === "answered" ? `${card.answer.slice(0, 116)}${card.answer.length > 116 ? "…" : ""}` : "unsupported claim requires human review",
-      card.id
-    );
-    await wait(120);
-    if (cancelledRef.current) return;
-    addBrowserEvent(
-      "proof",
-      "evidence attached",
-      `${card.sources.length} sources · ${card.certificateId ?? card.runId ?? "receipt pending"}`,
-      card.id
-    );
+  function browserEventTone(type: string): BrowserEvent["tone"] {
+    if (type.includes("goto")) return "nav";
+    if (type.includes("focus")) return "focus";
+    if (type.includes("fill")) return "write";
+    if (type.includes("screenshot")) return "proof";
+    if (type.includes("pause") || type.includes("closed")) return "pause";
+    if (type.includes("error")) return "error";
+    return "session";
   }
 
   async function runQuestionnaire() {
@@ -329,9 +368,9 @@ export function QuadWorkspaceDashboard() {
         const question = TRUST_QUESTIONS[index];
         setActiveIndex(index);
         addLog("read", `question.started q${index + 1} · ${question.text}`);
-        const browserStep = streamBrowserStep(index, question);
+        setBrowserPhase(`q${index + 1} gathering evidence`);
 
-        const responsePromise = fetch("/api/enterprise-proof", {
+        const response = await fetch("/api/enterprise-proof", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -340,8 +379,6 @@ export function QuadWorkspaceDashboard() {
             targetVisibility: "company",
           }),
         });
-        await browserStep;
-        const response = await responsePromise;
         const data = (await response.json().catch(() => ({}))) as EnterpriseProofResponse;
         if (!response.ok || !data.result) {
           throw new Error(data.error ?? `enterprise proof failed (${response.status})`);
@@ -372,14 +409,14 @@ export function QuadWorkspaceDashboard() {
         if (data.brainGrowth?.status === "reused") addLog("read", `brain.reused · ${data.brainGrowth.title ?? data.brainGrowth.memoryId}`);
 
         setAnswers((current) => [...current, card]);
-        await completeBrowserStep(index, card);
+        await streamRealBrowserbaseStep(index, question, card);
         await refreshOperator();
       }
 
       setActiveIndex(null);
       setStatus("needs_approval");
       setBrowserPhase("waiting on operator approval");
-      addBrowserEvent("pause", "pause_before_submit", "all fields staged; browser is waiting for operator approval", "submit");
+      addBrowserEvent("pause", "pause_before_submit", "all answered fields staged through real browserbase; waiting for operator approval", "submit");
       addChat("quad", "done. the questionnaire is filled from real enterprise-proof runs. new facts are behind approval receipts before customer-facing use.");
       addLog("act", "approval.required · operator review before submit");
       setActiveView("questionnaire");
@@ -1006,11 +1043,15 @@ function QuestionnairePanel({
               latestEvents.map((event) => (
                 <div key={event.id} className={`${styles.browserEvent} ${styles[`browser_${event.tone}`]}`}>
                   <span>{event.label}</span>
-                  <p>{event.detail}</p>
+                  <p>
+                    {event.detail}
+                    {event.sessionId ? <em>session · {event.sessionId}</em> : null}
+                    {event.screenshotUrl ? <a href={event.screenshotUrl} target="_blank" rel="noreferrer">screenshot evidence</a> : null}
+                  </p>
                 </div>
               ))
             ) : (
-              <div className={styles.browserEmpty}>controlled browser will stream actions here</div>
+              <div className={styles.browserEmpty}>real browserbase actions will stream here</div>
             )}
           </div>
         </div>
@@ -1025,7 +1066,7 @@ function QuestionnairePanel({
             <label key={question.id} className={`${styles.field} ${isActive ? styles.fieldActive : ""}`}>
               <span>{index + 1}. {question.text}</span>
               <div className={`${styles.fieldValue} ${answer?.status === "needs_human" ? styles.fieldFlagged : ""}`}>
-                {answer ? answer.status === "answered" ? answer.answer : "flagged for human review" : isActive ? "quad is typing through browserbase…" : status === "running" ? "waiting…" : ""}
+                {answer ? answer.status === "answered" ? answer.answer : "flagged for human review" : isActive ? "quad is gathering evidence…" : status === "running" ? "waiting…" : ""}
               </div>
             </label>
           );
