@@ -483,6 +483,13 @@ Shipped v8:
 - judge-passing answers with ambiguous target scope escalate to `needs_human` and do not write memory.
 - learned facts carry `verified` validation metadata plus derived source relationships for the memories and connector documents used.
 
+Shipped v9:
+
+- the main chat surface now routes security-questionnaire and trust-question prompts through `/api/enterprise-proof`.
+- enterprise-proof responses include a compact `brainGrowth` summary with learned, reused, or needs-human state.
+- chat replies show whether quad learned a company memory, reused verified memory, or needs more human evidence.
+- pure runtime helpers classify enterprise-proof prompts and format the visible brain-growth response for tests and future surfaces.
+
 Build:
 
 - document what stays off-chain/off-registry.

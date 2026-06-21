@@ -171,7 +171,7 @@ hard constraints:
 - [x] implement `answerTrustQuestion()` with retrieve, collect, ground, evaluate, and validated writeback
 - [x] emit redis events for question progress, context collection, evaluation, learning, and needs-human states
 - [x] test that failed or unsupported enterprise proof answers are never persisted
-- [ ] show brain growth and at least one learned organizational fact reused later in the dashboard
+- [x] show brain growth and at least one learned organizational fact reused later in the dashboard
 - [x] model learned organizational facts with stable ids, org scope, source references, validation metadata, and idempotent writeback
 - [x] include context scope on every learned fact and block writeback when the target scope is ambiguous
 - [x] expose the enterprise proof workflow as a skill/playbook over reusable retrieve, collect, ground, evaluate, writeback, and action primitives

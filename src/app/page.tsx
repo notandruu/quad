@@ -14,6 +14,7 @@ import type { PublishedEvent } from "@/lib/redis/publisher";
 import type { BackendSettings } from "@/lib/debug/status";
 import type { QuadChainPacketSummary } from "@/lib/quad-chain";
 import type { VoiceInterviewQuestion } from "@/lib/voice/interview";
+import { classifyEnterpriseProofPrompt, formatEnterpriseProofMessage } from "@/lib/runtime/enterpriseProof";
 
 type Message = {
   role: "user" | "quad";
@@ -27,6 +28,26 @@ type Message = {
   };
 };
 type DemoState = "idle" | "loading" | "done";
+
+type EnterpriseProofResponse = {
+  ok?: boolean;
+  result?: {
+    status?: "answered" | "needs_human";
+    answer?: string;
+    confidence?: number;
+    wasReused?: boolean;
+    sources?: unknown[];
+    quadChain?: QuadChainPacketSummary | null;
+  };
+  brainGrowth?: {
+    status: "learned" | "reused" | "needs_human";
+    memoryId: string | null;
+    title: string | null;
+    visibility: "company" | "team" | "personal";
+    approvalRequired: boolean;
+  } | null;
+  error?: string;
+};
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -94,6 +115,11 @@ export default function Home() {
       return;
     }
 
+    if (classifyEnterpriseProofPrompt(text) === "trust_question") {
+      await answerEnterpriseProofQuestion(text);
+      return;
+    }
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -124,6 +150,45 @@ export default function Home() {
       setMessages((m) => [
         ...m,
         { role: "quad", text: "I could not reach the server. Check the connection and try again." },
+      ]);
+    }
+  }
+
+  async function answerEnterpriseProofQuestion(question: string) {
+    try {
+      const res = await fetch("/api/enterprise-proof", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId: "org_acme",
+          question,
+          targetVisibility: "company",
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as EnterpriseProofResponse;
+      if (!res.ok || !data.result) {
+        throw new Error(data.error ?? `enterprise proof failed with status ${res.status}`);
+      }
+      const result = data.result;
+      setMessages((m) => [
+        ...m,
+        {
+          role: "quad",
+          text: formatEnterpriseProofMessage({
+            status: result.status ?? "needs_human",
+            answer: result.answer,
+            confidence: result.confidence,
+            wasReused: result.wasReused,
+            sourceCount: Array.isArray(result.sources) ? result.sources.length : 0,
+            brainGrowth: data.brainGrowth ?? null,
+          }),
+          quadChain: result.quadChain ?? null,
+        },
+      ]);
+    } catch (err) {
+      setMessages((m) => [
+        ...m,
+        { role: "quad", text: `Enterprise proof failed: ${err instanceof Error ? err.message : String(err)}.` },
       ]);
     }
   }

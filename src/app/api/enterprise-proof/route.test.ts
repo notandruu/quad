@@ -36,6 +36,12 @@ describe("POST /api/enterprise-proof", () => {
       result: {
         status: "needs_human",
       },
+      brainGrowth: {
+        status: "needs_human",
+        memoryId: null,
+        visibility: "company",
+        approvalRequired: false,
+      },
       run: {
         runId,
         status: "failed",
@@ -104,6 +110,28 @@ describe("POST /api/enterprise-proof", () => {
     expect(conflict).toMatchObject({
       ok: false,
       code: "run_conflict",
+    });
+  });
+
+  it("returns a brain-growth summary for enterprise proof attempts", async () => {
+    const runId = `route_ep_growth_${crypto.randomUUID()}`;
+    const response = await POST(jsonRequest({
+      orgId: ENTERPRISE_PROOF_ORG_ID,
+      runId,
+      question: "Do you have a documented incident response plan?",
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      ok: true,
+      result: {
+        status: "needs_human",
+      },
+      brainGrowth: {
+        status: "needs_human",
+        sourceId: expect.stringMatching(/^ep:org_acme:/),
+      },
     });
   });
 });

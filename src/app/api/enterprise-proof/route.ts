@@ -177,6 +177,18 @@ export async function POST(req: NextRequest) {
     const responseBody = {
       ok: true,
       result,
+      brainGrowth: {
+        status: result.status === "answered" ? (result.wasReused ? "reused" : "learned") : "needs_human",
+        memoryId: result.memory?.id ?? null,
+        title: result.memory?.title ?? null,
+        visibility: result.memory?.permissions.includes("scope:personal")
+          ? "personal"
+          : result.memory?.permissions.includes("scope:team")
+            ? "team"
+            : "company",
+        sourceId: result.questionId,
+        approvalRequired: result.status === "answered" && !result.wasReused,
+      },
       run: snapshot ? summarizeAgentTask(snapshot) : null,
     };
     await saveIdempotentResult({
