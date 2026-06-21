@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { getBackendReadiness } from "@/lib/backend/readiness";
+import { listBrainMemoryTrail } from "@/lib/brain";
 import { listConnectorCredentials } from "@/lib/connectors";
 import { getWorkerCanaryHealth, getWorkerQueueHealth, getWorkerRuntimeHealth } from "@/lib/jobs/queue";
 import { summarizeCapabilities } from "@/lib/metaregistry";
@@ -30,13 +31,14 @@ export async function GET(request: Request) {
   // each source to a safe empty value instead.
   const snapshots = await listRunSnapshots({ orgId, limit }).catch(() => []);
   const capabilities = summarizeCapabilities(process.env, { orgId });
-  const [connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness, quadChainPackets] = await Promise.all([
+  const [connectorCredentials, workerQueue, workerRuntime, workerCanary, backendReadiness, quadChainPackets, memoryTrail] = await Promise.all([
     listConnectorCredentials({ orgId }).catch(() => []),
     getWorkerQueueHealth().catch(() => null),
     getWorkerRuntimeHealth().catch(() => null),
     getWorkerCanaryHealth().catch(() => null),
     getBackendReadiness().catch(() => null),
     getQuadChainPackets({ orgId, limit: 20 }).catch(() => []),
+    listBrainMemoryTrail({ orgId, limit: 6 }).catch(() => null),
   ]);
   const security = summarizeSecurityPacket(buildSecurityPacket({ orgId }));
   const runs = snapshots.map((snapshot) => summarizeAgentTask(snapshot));
@@ -94,6 +96,7 @@ export async function GET(request: Request) {
     },
     backendReadiness: backendReadiness ? summarizeBackendReadiness(backendReadiness) : null,
     quadChain: summarizeQuadChainPackets(quadChainPackets),
+    memory: memoryTrail,
     connectorCredentials,
     security,
   });

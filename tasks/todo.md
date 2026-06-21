@@ -76,6 +76,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [x] durable memory store with source provenance, confidence, permissions, embeddings, and metadata sidecars
 - [ ] memory freshness/staleness metadata with explicit refresh paths
 - [x] memory stale-after, owner, validation, and relationship metadata on write/retrieve
+- [x] operator-visible memory trail with stale/scope/relationship signals
 - [ ] event-driven context capture pipeline with signal/noise extraction before writeback
 - [ ] audit run model with lifecycle states, retries, and resumability
 - [ ] redis event stream and replay for every run

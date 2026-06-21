@@ -166,6 +166,18 @@ Acceptance:
 - new memories can be marked stale/fresh and linked to source/control ids.
 - downstream agent receipts can show what memory was used and whether it was stale.
 
+Shipped v2:
+
+- `/api/operator` now returns a memory trail summary with latest readable memories, freshness counts, scope counts, relationship counts, and metadata per memory.
+- the dashboard operator console renders a memory trail panel beside backend and quadchain trust state.
+- stale memory, company/team/personal scope, validation status, owner, confidence, evidence count, and relationship edges are now visible during demos and operator review.
+
+Acceptance v2:
+
+- operators can see stale memory without opening raw artifacts.
+- scoped memory is visible as company/team/personal in the dashboard.
+- relationship edges are surfaced as a product signal, not hidden storage metadata.
+
 ## Gap 3: dry-run publisher workbench
 
 Status: shipped v1.
@@ -401,4 +413,4 @@ Next:
 1. scheduled worker canary after deploy.
 2. richer connector-specific publish payloads.
 3. sponsor proof fixtures and demo script.
-4. normalized context graph edges surfaced in the dashboard and operator console.
+4. memory refresh actions for stale context.

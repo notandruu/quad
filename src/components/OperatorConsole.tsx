@@ -86,6 +86,38 @@ type QuadChainPacketSummary = {
   createdAt: string;
 };
 
+type MemoryTrailSummary = {
+  total: number;
+  shown: number;
+  stale: number;
+  fresh: number;
+  unknownFreshness: number;
+  company: number;
+  team: number;
+  personal: number;
+  relationshipCount: number;
+  latest: Array<{
+    id: string;
+    sourceId: string;
+    sourceType: string;
+    title: string;
+    summary: string;
+    confidence: number;
+    updatedAt: string;
+    evidenceCount: number;
+    metadata: {
+      visibility: "company" | "team" | "personal";
+      ownerUserId: string | null;
+      teamIds: string[];
+      validationStatus: "unverified" | "verified" | "approved";
+      sourceUpdatedAt: string | null;
+      staleAfter: string | null;
+      freshness: "fresh" | "stale" | "unknown";
+      relationships: Array<{ kind: string; sourceId: string; label?: string }>;
+    };
+  }>;
+};
+
 type HostedArtifactPayload = {
   ok: boolean;
   artifact?: {
@@ -179,6 +211,7 @@ type OperatorResponse = {
     evidenceRequired: number;
     latest: QuadChainPacketSummary[];
   };
+  memory?: MemoryTrailSummary | null;
 };
 
 type InstallPlanResponse = {
@@ -431,6 +464,7 @@ export function OperatorConsole({ orgId = "org_brightpath", watchRunId }: { orgI
 
       {data.backendReadiness && <BackendReadinessPanel readiness={data.backendReadiness} />}
       {data.quadChain && <QuadChainTrustTrail quadChain={data.quadChain} />}
+      {data.memory && <MemoryTrailPanel memory={data.memory} />}
 
       <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(260px,0.9fr)]">
         <div className="space-y-2">
@@ -601,6 +635,74 @@ function QuadChainTrustTrail({ quadChain }: { quadChain: NonNullable<OperatorRes
         ) : (
           <div className="rounded border border-dashed border-edge bg-ink/30 p-2 text-[10px] text-neutral-600">
             No quadchain packets yet.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MemoryTrailPanel({ memory }: { memory: MemoryTrailSummary }) {
+  return (
+    <div className="mt-3 rounded border border-pink-300/25 bg-ink/45 p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="text-xs font-medium text-neutral-200">Memory trail</h3>
+          <p className="mt-1 font-mono text-[9px] text-neutral-600">
+            scoped context graph signals from approved memory
+          </p>
+        </div>
+        <span className={memory.stale > 0 ? "rounded-full border border-amber-300/30 bg-amber-950/20 px-2 py-0.5 text-[10px] text-amber-100" : "rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] text-accent"}>
+          {memory.stale > 0 ? `${memory.stale} stale` : "fresh enough"}
+        </span>
+      </div>
+
+      <div className="mt-3 grid grid-cols-4 gap-1.5">
+        <OperatorStat label="memories" value={String(memory.total)} accent={memory.total > 0} />
+        <OperatorStat label="fresh" value={String(memory.fresh)} accent={memory.fresh > 0 && memory.stale === 0} />
+        <OperatorStat label="scoped" value={`${memory.company}/${memory.team}/${memory.personal}`} />
+        <OperatorStat label="edges" value={String(memory.relationshipCount)} accent={memory.relationshipCount > 0} />
+      </div>
+
+      <div className="mt-3 space-y-1.5">
+        {memory.latest.length > 0 ? (
+          memory.latest.slice(0, 4).map((item) => (
+            <div key={item.id} className="rounded border border-edge bg-panel px-2 py-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate text-[10px] text-neutral-300">{item.title}</div>
+                  <div className="mt-0.5 truncate font-mono text-[9px] text-neutral-600">
+                    {item.sourceType} · {item.metadata.visibility} · {item.metadata.validationStatus}
+                  </div>
+                </div>
+                <span className={freshnessClass(item.metadata.freshness)}>
+                  {item.metadata.freshness}
+                </span>
+              </div>
+              <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-neutral-500">{item.summary}</p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                <span className="rounded-full border border-edge bg-ink px-1.5 py-0.5 text-[9px] text-neutral-500">
+                  {item.evidenceCount} evidence
+                </span>
+                <span className="rounded-full border border-edge bg-ink px-1.5 py-0.5 text-[9px] text-neutral-500">
+                  {Math.round(item.confidence * 100)}% confidence
+                </span>
+                {item.metadata.ownerUserId && (
+                  <span className="rounded-full border border-edge bg-ink px-1.5 py-0.5 text-[9px] text-neutral-500">
+                    owner {item.metadata.ownerUserId}
+                  </span>
+                )}
+                {item.metadata.relationships.length > 0 && (
+                  <span className="rounded-full border border-accent/25 bg-accent/10 px-1.5 py-0.5 text-[9px] text-accent">
+                    {item.metadata.relationships.length} related
+                  </span>
+                )}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="rounded border border-dashed border-edge bg-ink/30 p-2 text-[10px] text-neutral-600">
+            No readable memories yet.
           </div>
         )}
       </div>
@@ -1114,6 +1216,12 @@ function componentStatusClass(status: "ready" | "degraded" | "missing") {
   if (status === "ready") return "text-[9px] text-accent";
   if (status === "degraded") return "text-[9px] text-amber-200";
   return "text-[9px] text-red-300";
+}
+
+function freshnessClass(freshness: "fresh" | "stale" | "unknown") {
+  if (freshness === "fresh") return "shrink-0 text-[10px] text-accent";
+  if (freshness === "stale") return "shrink-0 text-[10px] text-amber-100";
+  return "shrink-0 text-[10px] text-neutral-600";
 }
 
 function formatStatus(status: string) {
