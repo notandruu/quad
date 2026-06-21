@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ingestMemory } from "@/lib/brain";
+import { ingestMemoryWithReceipt, proposeMemoryWrite } from "@/lib/brain";
 import { DEMO_ORG_ID } from "@/data/seed";
 import { authorizeRequest, requestAuthError } from "@/lib/security";
 import {
@@ -27,7 +27,8 @@ function coerceSourceType(raw: unknown): SourceType {
 
 /**
  * Ingest a doc, note, meeting transcript, or manual profile into the company
- * brain. Embeds and persists the memory.
+ * brain. By default this stages an approval-backed memory write proposal; pass
+ * mode="write" only for trusted internal callers that should persist directly.
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
@@ -43,6 +44,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(requestAuthError(auth), { status: auth.status });
   }
   const fingerprint = buildRequestFingerprint({
+    mode: body.mode ?? "proposal",
     title: body.title,
     content: body.content,
     sourceId: body.sourceId,
@@ -62,7 +64,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const memory = await ingestMemory({
+    const input = {
       orgId: auth.orgId,
       sourceId: body.sourceId ?? `manual_${Date.now()}`,
       sourceType: coerceSourceType(body.sourceType),
@@ -73,8 +75,14 @@ export async function POST(req: NextRequest) {
       confidence: body.confidence,
       permissions: body.permissions,
       evidence: body.evidence,
-    });
-    const responseBody = { id: memory.id, ok: true };
+    };
+    const responseBody = body.mode === "write"
+      ? await writeMemoryImmediately(input)
+      : await proposeMemoryWrite({
+          ...input,
+          requestedBy: body.requestedBy === "agent" || body.requestedBy === "system" ? body.requestedBy : "dashboard",
+          reason: typeof body.reason === "string" ? body.reason : undefined,
+        });
     await saveIdempotentResult({
       orgId: auth.orgId,
       route: "brain.ingest",
@@ -87,4 +95,14 @@ export async function POST(req: NextRequest) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+async function writeMemoryImmediately(input: Parameters<typeof ingestMemoryWithReceipt>[0]) {
+  const result = await ingestMemoryWithReceipt(input);
+  return {
+    ok: true,
+    mode: "write" as const,
+    id: result.memory.id,
+    packet: result.quadChain,
+  };
 }

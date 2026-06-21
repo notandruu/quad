@@ -1,5 +1,7 @@
 import { createQuadChainPacket, summarizeQuadChainPacket, type QuadChainPacketSummary } from "@/lib/quad-chain";
 import { saveQuadChainPacket } from "@/lib/quad-chain/registry";
+import { ingestMemoryWithReceipt } from "@/lib/brain/ingest";
+import { isMemoryWriteProposalPayload } from "@/lib/brain/proposals";
 import {
   addArtifact,
   createReceipt,
@@ -31,6 +33,11 @@ export type DecideWorkflowApprovalResult = {
   artifact: WorkflowArtifactRecord;
   receipt: ReceiptRecord;
   packet: QuadChainPacketSummary;
+  sideEffect?: {
+    kind: "brain_memory_write";
+    memoryId: string;
+    packet: QuadChainPacketSummary;
+  };
 };
 
 export async function decideWorkflowApproval(
@@ -47,6 +54,10 @@ export async function decideWorkflowApproval(
   if (existing.decision !== "pending") {
     throw new ApprovalDecisionError("approval_already_decided", 409, "Approval has already been decided.");
   }
+  const approvedArtifact = loaded.artifacts.find((artifact) => artifact.id === existing.artifactId);
+  if (!approvedArtifact) {
+    throw new ApprovalDecisionError("artifact_not_found", 404, "Approval artifact not found.");
+  }
 
   const decidedAt = input.now ?? new Date().toISOString();
   const approval = decideApproval({
@@ -56,6 +67,15 @@ export async function decideWorkflowApproval(
     approver: input.approver,
     now: decidedAt,
   });
+  let sideEffect: DecideWorkflowApprovalResult["sideEffect"];
+  if (input.decision === "approved" && isMemoryWriteProposalPayload(approvedArtifact.data)) {
+    const memoryResult = await ingestMemoryWithReceipt(approvedArtifact.data.memory);
+    sideEffect = {
+      kind: "brain_memory_write",
+      memoryId: memoryResult.memory.id,
+      packet: memoryResult.quadChain,
+    };
+  }
   const artifact = addArtifact({
     runId: input.runId,
     kind: "approval_request",
@@ -66,6 +86,7 @@ export async function decideWorkflowApproval(
       approver: approval.approver,
       reason: input.reason ?? approval.reason,
       decidedAt,
+      sideEffect,
     },
     now: decidedAt,
   });
@@ -75,8 +96,10 @@ export async function decideWorkflowApproval(
     approvalId: approval.id,
     status: input.decision === "approved" ? "executed" : "blocked",
     summary:
-      input.decision === "approved"
-        ? "Human approval recorded. The packet is cleared for staged publisher work."
+      sideEffect?.kind === "brain_memory_write"
+        ? `Human approval recorded. Shared company memory was written as ${sideEffect.memoryId}.`
+        : input.decision === "approved"
+          ? "Human approval recorded. The packet is cleared for staged publisher work."
         : "Human rejection recorded. Customer-facing work remains blocked.",
     now: decidedAt,
   });
@@ -118,9 +141,11 @@ export async function decideWorkflowApproval(
       `approval id: ${approval.id}`,
       `run id: ${snapshot.run.id}`,
       `receipt status: ${receipt.status}`,
-      `customer writes: ${approval.decision === "approved" ? "staged work allowed" : "blocked"}`,
+      sideEffect?.kind === "brain_memory_write"
+        ? `brain memory write: ${sideEffect.memoryId}`
+        : `customer writes: ${approval.decision === "approved" ? "staged work allowed" : "blocked"}`,
     ].join("\n"),
-    answerConcepts: ["approval", approval.decision, receipt.status],
+    answerConcepts: ["approval", approval.decision, receipt.status, sideEffect?.kind === "brain_memory_write" ? "memory" : "customer"],
     visibility: "internal",
     createdAt: decidedAt,
   });
@@ -133,6 +158,7 @@ export async function decideWorkflowApproval(
     artifact,
     receipt,
     packet: summarizeQuadChainPacket(packet) ?? savedPacket.summary,
+    sideEffect,
   };
 }
 

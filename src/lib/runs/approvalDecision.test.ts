@@ -47,6 +47,7 @@ describe("approval decisions", () => {
     expect(result.approval.decision).toBe("approved");
     expect(result.receipt.status).toBe("executed");
     expect(result.packet.type).toBe("approval");
+    expect(result.packet.accepted).toBe(true);
     expect(snapshot?.run.status).toBe("completed");
     expect(snapshot?.approvals[0]?.approver).toBe("stephen");
     expect(packets[0]?.type).toBe("approval");

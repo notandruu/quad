@@ -70,7 +70,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [x] tenant key helpers for redis/cache namespaces without leaking raw org formatting
 - [x] data classification on model payloads, telemetry attributes, and security gateway inputs
 - [x] model gateway with provider policy, payload minimization, and redaction hooks
-- [ ] company brain ingestion for docs, notes, urls, and transcripts
+- [x] company brain ingestion for docs, notes, urls, and transcripts
 - [ ] scoped context graph for company, team, and personal memories
 - [ ] durable memory store with source provenance, confidence, permissions, and embeddings
 - [ ] memory freshness/staleness metadata with explicit refresh paths
@@ -88,6 +88,7 @@ avoid pivots into hardware, video, image generation, or chip/physical-ai tracks 
 - [ ] browserbase rendered evidence capture
 - [ ] grounded finding schema with citations and screenshots/selectors where possible
 - [ ] approval workflow before memory writeback or external action
+- [x] approval-backed public memory write proposals with execution on approval
 - [ ] persistent approval ledger with approver, artifact hash, evidence visible, edit/reject state, and receipt id
 - [x] post-ship verification step for browser, publisher, task, and team actions
 - [x] post-audit chat that can cite audit evidence and company memory

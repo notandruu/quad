@@ -93,6 +93,29 @@ Acceptance:
 - follow-up answers can cite both the completed audit evidence and verified company memory.
 - audit report context does not cross org boundaries.
 
+## Gap 2.6: approval-backed memory writeback
+
+Status: shipped v1.
+
+What was missing:
+
+- `/api/ingest` wrote directly into the shared company brain after auth.
+- memory writeback did not create a human approval artifact before durable persistence.
+- approving a memory write did not have a concrete execution side effect.
+
+Shipped v1:
+
+- `POST /api/ingest` now defaults to proposal mode and returns a `memory_write` run with an approval request, blocked receipt, and restricted quadchain approval packet.
+- callers that truly need the old trusted behavior can pass `mode: "write"` and still receive a `brain_memory_write` packet.
+- approving a memory-write proposal through `POST /api/approvals/[approvalId]/decision` now commits the memory to the company brain and returns the memory-write side effect plus packet summary.
+- proposal packets preserve verifier-visible evidence and keep raw memory content inside the protected run artifact path.
+
+Acceptance:
+
+- shared brain memory is not learned before approval when using the public ingest route.
+- approval creates a real `brain_memory_write` receipt, not just a status flip.
+- chat/retrieval can later cite the approved memory's quadchain packet.
+
 ## Gap 3: dry-run publisher workbench
 
 Status: shipped v1.
@@ -325,7 +348,7 @@ Next:
 
 ## Recommended next shipping order
 
-1. post-ship verification.
-2. voice-led proof interview.
+1. scheduled worker canary after deploy.
+2. richer connector-specific publish payloads.
 3. sponsor proof fixtures and demo script.
-4. security retention/deletion controls.
+4. permission-aware brain scopes beyond org-level filtering.

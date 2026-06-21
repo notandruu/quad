@@ -89,6 +89,7 @@ export async function POST(
         artifactHash: result.receipt.artifactHash,
       },
       packet: result.packet,
+      sideEffect: result.sideEffect ?? null,
       task: summarizeAgentTask(result.snapshot),
     };
     await saveIdempotentResult({

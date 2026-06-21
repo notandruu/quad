@@ -5,7 +5,8 @@ export type WorkflowKind =
   | "enterprise_proof"
   | "trust_packet"
   | "agent_bridge"
-  | "capability_install";
+  | "capability_install"
+  | "memory_write";
 
 export type WorkflowRunStatus =
   | "queued"
