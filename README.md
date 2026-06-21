@@ -2,7 +2,7 @@
 
 > An AI employee that audits a company's website against its company brain, streams the work live, and turns every gap into an approved fix.
 
-**[quad-audit.vercel.app](https://quad-audit.vercel.app)** &nbsp;|&nbsp; AI Hackathon, Berkeley 2026.
+**[quad.stephenhung.me](https://quad.stephenhung.me)** &nbsp;|&nbsp; AI Hackathon, Berkeley 2026.
 
 Quad is not a chatbot. It is a company-aware AI employee with memory, browser-grounded work, live execution logs, quality evaluation, production observability, and a path to natural voice conversation.
 
@@ -26,7 +26,7 @@ Quad is not a chatbot. It is a company-aware AI employee with memory, browser-gr
 | Reasoning + synthesis | Anthropic Claude |
 | LLM tracing + evals | Arize Phoenix (OpenTelemetry) |
 | Reliability | Sentry |
-| Voice (future) | Kyutai Moshi |
+| Voice | Deepgram push-to-talk, Kyutai Moshi scaffold |
 
 ## Architecture
 
@@ -60,6 +60,19 @@ npm run dev
 With no env keys set, the app still runs: Redis falls back to in-stream events, the brain falls back to the seeded demo org, and Browserbase falls back to static fetch. Wire the keys in `.env.local` to make each layer real.
 
 To enable the durable brain, point `DATABASE_URL` at Postgres and run `src/lib/brain/schema.sql`.
+
+## Verification
+
+```bash
+npm run typecheck
+npm test
+npm run build
+npm run e2e
+```
+
+`npm run e2e` runs the Playwright browser suite against a production Next server. In CI, GitHub Actions builds once, starts `next start`, and checks the audit workspace, debug drawer, quadchain reveal, quadchain API contract, and SSE audit stream. The older API-only smoke is still available as `npm run e2e:api`.
+
+Railway is linked locally as project/service `quad-fetch-agent` in the `production` environment. Vercel serves the Next.js app at `quad.stephenhung.me`; Railway is ready for the long-running worker/runtime side when that path is split from the web app.
 
 ## What is stubbed
 
