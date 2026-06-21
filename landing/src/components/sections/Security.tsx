@@ -10,8 +10,8 @@ gsap.registerPlugin(ScrollTrigger);
 
 const CARDS = [
   { n: "001", title: "Data minimization", body: "Quad sends the smallest verified evidence packet, never your whole company brain.", shape: "octa" as const },
-  { n: "002", title: "Tenant isolation", body: "Every customer's context is isolated, encrypted, and access-scoped by default.", shape: "hex" as const },
-  { n: "003", title: "Proof on every call", body: "A receipt shows exactly what context each model call used, and why.", shape: "sphere" as const },
+  { n: "002", title: "Tenant isolation", body: "Every customer's context is isolated, encrypted, and access-scoped by default.", shape: "sphere" as const },
+  { n: "003", title: "Proof on every call", body: "A receipt shows exactly what context each model call used, and why.", shape: "hex" as const },
   { n: "004", title: "You own the data", body: "Permission-aware retrieval, redaction, and tenant-scoped retention and deletion.", shape: "pyramid" as const },
 ];
 

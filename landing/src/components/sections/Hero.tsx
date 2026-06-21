@@ -10,11 +10,11 @@ import { SPONSORS, SponsorMark } from "@/components/SponsorLogos";
 const useIso = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 const TITLE: { w: string; dim?: boolean; serif?: boolean; br?: boolean }[] = [
-  { w: "Knowledge", serif: true },
-  { w: "infrastructure", dim: true },
-  { w: "for", dim: true },
-  { w: "every", dim: false },
-  { w: "agent.", dim: false },
+  { w: "Quad.", serif: true, br: true },
+  { w: "Leading", dim: true },
+  { w: "agentic", dim: true, br: true },
+  { w: "trust", dim: false },
+  { w: "work.", dim: false },
 ];
 
 const LAYERS = [
@@ -238,13 +238,14 @@ export default function Hero() {
               replayable end to end.
             </p>
 
-            <button
+            <a
               data-h="cta"
+              href="/quad-dashboard.html"
               className="mt-9 flex w-full max-w-[514px] items-center justify-center bg-cream lg:ml-9 py-4 text-[12px] font-medium tracking-[0.01em] text-ink transition-colors hover:bg-paper-2"
               style={{ clipPath: CHAMFER }}
             >
               <HoverText text="Open Dashboard" />
-            </button>
+            </a>
 
             {accordion}
 

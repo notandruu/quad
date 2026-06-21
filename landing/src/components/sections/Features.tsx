@@ -94,7 +94,7 @@ export default function Features() {
       id="features"
       label="Platform"
       desc="The same runtime underneath every workflow: verified memory, tiered approvals, and proof-carrying handoffs."
-      title="The runtime underneath every AI employee"
+      title="The runtime underneath every AI employee."
     >
       <Reveal
         stagger

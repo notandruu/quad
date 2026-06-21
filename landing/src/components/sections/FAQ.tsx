@@ -49,7 +49,7 @@ export default function FAQ() {
       <div className="flex flex-col justify-between">
         <Reveal>
           <h2 className="max-w-[12ch] text-[32px] font-normal leading-[1.05] tracking-[-0.015em] md:text-[40px]">
-            Frequently asked questions
+            Frequently asked questions.
           </h2>
         </Reveal>
         <div className="mt-10 lg:mt-0">

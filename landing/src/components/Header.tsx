@@ -95,9 +95,9 @@ export default function Header() {
             <span className="h-px w-6 bg-bone" />
           </button>
 
-          {/* GET STARTED orange block — flush right */}
+          {/* dashboard CTA — flush right */}
           <a
-            href="#"
+            href="/quad-dashboard.html"
             className="relative -mr-5 hidden h-[64px] items-center justify-center bg-flame px-10 text-[13px] font-semibold tracking-[0.01em] text-ink transition-colors hover:bg-flame-2 md:-mr-10 md:flex"
           >
             <HoverText text="Open Dashboard" />
@@ -113,7 +113,7 @@ export default function Header() {
             </a>
           ))}
           <a
-            href="#"
+            href="/quad-dashboard.html"
             className="mt-2 rounded-full bg-flame px-5 py-2.5 text-center text-[12px] font-medium tracking-[0.01em] text-ink"
           >
             Open Dashboard

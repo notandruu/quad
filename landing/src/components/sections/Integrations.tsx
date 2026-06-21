@@ -39,7 +39,7 @@ export default function Integrations() {
       id="integrations"
       label="Integrations"
       desc="Quad reads from and acts in the systems your company already runs on. Retrieve evidence, trigger workflows, and ship updates in place."
-      title="Works with your stack"
+      title="Works with your stack."
     >
       <div className="mt-9 overflow-hidden rounded-xl border border-ink/12">
         <Reveal stagger className="grid grid-cols-2 gap-px bg-ink/[0.07] sm:grid-cols-4">

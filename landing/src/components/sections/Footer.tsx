@@ -91,12 +91,13 @@ export default function Footer() {
                 Connect your stack, set the guardrails, and let Quad turn company
                 knowledge into verified, customer-ready work.
               </p>
-              <button
-                className="mt-9 flex items-center justify-center bg-cream px-12 py-4 text-[12px] font-medium tracking-[0.01em] text-ink transition-colors hover:bg-paper-2"
+              <a
+                href="/quad-dashboard.html"
+                className="mt-9 inline-flex items-center justify-center bg-cream px-12 py-4 text-[12px] font-medium tracking-[0.01em] text-ink transition-colors hover:bg-paper-2"
                 style={{ clipPath: CHAMFER }}
               >
                 <HoverText text="Open Dashboard" />
-              </button>
+              </a>
             </div>
 
             <FooterCol title="Explore" links={EXPLORE} />
@@ -123,7 +124,15 @@ export default function Footer() {
             <div className="flex gap-12">
               <div>
                 <div className="text-[20px] font-semibold uppercase tracking-wide">Active</div>
-                <span className="text-[13px] text-ink/70">Employee Status</span>
+                <span className="text-[13px] text-ink/70">Employee status</span>
+              </div>
+              <div>
+                <div className="tnum text-[20px] font-semibold">98%</div>
+                <span className="text-[13px] text-ink/70">Grounded answers</span>
+              </div>
+              <div>
+                <div className="tnum text-[20px] font-semibold">150+</div>
+                <span className="text-[13px] text-ink/70">Connectors</span>
               </div>
             </div>
             <div className="md:col-span-1 md:col-start-3">
