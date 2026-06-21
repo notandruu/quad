@@ -106,4 +106,98 @@ describe("request auth", () => {
 
     expect(result).toMatchObject({ ok: true, mode: "secret" });
   });
+
+  it("accepts scoped service tokens for allowed orgs and scopes", () => {
+    const result = authorizeRequest({
+      headers: headers({ authorization: "Bearer worker_token" }),
+      requestedOrgId: "org_a",
+      requiredScopes: ["worker"],
+      env: {
+        QUAD_SERVICE_TOKENS: JSON.stringify([
+          {
+            token: "worker_token",
+            orgs: ["org_a"],
+            scopes: ["worker", "runs:read"],
+          },
+        ]),
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      orgId: "org_a",
+      mode: "service_token",
+      scopes: ["worker", "runs:read"],
+    });
+  });
+
+  it("rejects scoped service tokens outside their org allowlist", () => {
+    const result = authorizeRequest({
+      headers: headers({ authorization: "Bearer worker_token" }),
+      requestedOrgId: "org_b",
+      requiredScopes: ["worker"],
+      env: {
+        QUAD_SERVICE_TOKENS: JSON.stringify([
+          {
+            token: "worker_token",
+            orgs: ["org_a"],
+            scopes: ["worker"],
+          },
+        ]),
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      status: 403,
+      code: "org_not_allowed",
+    });
+  });
+
+  it("rejects scoped service tokens missing the required route scope", () => {
+    const result = authorizeRequest({
+      headers: headers({ authorization: "Bearer read_token" }),
+      requestedOrgId: "org_a",
+      requiredScopes: ["worker"],
+      env: {
+        QUAD_SERVICE_TOKENS: JSON.stringify([
+          {
+            token: "read_token",
+            orgs: ["org_a"],
+            scopes: ["runs:read"],
+          },
+        ]),
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      status: 403,
+      code: "scope_not_allowed",
+    });
+  });
+
+  it("keeps the global api secret as an all-access admin secret", () => {
+    const result = authorizeRequest({
+      headers: headers({ authorization: "Bearer global_secret" }),
+      requestedOrgId: "org_a",
+      requiredScopes: ["worker"],
+      env: {
+        QUAD_API_SECRET: "global_secret",
+        QUAD_SERVICE_TOKENS: JSON.stringify([
+          {
+            token: "read_token",
+            orgs: ["org_a"],
+            scopes: ["runs:read"],
+          },
+        ]),
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      mode: "secret",
+      scopes: ["*"],
+    });
+  });
 });

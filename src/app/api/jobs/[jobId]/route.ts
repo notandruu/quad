@@ -16,6 +16,7 @@ export async function GET(
   const auth = authorizeRequest({
     headers: request.headers,
     requestedOrgId: job.orgId,
+    requiredScopes: ["jobs:read"],
   });
   if (!auth.ok) {
     return NextResponse.json(requestAuthError(auth), { status: auth.status });

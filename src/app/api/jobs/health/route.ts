@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
   const auth = authorizeRequest({
     headers: request.headers,
     requiredSecretEnv: "QUAD_WORKER_SECRET",
+    requiredScopes: ["worker"],
     allowDemoFallback: true,
   });
   if (!auth.ok) {

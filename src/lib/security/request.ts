@@ -2,7 +2,8 @@ import { DEMO_ORG_ID } from "@/data/seed";
 
 export type RequestAuthContext = {
   orgId: string;
-  mode: "secret" | "demo_fallback";
+  mode: "secret" | "service_token" | "demo_fallback";
+  scopes: string[];
 };
 
 export type RequestAuthResult =
@@ -10,7 +11,7 @@ export type RequestAuthResult =
   | {
       ok: false;
       status: 401 | 403;
-      code: "missing_secret" | "invalid_secret" | "org_not_allowed";
+      code: "missing_secret" | "invalid_secret" | "org_not_allowed" | "scope_not_allowed";
       error: string;
     };
 
@@ -21,7 +22,17 @@ export type AuthorizeRequestInput = {
   allowDemoFallback?: boolean;
   requiredSecretEnv?: string;
   defaultOrgId?: string;
+  requiredScopes?: string[];
 };
+
+export type QuadServiceToken = {
+  token: string;
+  orgs: string[];
+  scopes: string[];
+  label?: string;
+};
+
+const ADMIN_SCOPE = "*";
 
 export function authorizeRequest(input: AuthorizeRequestInput): RequestAuthResult {
   const env = input.env ?? process.env;
@@ -33,9 +44,11 @@ export function authorizeRequest(input: AuthorizeRequestInput): RequestAuthResul
   );
   const allowDemoFallback = input.allowDemoFallback ?? true;
   const configuredSecrets = getConfiguredSecrets(env, input.requiredSecretEnv);
+  const serviceTokens = parseServiceTokens(env.QUAD_SERVICE_TOKENS);
   const allowedOrgs = parseAllowedOrgs(env.QUAD_ALLOWED_ORGS);
+  const requiredScopes = input.requiredScopes ?? [];
 
-  if (configuredSecrets.length > 0) {
+  if (configuredSecrets.length > 0 || serviceTokens.length > 0) {
     const providedSecret = getProvidedSecret(input.headers);
     if (!providedSecret) {
       return {
@@ -45,7 +58,16 @@ export function authorizeRequest(input: AuthorizeRequestInput): RequestAuthResul
         error: "Missing API secret.",
       };
     }
-    if (!configuredSecrets.includes(providedSecret)) {
+
+    if (configuredSecrets.includes(providedSecret)) {
+      if (allowedOrgs.size > 0 && !allowedOrgs.has(orgId)) {
+        return orgForbidden(orgId);
+      }
+      return { ok: true, orgId, mode: "secret", scopes: [ADMIN_SCOPE] };
+    }
+
+    const serviceToken = serviceTokens.find((candidate) => candidate.token === providedSecret);
+    if (!serviceToken) {
       return {
         ok: false,
         status: 401,
@@ -53,10 +75,22 @@ export function authorizeRequest(input: AuthorizeRequestInput): RequestAuthResul
         error: "Invalid API secret.",
       };
     }
+
     if (allowedOrgs.size > 0 && !allowedOrgs.has(orgId)) {
       return orgForbidden(orgId);
     }
-    return { ok: true, orgId, mode: "secret" };
+    if (serviceToken.orgs.length > 0 && !serviceToken.orgs.includes(orgId)) {
+      return orgForbidden(orgId);
+    }
+    if (!hasRequiredScopes(serviceToken.scopes, requiredScopes)) {
+      return {
+        ok: false,
+        status: 403,
+        code: "scope_not_allowed",
+        error: `Token is missing required scope: ${requiredScopes.join(", ")}.`,
+      };
+    }
+    return { ok: true, orgId, mode: "service_token", scopes: serviceToken.scopes };
   }
 
   if (!allowDemoFallback) {
@@ -70,7 +104,7 @@ export function authorizeRequest(input: AuthorizeRequestInput): RequestAuthResul
 
   if (orgId !== defaultOrgId) return orgForbidden(orgId);
   if (allowedOrgs.size > 0 && !allowedOrgs.has(orgId)) return orgForbidden(orgId);
-  return { ok: true, orgId, mode: "demo_fallback" };
+  return { ok: true, orgId, mode: "demo_fallback", scopes: [ADMIN_SCOPE] };
 }
 
 export function requestAuthError(result: Exclude<RequestAuthResult, { ok: true }>) {
@@ -107,6 +141,58 @@ function parseAllowedOrgs(raw: string | undefined): Set<string> {
       .filter(Boolean)
       .map((item) => normalizeOrgId(item))
   );
+}
+
+function parseServiceTokens(raw: string | undefined): QuadServiceToken[] {
+  if (!raw?.trim()) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    const values = Array.isArray(parsed) ? parsed : [parsed];
+    return values
+      .map((item) => normalizeServiceToken(item))
+      .filter((item): item is QuadServiceToken => Boolean(item));
+  } catch {
+    return raw
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((token) => ({
+        token,
+        orgs: [],
+        scopes: [ADMIN_SCOPE],
+      }));
+  }
+}
+
+function normalizeServiceToken(value: unknown): QuadServiceToken | null {
+  if (!value || typeof value !== "object") return null;
+  const item = value as Record<string, unknown>;
+  const token = typeof item.token === "string" ? item.token.trim() : "";
+  if (!token) return null;
+
+  return {
+    token,
+    label: typeof item.label === "string" ? item.label : undefined,
+    orgs: normalizeList(item.orgs).map(normalizeOrgId),
+    scopes: normalizeList(item.scopes, [ADMIN_SCOPE]),
+  };
+}
+
+function normalizeList(value: unknown, fallback: string[] = []): string[] {
+  if (Array.isArray(value)) {
+    return [...new Set(value.map((item) => String(item).trim()).filter(Boolean))];
+  }
+  if (typeof value === "string") {
+    return [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
+  }
+  return fallback;
+}
+
+function hasRequiredScopes(tokenScopes: string[], requiredScopes: string[]): boolean {
+  if (requiredScopes.length === 0) return true;
+  if (tokenScopes.includes(ADMIN_SCOPE)) return true;
+  return requiredScopes.every((scope) => tokenScopes.includes(scope));
 }
 
 function normalizeOrgId(value: string): string {

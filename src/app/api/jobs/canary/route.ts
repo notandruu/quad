@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
     headers: request.headers,
     requestedOrgId: url.searchParams.get("orgId") ?? DEMO_ORG_ID,
     requiredSecretEnv: "QUAD_WORKER_SECRET",
+    requiredScopes: ["worker"],
     allowDemoFallback: true,
   });
   if (!auth.ok) {

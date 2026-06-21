@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
   const auth = authorizeRequest({
     headers: request.headers,
     requestedOrgId: url.searchParams.get("orgId") ?? DEMO_ORG_ID,
+    requiredScopes: ["jobs:read"],
   });
   if (!auth.ok) {
     return NextResponse.json(requestAuthError(auth), { status: auth.status });
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
   const auth = authorizeRequest({
     headers: request.headers,
     requestedOrgId: body.orgId ?? DEMO_ORG_ID,
+    requiredScopes: ["jobs:write"],
   });
   if (!auth.ok) {
     return NextResponse.json(requestAuthError(auth), { status: auth.status });

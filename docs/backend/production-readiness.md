@@ -45,6 +45,35 @@ Required environment:
 
 The smoke script prints whether auth is configured, but never prints secrets.
 
+## Service tokens
+
+`QUAD_API_SECRET` remains the all-access admin secret for demos and operator use. Production services can use scoped tokens through `QUAD_SERVICE_TOKENS`:
+
+```json
+[
+  {
+    "label": "railway-worker",
+    "token": "replace-with-random-token",
+    "orgs": ["org_brightpath"],
+    "scopes": ["worker", "jobs:read", "jobs:write"]
+  },
+  {
+    "label": "readonly-ops",
+    "token": "replace-with-random-token",
+    "orgs": ["org_brightpath"],
+    "scopes": ["jobs:read"]
+  }
+]
+```
+
+Current route scopes:
+
+- `worker`: process jobs, run worker canaries, and read worker health.
+- `jobs:read`: list or read queued jobs.
+- `jobs:write`: enqueue jobs.
+
+If a request uses `QUAD_API_SECRET`, it is treated as admin and bypasses per-route scopes. If it uses a service token, both org and scope must match.
+
 ## Current blockers to a fully green backend
 
 1. Apply the platform schema in Supabase.
@@ -94,7 +123,7 @@ The smoke script prints whether auth is configured, but never prints secrets.
 
 5. Upgrade auth before enterprise use.
 
-   `QUAD_API_SECRET` is enough for hackathon-hosted protected routes. Enterprise use needs real org membership, rbac, audit logs for access, and scoped service tokens.
+   `QUAD_API_SECRET` plus `QUAD_SERVICE_TOKENS` is enough for hackathon-hosted protected routes and service-to-service separation. Enterprise use still needs real org membership, rbac, audit logs for access, token rotation, and scoped user sessions.
 
 ## Backend ownership map
 
