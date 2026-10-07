@@ -43,3 +43,6 @@ __pycache__/
 # python venv
 agent/.venv/
 .venv/
+CLAUDE.md
+AGENTS.md
+.claude/
